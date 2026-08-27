@@ -1,4 +1,4 @@
-# KIN ARI DEE Mobile aplication
+# KIN RAI DEE Mobile application
 
 
 ## โครงสร้างไฟล์

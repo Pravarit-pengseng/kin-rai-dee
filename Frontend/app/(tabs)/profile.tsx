@@ -205,7 +205,7 @@ export default function ProfileScreen() {
     post: Post
   ) => {
     router.push({
-      pathname: "/Post",
+      pathname: "/MyPost",
       params: {
         postId: post.id,
         ownerId:

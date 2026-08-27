@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   label: {
     marginTop: 3,
     fontSize: 11,
-    color: "#6F6865",
+    color: "#57423E",
     fontWeight: "500",
   },
 });

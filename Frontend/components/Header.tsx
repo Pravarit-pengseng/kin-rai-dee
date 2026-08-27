@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { StatusBar, StatusBarStyle } from 'expo-status-bar';
 
 export type HeaderLeftIcon = 'back' | 'close' | 'logout' | 'none';
 export type HeaderRightIcon = 'search' | 'none';
@@ -15,6 +16,8 @@ interface HeaderProps {
   rightIcon?: HeaderRightIcon;
   onRightPress?: () => void;
   onSearchPress?: () => void; // Alias for onRightPress
+  statusBarStyle?: StatusBarStyle;
+  showBorder?: boolean;
 }
 
 export function Header({
@@ -27,6 +30,8 @@ export function Header({
   rightIcon = 'search',
   onRightPress,
   onSearchPress,
+  statusBarStyle = 'dark',
+  showBorder = true,
 }: HeaderProps) {
   const isThai = /[\u0E00-\u0E7F]/.test(title);
   const fontFamily = isThai ? 'NotoSansThai_700Bold' : 'PlusJakartaSans_700Bold';
@@ -61,7 +66,8 @@ export function Header({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor }]}>
+    <View style={[styles.container, { backgroundColor }, showBorder && styles.borderBottom]}>
+      <StatusBar style={statusBarStyle} />
       {/* Left Side Icon (back / close / logout) */}
       <View style={styles.leftSide}>{renderLeftIcon()}</View>
 
@@ -83,6 +89,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  borderBottom: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFE7E2', // Subtle light brown/beige divider line from mockup
   },
   leftSide: {
     flex: 1,

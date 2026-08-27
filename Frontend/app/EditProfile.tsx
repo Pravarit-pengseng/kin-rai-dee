@@ -11,8 +11,8 @@ import {
   router,
   useLocalSearchParams,
 } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import { Camera } from "lucide-react-native";
-
 import { Header } from "@/components/Header";
 import ProfileForm from "@/components/ProfileForm";
 import LiquidMenu from "@/components/LiquidMenu";
@@ -32,6 +32,33 @@ export default function EditProfile() {
       params.bio ??
       "กินเก่ง ทำอาหารกินเองบ่อย 🔍✨",
   });
+
+  const [profileImage, setProfileImage] = useState(
+    require("../assets/images/ProfilePicture.png")
+  );
+
+  const handlePickImage = async () => {
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permissionResult.granted) {
+      return;
+    }
+
+    const result =
+      await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+    if (!result.canceled) {
+      setProfileImage({
+        uri: result.assets[0].uri,
+      });
+    }
+  };
 
   const handleSave = () => {
     router.replace({
@@ -67,15 +94,19 @@ export default function EditProfile() {
           <View style={styles.avatarContainer}>
             <View style={styles.avatarWrapper}>
               <Image
-                source={require(
-                  "../assets/images/ProfilePicture.png"
-                )}
+                source={profileImage}
                 style={styles.avatar}
                 resizeMode="cover"
               />
 
+              {/* Upload Image Button */}
               <Pressable
-                style={styles.cameraButton}
+                style={({ pressed }) => [
+                  styles.cameraButton,
+                  pressed &&
+                    styles.cameraButtonPressed,
+                ]}
+                onPress={handlePickImage}
               >
                 <Camera
                   size={17}
@@ -163,6 +194,11 @@ const styles = StyleSheet.create({
     borderColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  cameraButtonPressed: {
+    transform: [{ scale: 0.92 }],
+    opacity: 0.8,
   },
 
   saveButton: {

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -48,9 +48,11 @@ const menuItems: MenuItem[] = [
 ];
 
 export default function LiquidMenu({
-  active = "profile",
+  active: initialActive = "profile",
   onChange,
 }: LiquidMenuProps) {
+  const [active, setActive] = useState(initialActive);
+
   return (
     <View style={styles.wrapper}>
       <BlurView
@@ -66,7 +68,10 @@ export default function LiquidMenu({
             return (
               <Pressable
                 key={item.id}
-                onPress={() => onChange?.(item.id)}
+                onPress={() => {
+                  setActive(item.id);
+                  onChange?.(item.id);
+                }}
                 style={[
                   styles.menuItem,
                   isActive && styles.activeItem,
@@ -74,11 +79,16 @@ export default function LiquidMenu({
               >
                 <Icon
                   size={22}
-                  color="#6F6865"
-                  strokeWidth={2}
+                  color="#57423E"
+                  strokeWidth={isActive ? 2.5 : 2}
                 />
 
-                <Text style={styles.label}>
+                <Text
+                  style={[
+                    styles.label,
+                    isActive && styles.activeLabel,
+                  ]}
+                >
                   {item.label}
                 </Text>
               </Pressable>
@@ -154,5 +164,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#57423E",
     fontWeight: "500",
+  },
+
+  activeLabel: {
+    fontWeight: "700",
   },
 });

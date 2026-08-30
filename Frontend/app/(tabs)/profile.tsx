@@ -1,14 +1,16 @@
-import React, { useState } from "react";
-import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   View,
   ScrollView,
   Pressable,
   StyleSheet,
 } from "react-native";
-import PostGrid, {
-  Post,
-} from "@/components/PostGrid";
+import {
+  router,
+  useLocalSearchParams,
+} from "expo-router";
+
+import PostGrid, { Post } from "@/components/PostGrid";
 import LiquidMenu from "@/components/LiquidMenu";
 import PopupPost from "@/components/PopupPost";
 import DeletePostPopup from "@/components/DeletePopup";
@@ -17,156 +19,123 @@ import { ThemedText } from "@/components/themed-text";
 
 const CURRENT_USER_ID = "me";
 
-const allPosts: Post[] = [
-  {
-    id: "1",
+const allPosts: Post[] = Array.from(
+  { length: 9 },
+  (_, index) => ({
+    id: String(index + 1),
     image: require("../../assets/images/StirFriedHolyBasil.png"),
     userId: CURRENT_USER_ID,
-  },
-  {
-    id: "2",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "3",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "4",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "5",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "6",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "7",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "8",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "9",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-];
+  }),
+);
 
 export default function ProfileScreen() {
-  /*
-   * Get updated profile data from EditProfile.
-   */
   const params = useLocalSearchParams<{
     name?: string;
     username?: string;
     bio?: string;
+    post?: string;
+    mode?: string;
   }>();
 
-  const [posts, setPosts] =
-    useState<Post[]>(allPosts);
-
+  const [posts, setPosts] = useState<Post[]>(allPosts);
   const [selectedPost, setSelectedPost] =
     useState<Post | null>(null);
-
-  const [popupVisible, setPopupVisible] =
-    useState(false);
-
+  const [popupVisible, setPopupVisible] = useState(false);
   const [deletePopupVisible, setDeletePopupVisible] =
     useState(false);
-
   const [deletePostId, setDeletePostId] =
     useState<string | null>(null);
-
   const [bookmarkedIds, setBookmarkedIds] =
     useState<string[]>([]);
-
   const [activeTab, setActiveTab] =
     useState<"posts" | "saved">("posts");
 
-  const handleMenuChange = (id: string) => {
-    // Bottom menu navigation is handled by LiquidMenu
+  useEffect(() => {
+    if (!params.post) return;
+
+    try {
+      const post = JSON.parse(
+        Array.isArray(params.post)
+          ? params.post[0]
+          : params.post,
+      ) as Post;
+
+      if (!post.id || !post.image) return;
+
+      const mode = Array.isArray(params.mode)
+        ? params.mode[0]
+        : params.mode;
+
+      setPosts((prev) => {
+        if (mode === "edit") {
+          return prev.some((item) => item.id === post.id)
+            ? prev.map((item) =>
+                item.id === post.id ? post : item,
+              )
+            : prev;
+        }
+
+        return prev.some((item) => item.id === post.id)
+          ? prev
+          : [post, ...prev];
+      });
+    } catch {
+      // Ignore invalid post parameter
+    }
+  }, [params.post, params.mode]);
+
+  const handleLongPress = (post: Post) => {
+    setSelectedPost(post);
+    setPopupVisible(true);
   };
 
-  /*
-   * Toggle bookmark.
-   */
-  const handleToggleBookmark = (
-    postId: string
-  ) => {
+  const handleToggleBookmark = (postId: string) => {
     setBookmarkedIds((prev) =>
       prev.includes(postId)
-        ? prev.filter(
-            (id) => id !== postId
-          )
-        : [...prev, postId]
+        ? prev.filter((id) => id !== postId)
+        : [...prev, postId],
     );
   };
 
-  /*
-   * Open delete confirmation.
-   */
-  const handleRequestDelete = (
-    postId: string
-  ) => {
+  const handleRequestDelete = (postId: string) => {
     setDeletePostId(postId);
-    setPopupVisible(false);
     setSelectedPost(null);
+    setPopupVisible(false);
     setDeletePopupVisible(true);
   };
 
-  /*
-   * Cancel delete.
-   */
-  const handleCancelDelete = () => {
-    setDeletePopupVisible(false);
-    setDeletePostId(null);
+  const handleEditPost = (post: Post) => {
+    setSelectedPost(null);
+    setPopupVisible(false);
+
+    router.push({
+      pathname: "/EditPost",
+      params: {
+        post: JSON.stringify(post),
+      },
+    });
   };
 
-  /*
-   * Confirm delete.
-   */
   const handleConfirmDelete = () => {
-    if (!deletePostId) {
-      return;
-    }
+    if (!deletePostId) return;
 
     setPosts((prev) =>
-      prev.filter(
-        (post) =>
-          post.id !== deletePostId
-      )
+      prev.filter((post) => post.id !== deletePostId),
     );
 
     setBookmarkedIds((prev) =>
-      prev.filter(
-        (id) =>
-          id !== deletePostId
-      )
+      prev.filter((id) => id !== deletePostId),
     );
 
-    setDeletePopupVisible(false);
     setDeletePostId(null);
+    setDeletePopupVisible(false);
   };
 
-  /*
-   * Open EditProfile.
-   *
-   * Pass the current profile data so
-   * EditProfile can display the latest values.
-   */
+  const handleCancelDelete = () => {
+    setDeletePostId(null);
+    setDeletePopupVisible(false);
+  };
+
   const handleEditProfile = () => {
     router.push({
       pathname: "/EditProfile",
@@ -178,101 +147,62 @@ export default function ProfileScreen() {
     });
   };
 
-  /*
-   * Create a new post.
-   */
   const handleCreatePost = () => {
-    const newPost: Post = {
-      id: Date.now().toString(),
-      image: require(
-        "../../assets/images/StirFriedHolyBasil.png"
-      ),
-      userId: CURRENT_USER_ID,
-    };
-
-    setPosts((prev) => [
-      newPost,
-      ...prev,
-    ]);
-
-    setActiveTab("posts");
+    router.push("/AddPost");
   };
 
-  /*
-   * Open Post screen.
-   */
-  const handleOpenPost = (
-    post: Post
-  ) => {
+  const handleOpenPost = (post: Post) => {
     router.push({
       pathname: "/MyPost",
       params: {
         postId: post.id,
-        ownerId:
-          post.userId ??
-          CURRENT_USER_ID,
+        ownerId: post.userId ?? CURRENT_USER_ID,
+        post: JSON.stringify(post),
       },
     });
   };
+
+  const savedPosts = posts.filter((post) =>
+    bookmarkedIds.includes(post.id),
+  );
+
+  const displayPosts =
+    activeTab === "posts" ? posts : savedPosts;
 
   return (
     <View style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={
-          styles.scrollContent
-        }
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* Profile Header */}
         <ProfileHeader
           name={params.name}
           username={params.username}
           bio={params.bio}
-          onEditProfile={
-            handleEditProfile
-          }
-          onCreatePost={
-            handleCreatePost
-          }
+          onEditProfile={handleEditProfile}
+          onCreatePost={handleCreatePost}
         />
 
-        {/* Tabs */}
-        <View
-          style={styles.tabsContainer}
-        >
-          <Pressable
-            style={styles.tab}
-            onPress={() =>
-              setActiveTab("posts")
-            }
-          >
-            <ThemedText
-              style={[
-                styles.tabText,
-                activeTab === "posts" &&
-                  styles.activeTabText,
-              ]}
+        <View style={styles.tabsContainer}>
+          {(["posts", "saved"] as const).map((tab) => (
+            <Pressable
+              key={tab}
+              style={styles.tab}
+              onPress={() => setActiveTab(tab)}
             >
-              โพสต์ของฉัน
-            </ThemedText>
-          </Pressable>
-
-          <Pressable
-            style={styles.tab}
-            onPress={() =>
-              setActiveTab("saved")
-            }
-          >
-            <ThemedText
-              style={[
-                styles.tabText,
-                activeTab === "saved" &&
-                  styles.activeTabText,
-              ]}
-            >
-              บันทึกไว้
-            </ThemedText>
-          </Pressable>
+              <ThemedText
+                style={[
+                  styles.tabText,
+                  activeTab === tab &&
+                    styles.activeTabText,
+                ]}
+              >
+                {tab === "posts"
+                  ? "โพสต์ของฉัน"
+                  : "บันทึกไว้"}
+              </ThemedText>
+            </Pressable>
+          ))}
 
           <View
             style={[
@@ -284,73 +214,23 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {/* My Posts */}
-        {activeTab === "posts" ? (
-          <>
-            {posts.length > 0 ? (
-              <PostGrid
-                posts={posts}
-                onPressPost={
-                  handleOpenPost
-                }
-                onLongPressPost={(post) => {
-                  setSelectedPost(post);
-                  setPopupVisible(true);
-                }}
-              />
-            ) : (
-              <View
-                style={styles.empty}
-              >
-                <ThemedText
-                  style={
-                    styles.emptyText
-                  }
-                >
-                  ยังไม่มีโพสต์
-                </ThemedText>
-              </View>
-            )}
-          </>
+        {displayPosts.length > 0 ? (
+          <PostGrid
+            posts={displayPosts}
+            onPressPost={handleOpenPost}
+            onLongPressPost={handleLongPress}
+          />
         ) : (
-          /* Saved Posts */
-          <View
-            style={styles.savedContainer}
-          >
-            {bookmarkedIds.length > 0 ? (
-              <PostGrid
-                posts={posts.filter(
-                  (post) =>
-                    bookmarkedIds.includes(
-                      post.id
-                    )
-                )}
-                onPressPost={
-                  handleOpenPost
-                }
-                onLongPressPost={(post) => {
-                  setSelectedPost(post);
-                  setPopupVisible(true);
-                }}
-              />
-            ) : (
-              <View
-                style={styles.empty}
-              >
-                <ThemedText
-                  style={
-                    styles.emptyText
-                  }
-                >
-                  ยังไม่มีโพสต์ที่บันทึกไว้
-                </ThemedText>
-              </View>
-            )}
+          <View style={styles.empty}>
+            <ThemedText style={styles.emptyText}>
+              {activeTab === "posts"
+                ? "ยังไม่มีโพสต์"
+                : "ยังไม่มีโพสต์ที่บันทึกไว้"}
+            </ThemedText>
           </View>
         )}
       </ScrollView>
 
-      {/* Post Popup */}
       <PopupPost
         visible={popupVisible}
         post={selectedPost}
@@ -359,35 +239,27 @@ export default function ProfileScreen() {
           setSelectedPost(null);
         }}
         isOwnPost={
-          selectedPost?.userId ===
-          CURRENT_USER_ID
+          selectedPost?.userId === CURRENT_USER_ID
         }
         isBookmarked={
           selectedPost
-            ? bookmarkedIds.includes(
-                selectedPost.id
-              )
+            ? bookmarkedIds.includes(selectedPost.id)
             : false
         }
-        onBookmark={
-          handleToggleBookmark
-        }
-        onRequestDelete={
-          handleRequestDelete
-        }
+        onBookmark={handleToggleBookmark}
+        onEdit={handleEditPost}
+        onRequestDelete={handleRequestDelete}
       />
 
-      {/* Delete Popup */}
       <DeletePostPopup
-        visible={
-          deletePopupVisible
-        }
-        onCancel={
-          handleCancelDelete
-        }
-        onConfirm={
-          handleConfirmDelete
-        }
+        visible={deletePopupVisible}
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+      />
+
+      <LiquidMenu
+        active="profile"
+        onChange={() => {}}
       />
     </View>
   );
@@ -444,10 +316,6 @@ const styles = StyleSheet.create({
 
   tabIndicatorRight: {
     left: "50%",
-  },
-
-  savedContainer: {
-    flex: 1,
   },
 
   empty: {

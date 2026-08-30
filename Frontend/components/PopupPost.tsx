@@ -17,19 +17,21 @@ import {
 import PostDropdown from "./PostDropdown";
 import { ThemedText } from "@/components/themed-text";
 
+export type PopupPostData = {
+  id: string;
+  image: ImageSourcePropType;
+  title?: string;
+  description?: string;
+  tag?: string;
+  location?: string;
+  timeAgo?: string;
+  userId?: string;
+};
+
 export type PopupPostProps = {
   visible: boolean;
 
-  post: {
-    id: string;
-    image: ImageSourcePropType;
-    title?: string;
-    description?: string;
-    tag?: string;
-    location?: string;
-    timeAgo?: string;
-    userId?: string;
-  } | null;
+  post: PopupPostData | null;
 
   onClose: () => void;
 
@@ -39,9 +41,12 @@ export type PopupPostProps = {
 
   onBookmark?: (postId: string) => void;
 
+  // Send the complete post to the parent
+  // when the user chooses Edit.
+  onEdit?: (post: PopupPostData) => void;
+
   onRequestDelete?: (postId: string) => void;
 
-  // Used when PopupPost is displayed inside Post screen
   inline?: boolean;
 };
 
@@ -52,6 +57,7 @@ export default function PopupPost({
   isOwnPost = false,
   isBookmarked = false,
   onBookmark,
+  onEdit,
   onRequestDelete,
   inline = false,
 }: PopupPostProps) {
@@ -70,8 +76,10 @@ export default function PopupPost({
     setShowMenu((prev) => !prev);
   };
 
+  // Send the selected post to the parent.
   const handleEditPress = () => {
     setShowMenu(false);
+    onEdit?.(post);
   };
 
   const handleDeletePress = () => {
@@ -112,15 +120,13 @@ export default function PopupPost({
         {/* Avatar */}
         <View style={styles.avatarContainer}>
           <Image
-            source={require(
-              "../assets/images/ProfilePicture.png"
-            )}
+            source={require("../assets/images/ProfilePicture.png")}
             style={styles.avatar}
             resizeMode="cover"
           />
         </View>
 
-        {/* User Information */}
+        {/* User information */}
         <View style={styles.userInfo}>
           <ThemedText style={styles.userName}>
             มุกหมีชอบกิน
@@ -131,9 +137,9 @@ export default function PopupPost({
           </ThemedText>
         </View>
 
-        {/* Header Actions */}
+        {/* Header actions */}
         <View style={styles.headerActions}>
-          {/* Own post menu */}
+          {/* Edit / Delete menu */}
           {isOwnPost && (
             <Pressable
               style={styles.iconButton}
@@ -147,7 +153,7 @@ export default function PopupPost({
             </Pressable>
           )}
 
-          {/* Close button only for popup */}
+          {/* Close button */}
           {!inline && (
             <Pressable
               style={styles.iconButton}
@@ -173,7 +179,7 @@ export default function PopupPost({
         </View>
       )}
 
-      {/* Post Image */}
+      {/* Post image */}
       <Pressable onPress={handleContentPress}>
         <Image
           source={post.image}
@@ -187,27 +193,23 @@ export default function PopupPost({
         style={styles.content}
         onPress={handleContentPress}
       >
-        {/* Title */}
         <ThemedText style={styles.title}>
           {title}
         </ThemedText>
 
-        {/* Description */}
         <ThemedText style={styles.description}>
           {description}
         </ThemedText>
 
-        {/* Location */}
         {location && (
           <ThemedText style={styles.location}>
-            พิกัด :{" "}
+            พิกัด:{" "}
             <ThemedText style={styles.link}>
               {location}
             </ThemedText>
           </ThemedText>
         )}
 
-        {/* Tag */}
         <View style={styles.tagContainer}>
           <View style={styles.tagPill}>
             <ThemedText style={styles.tagText}>
@@ -216,10 +218,8 @@ export default function PopupPost({
           </View>
         </View>
 
-        {/* Divider */}
         <View style={styles.divider} />
 
-        {/* Bookmark */}
         <View style={styles.footer}>
           <Pressable
             onPress={handleBookmarkPress}
@@ -242,12 +242,12 @@ export default function PopupPost({
     </View>
   );
 
-  // Inline mode = normal card inside ScrollView
+  // Inline mode
   if (inline) {
     return card;
   }
 
-  // Normal mode = Modal popup
+  // Modal mode
   return (
     <Modal
       transparent
@@ -281,7 +281,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     overflow: "visible",
-
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -290,7 +289,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 9,
     elevation: 3,
-
     marginBottom: 16,
   },
 
@@ -326,7 +324,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#4B3500",
     marginTop: 5,
-    marginBottom: -7
+    marginBottom: -7,
   },
 
   timeAgo: {
@@ -346,8 +344,8 @@ const styles = StyleSheet.create({
 
   dropdownWrapper: {
     position: "absolute",
-    top: 0,
-    right: 0,
+    top: 50,
+    right: 10,
     zIndex: 100,
     elevation: 100,
   },
@@ -370,7 +368,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#4B3500",
     marginBottom: 6,
-    marginTop: 5
+    marginTop: 5,
   },
 
   description: {

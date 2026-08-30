@@ -10,11 +10,11 @@ import {
   useLocalSearchParams,
 } from "expo-router";
 
-import PostGrid, { Post } from "@/components/PostGrid";
-import LiquidMenu from "@/components/LiquidMenu";
-import PopupPost from "@/components/PopupPost";
-import DeletePostPopup from "@/components/DeletePopup";
-import ProfileHeader from "@/components/ProfileHeader";
+import PostGrid, { Post } from "@/components/post-grid";
+import LiquidMenu from "@/components/liquid-menu";
+import PopupPost from "@/components/popup-post";
+import DeletePostPopup from "@/components/deletepopup";
+import ProfileHeader from "@/components/profile-header";
 import { ThemedText } from "@/components/themed-text";
 
 const CURRENT_USER_ID = "me";
@@ -70,8 +70,8 @@ export default function ProfileScreen() {
         if (mode === "edit") {
           return prev.some((item) => item.id === post.id)
             ? prev.map((item) =>
-                item.id === post.id ? post : item,
-              )
+              item.id === post.id ? post : item,
+            )
             : prev;
         }
 
@@ -194,7 +194,7 @@ export default function ProfileScreen() {
                 style={[
                   styles.tabText,
                   activeTab === tab &&
-                    styles.activeTabText,
+                  styles.activeTabText,
                 ]}
               >
                 {tab === "posts"
@@ -259,7 +259,7 @@ export default function ProfileScreen() {
 
       <LiquidMenu
         active="profile"
-        onChange={() => {}}
+        onChange={() => { }}
       />
     </View>
   );

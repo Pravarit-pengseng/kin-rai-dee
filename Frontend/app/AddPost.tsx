@@ -1,240 +1,240 @@
 import React, { useState } from "react";
 import {
-  SafeAreaView,
-  View,
-  Pressable,
-  Image,
-  StyleSheet,
-  ScrollView,
-  Alert,
+    SafeAreaView,
+    View,
+    Pressable,
+    Image,
+    StyleSheet,
+    ScrollView,
+    Alert,
 } from "react-native";
 import { Stack, router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Camera } from "lucide-react-native";
 
-import { Header } from "@/components/Header";
+import { Header } from "@/components/header";
 import { ThemedText } from "@/components/themed-text";
 import PostForm, {
-  PostData,
-} from "@/components/PostForm";
+    PostData,
+} from "@/components/post-form";
 
 export default function AddPost() {
-  const [post, setPost] = useState<PostData>({
-    image: null,
-    title: "",
-    description: "",
-    restaurant: "",
-    categories: ["อาหารจานเดียว"],
-  });
+    const [post, setPost] = useState<PostData>({
+        image: null,
+        title: "",
+        description: "",
+        restaurant: "",
+        categories: ["อาหารจานเดียว"],
+    });
 
-  // Pick an image from the device gallery
-  const pickImage = async () => {
-    const permission =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    // Pick an image from the device gallery
+    const pickImage = async () => {
+        const permission =
+            await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (!permission.granted) {
-      Alert.alert(
-        "ไม่สามารถเข้าถึงรูปภาพ",
-        "กรุณาอนุญาตให้แอปเข้าถึงรูปภาพ",
-      );
-      return;
-    }
+        if (!permission.granted) {
+            Alert.alert(
+                "ไม่สามารถเข้าถึงรูปภาพ",
+                "กรุณาอนุญาตให้แอปเข้าถึงรูปภาพ",
+            );
+            return;
+        }
 
-    const result =
-      await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.9,
-      });
+        const result =
+            await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ["images"],
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.9,
+            });
 
-    if (!result.canceled) {
-      setPost((currentPost) => ({
-        ...currentPost,
-        image: result.assets[0].uri,
-      }));
-    }
-  };
-
-  // Create a new post and return to profile
-  const handlePost = () => {
-    if (!post.image || !post.title.trim()) {
-      Alert.alert(
-        "กรุณากรอกข้อมูล",
-        "เลือกรูปและกรอกชื่อเมนูก่อนโพสต์",
-      );
-      return;
-    }
-
-    const newPost = {
-      id: Date.now().toString(),
-
-      // Convert image URI to React Native ImageSource format
-      image: {
-        uri: post.image,
-      },
-
-      title: post.title.trim(),
-      description: post.description?.trim() || "",
-      tag: post.categories?.[0] || "อาหารจานเดียว",
-      location: post.restaurant?.trim() || "",
-      timeAgo: "เมื่อสักครู่นี้",
-      userId: "me",
+        if (!result.canceled) {
+            setPost((currentPost) => ({
+                ...currentPost,
+                image: result.assets[0].uri,
+            }));
+        }
     };
 
-    router.replace({
-      pathname: "/profile",
-      params: {
-        post: JSON.stringify(newPost),
-      },
-    });
-  };
+    // Create a new post and return to profile
+    const handlePost = () => {
+        if (!post.image || !post.title.trim()) {
+            Alert.alert(
+                "กรุณากรอกข้อมูล",
+                "เลือกรูปและกรอกชื่อเมนูก่อนโพสต์",
+            );
+            return;
+        }
 
-  return (
-    <>
-      {/* Hide Expo Router system header */}
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
+        const newPost = {
+            id: Date.now().toString(),
 
-      <SafeAreaView style={styles.container}>
-        {/* Header */}
-        <Header
-          title="เพิ่มโพสต์ใหม่"
-          leftIcon="close"
-          onLeftPress={() => router.back()}
-          rightIcon="none"
-        />
+            // Convert image URI to React Native ImageSource format
+            image: {
+                uri: post.image,
+            },
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Image Picker */}
-          <Pressable
-            onPress={pickImage}
-            style={styles.imageBox}
-          >
-            {post.image ? (
-              <Image
-                source={{ uri: post.image }}
-                style={styles.image}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={styles.emptyImage}>
-                <Camera
-                  size={50}
-                  color="#DEC0BB"
-                  strokeWidth={2}
+            title: post.title.trim(),
+            description: post.description?.trim() || "",
+            tag: post.categories?.[0] || "อาหารจานเดียว",
+            location: post.restaurant?.trim() || "",
+            timeAgo: "เมื่อสักครู่นี้",
+            userId: "me",
+        };
+
+        router.replace({
+            pathname: "/profile",
+            params: {
+                post: JSON.stringify(newPost),
+            },
+        });
+    };
+
+    return (
+        <>
+            {/* Hide Expo Router system header */}
+            <Stack.Screen
+                options={{
+                    headerShown: false,
+                }}
+            />
+
+            <SafeAreaView style={styles.container}>
+                {/* Header */}
+                <Header
+                    title="เพิ่มโพสต์ใหม่"
+                    leftIcon="close"
+                    onLeftPress={() => router.back()}
+                    rightIcon="none"
                 />
 
-                <ThemedText
-                  style={styles.imageText}
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.content}
+                    keyboardShouldPersistTaps="handled"
                 >
-                  แตะเพื่อเลือกรูปภาพ
-                </ThemedText>
-              </View>
-            )}
-          </Pressable>
+                    {/* Image Picker */}
+                    <Pressable
+                        onPress={pickImage}
+                        style={styles.imageBox}
+                    >
+                        {post.image ? (
+                            <Image
+                                source={{ uri: post.image }}
+                                style={styles.image}
+                                resizeMode="cover"
+                            />
+                        ) : (
+                            <View style={styles.emptyImage}>
+                                <Camera
+                                    size={50}
+                                    color="#DEC0BB"
+                                    strokeWidth={2}
+                                />
 
-          {/* Post Form */}
-          <PostForm
-            onChange={(data) => {
-              setPost((currentPost) => ({
-                ...data,
-                image: currentPost.image,
-              }));
-            }}
-          />
+                                <ThemedText
+                                    style={styles.imageText}
+                                >
+                                    แตะเพื่อเลือกรูปภาพ
+                                </ThemedText>
+                            </View>
+                        )}
+                    </Pressable>
 
-          {/* Post Button */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.postButton,
-              pressed && styles.postButtonPressed,
-            ]}
-            onPress={handlePost}
-          >
-            <ThemedText style={styles.postText}>
-              โพสต์
-            </ThemedText>
-          </Pressable>
-        </ScrollView>
-      </SafeAreaView>
-    </>
-  );
+                    {/* Post Form */}
+                    <PostForm
+                        onChange={(data) => {
+                            setPost((currentPost) => ({
+                                ...data,
+                                image: currentPost.image,
+                            }));
+                        }}
+                    />
+
+                    {/* Post Button */}
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.postButton,
+                            pressed && styles.postButtonPressed,
+                        ]}
+                        onPress={handlePost}
+                    >
+                        <ThemedText style={styles.postText}>
+                            โพสต์
+                        </ThemedText>
+                    </Pressable>
+                </ScrollView>
+            </SafeAreaView>
+        </>
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFF8ED",
-  },
+    container: {
+        flex: 1,
+        backgroundColor: "#FFF8ED",
+    },
 
-  content: {
-    padding: 16,
-    paddingBottom: 40,
-  },
+    content: {
+        padding: 16,
+        paddingBottom: 40,
+    },
 
-  imageBox: {
-    height: 260,
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-    borderColor: "#A78A82",
-    borderRadius: 9,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    marginBottom: 15,
-    marginLeft: 5,
-    marginRight: 5,
-    marginTop: 10,
-  },
+    imageBox: {
+        height: 260,
+        borderWidth: 1.5,
+        borderStyle: "dashed",
+        borderColor: "#A78A82",
+        borderRadius: 9,
+        backgroundColor: "#FFFFFF",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+        marginBottom: 15,
+        marginLeft: 5,
+        marginRight: 5,
+        marginTop: 10,
+    },
 
-  emptyImage: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
+    emptyImage: {
+        alignItems: "center",
+        justifyContent: "center",
+    },
 
-  image: {
-    width: "100%",
-    height: "100%",
-  },
+    image: {
+        width: "100%",
+        height: "100%",
+    },
 
-  imageText: {
-    marginTop: 5,
-    fontSize: 15,
-    color: "#9D8179",
-    fontFamily: "NotoSansThai_400Regular",
-  },
+    imageText: {
+        marginTop: 5,
+        fontSize: 15,
+        color: "#9D8179",
+        fontFamily: "NotoSansThai_400Regular",
+    },
 
-  postButton: {
-    alignSelf: "flex-end",
-    width: 125,
-    height: 45,
-    borderRadius: 25,
-    backgroundColor: "#FF7A6633",
-    borderWidth: 1,
-    borderColor: "#72120933",
-    borderBottomWidth: 3.5,
-    borderBottomColor: "#72120933",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 18,
-  },
+    postButton: {
+        alignSelf: "flex-end",
+        width: 125,
+        height: 45,
+        borderRadius: 25,
+        backgroundColor: "#FF7A6633",
+        borderWidth: 1,
+        borderColor: "#72120933",
+        borderBottomWidth: 3.5,
+        borderBottomColor: "#72120933",
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: 18,
+    },
 
-  postButtonPressed: {
-    transform: [{ translateY: 2 }],
-  },
+    postButtonPressed: {
+        transform: [{ translateY: 2 }],
+    },
 
-  postText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#721209",
-  },
+    postText: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: "#721209",
+    },
 });

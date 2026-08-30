@@ -13,9 +13,9 @@ import {
 } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Camera } from "lucide-react-native";
-import { Header } from "@/components/Header";
-import ProfileForm from "@/components/ProfileForm";
-import LiquidMenu from "@/components/LiquidMenu";
+import { Header } from "@/components/header";
+import ProfileForm from "@/components/profile-form";
+import LiquidMenu from "@/components/liquid-menu";
 import { ThemedText } from "@/components/themed-text";
 
 export default function EditProfile() {
@@ -104,7 +104,7 @@ export default function EditProfile() {
                 style={({ pressed }) => [
                   styles.cameraButton,
                   pressed &&
-                    styles.cameraButtonPressed,
+                  styles.cameraButtonPressed,
                 ]}
                 onPress={handlePickImage}
               >
@@ -132,7 +132,7 @@ export default function EditProfile() {
             style={({ pressed }) => [
               styles.saveButton,
               pressed &&
-                styles.saveButtonPressed,
+              styles.saveButtonPressed,
             ]}
             onPress={handleSave}
           >

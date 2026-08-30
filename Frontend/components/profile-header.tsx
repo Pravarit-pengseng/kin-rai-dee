@@ -9,7 +9,7 @@ import {
   Pencil,
   SquarePen,
 } from "lucide-react-native";
-import { Header } from "@/components/Header";
+import { Header } from "@/components/header";
 import { ThemedText } from "@/components/themed-text";
 import { router } from "expo-router";
 
@@ -36,7 +36,7 @@ export default function ProfileHeader({
         leftIcon="logout"
         onLeftPress={() => alert("ยืนยันออกจากระบบ")}
         rightIcon="search"
-        // onRightPress={() => router.push("/(tabs)/search")}
+      // onRightPress={() => router.push("/(tabs)/search")}
       />
 
       {/* Profile */}

@@ -14,7 +14,7 @@ import {
   AlignLeft,
 } from "lucide-react-native";
 
-import PostDropdown from "./PostDropdown";
+import PostDropdown from "./post-dropdown";
 import { ThemedText } from "@/components/themed-text";
 
 export type PopupPostData = {

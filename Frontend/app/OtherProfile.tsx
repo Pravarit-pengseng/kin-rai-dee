@@ -6,13 +6,13 @@ import {
   StyleSheet,
 } from "react-native";
 import { router, Stack } from "expo-router";
-import { Header } from "@/components/Header";
+import { Header } from "@/components/header";
 import { ThemedText } from "@/components/themed-text";
 import PostGrid, {
   Post,
-} from "@/components/PostGrid";
-import LiquidMenu from "@/components/LiquidMenu";
-import PopupPost from "@/components/PopupPost";
+} from "@/components/post-grid";
+import LiquidMenu from "@/components/liquid-menu";
+import PopupPost from "@/components/popup-post";
 
 const OTHER_USER_ID = "mookmhee";
 
@@ -84,8 +84,8 @@ export default function OtherProfileScreen() {
     setBookmarkedIds((prev) =>
       prev.includes(postId)
         ? prev.filter(
-            (id) => id !== postId
-          )
+          (id) => id !== postId
+        )
         : [...prev, postId]
     );
   };
@@ -116,7 +116,7 @@ export default function OtherProfileScreen() {
           leftIcon="back"
           onLeftPress={() => router.back()}
           rightIcon="search"
-          // onRightPress={() => router.push("/(tabs)/search")}
+        // onRightPress={() => router.push("/(tabs)/search")}
         />
 
         <ScrollView
@@ -206,8 +206,8 @@ export default function OtherProfileScreen() {
           isBookmarked={
             selectedPost
               ? bookmarkedIds.includes(
-                  selectedPost.id
-                )
+                selectedPost.id
+              )
               : false
           }
           onBookmark={

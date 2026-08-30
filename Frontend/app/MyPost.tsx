@@ -15,10 +15,10 @@ import {
   useLocalSearchParams,
 } from "expo-router";
 
-import { Header } from "@/components/Header";
-import PopupPost from "@/components/PopupPost";
-import LiquidMenu from "@/components/LiquidMenu";
-import DeletePopup from "@/components/DeletePopup";
+import { Header } from "@/components/header";
+import PopupPost from "@/components/popup-post";
+import LiquidMenu from "@/components/liquid-menu";
+import DeletePopup from "@/components/deletepopup";
 
 type Post = {
   id: string;
@@ -256,8 +256,8 @@ export default function MyPost() {
     setBookmarkedIds((prev) =>
       prev.includes(postId)
         ? prev.filter(
-            (id) => id !== postId
-          )
+          (id) => id !== postId
+        )
         : [...prev, postId]
     );
   };
@@ -365,7 +365,7 @@ export default function MyPost() {
               <PopupPost
                 visible={true}
                 post={post}
-                onClose={() => {}}
+                onClose={() => { }}
                 inline
                 isOwnPost={
                   post.userId ===

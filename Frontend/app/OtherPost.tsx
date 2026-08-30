@@ -14,9 +14,9 @@ import {
   Stack,
   useLocalSearchParams,
 } from "expo-router";
-import { Header } from "@/components/Header";
-import PopupPost from "@/components/PopupPost";
-import LiquidMenu from "@/components/LiquidMenu";
+import { Header } from "@/components/header";
+import PopupPost from "@/components/popup-post";
+import LiquidMenu from "@/components/liquid-menu";
 
 type Post = {
   id: string;
@@ -214,9 +214,9 @@ export default function PostScreen() {
     setBookmarkedIds((prev) =>
       prev.includes(postId)
         ? prev.filter(
-            (id) =>
-              id !== postId
-          )
+          (id) =>
+            id !== postId
+        )
         : [...prev, postId]
     );
   };
@@ -244,7 +244,7 @@ export default function PostScreen() {
           leftIcon="back"
           onLeftPress={() => router.back()}
           rightIcon="search"
-          // onRightPress={() => router.push("/(tabs)/search")}
+        // onRightPress={() => router.push("/(tabs)/search")}
         />
 
         <ScrollView
@@ -265,7 +265,7 @@ export default function PostScreen() {
               <PopupPost
                 visible={true}
                 post={post}
-                onClose={() => {}}
+                onClose={() => { }}
                 inline
                 isOwnPost={
                   post.userId ===

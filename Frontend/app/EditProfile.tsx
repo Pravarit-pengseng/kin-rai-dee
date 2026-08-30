@@ -62,7 +62,7 @@ export default function EditProfile() {
 
   const handleSave = () => {
     router.replace({
-      pathname: "/Profile",
+      pathname: "/profile",
       params: {
         name: profileData.name,
         username: profileData.username,

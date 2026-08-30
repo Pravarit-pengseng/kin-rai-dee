@@ -1,6 +1,6 @@
 import { Tabs, useRouter, usePathname } from 'expo-router';
 import React from 'react';
-import LiquidMenu from '@/components/LiquidMenu';
+import LiquidMenu from '@/components/liquid-menu';
 
 export default function TabLayout() {
   const router = useRouter();
@@ -16,7 +16,7 @@ export default function TabLayout() {
     if (id === 'home') router.push('/(tabs)');
     else if (id === 'random') router.push('/(tabs)/random-food');
     else if (id === 'ingredients') router.push('/(tabs)/explore');
-    else if (id === 'profile') router.push('/(tabs)/Profile');
+    else if (id === 'profile') router.push('/(tabs)/profile');
   };
 
   return (

@@ -109,7 +109,7 @@ export default function ProfileScreen() {
     setPopupVisible(false);
 
     router.push({
-      pathname: "/EditPost",
+      pathname: "/editpost",
       params: {
         post: JSON.stringify(post),
       },
@@ -138,7 +138,7 @@ export default function ProfileScreen() {
 
   const handleEditProfile = () => {
     router.push({
-      pathname: "/EditProfile",
+      pathname: "/editprofile",
       params: {
         name: params.name,
         username: params.username,
@@ -148,12 +148,12 @@ export default function ProfileScreen() {
   };
 
   const handleCreatePost = () => {
-    router.push("/AddPost");
+    router.push("/addpost");
   };
 
   const handleOpenPost = (post: Post) => {
     router.push({
-      pathname: "/MyPost",
+      pathname: "/mypost",
       params: {
         postId: post.id,
         ownerId: post.userId ?? CURRENT_USER_ID,

@@ -6,6 +6,8 @@ import {
   StyleSheet,
   Pressable,
   ImageSourcePropType,
+  Linking,
+  Alert,
 } from "react-native";
 
 import {
@@ -95,6 +97,18 @@ export default function PopupPost({
     onClose();
   };
 
+  const title = post.title || "กะเพราไข่ดาว";
+  const description =
+    post.description ||
+    "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า ใครยังไม่รู้จะกินอะไร แนะนำเมนูที่อร่อยไม่เคยเปลี่ยน!";
+  // ลบเครื่องหมาย # ออกถ้ามีติดมาด้วย เพื่อป้องกันการแสดงผลเป็น ##
+  const tag = post.tag ? post.tag.replace(/^#/, "") : "อาหารจานเดียว";
+  const location =
+    post.location ||
+    "https://www.wongnai.com/listings/phat-ka-phrao";
+  const timeAgo = post.timeAgo || "2 ชม. ที่แล้ว";
+  const displayUserName = post.userId === "mookmhee" ? "มุกรอบอ้วรนิดนิด" : "มุกหมีชอบกิน";
+
   const handleContentPress = () => {
     setShowMenu(false);
   };
@@ -106,21 +120,32 @@ export default function PopupPost({
     }
   };
 
-  const title = post.title || "กะเพราไข่ดาว";
+  const handleOpenLocation = async () => {
+    setShowMenu(false);
+    if (!location) return;
 
-  const description =
-    post.description ||
-    "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า ใครยังไม่รู้จะกินอะไร แนะนำเมนูที่อร่อยไม่เคยเปลี่ยน!";
+    let targetUrl = location.trim();
+    if (!targetUrl) return;
 
-  const tag = post.tag || "อาหารจานเดียว";
+    if (/^www\./i.test(targetUrl)) {
+      targetUrl = `https://${targetUrl}`;
+    } else if (!/^https?:\/\//i.test(targetUrl) && !/^(maps|geo):/i.test(targetUrl)) {
+      targetUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(targetUrl)}`;
+    }
 
-  const location =
-    post.location ||
-    "https://www.wongnai.com/listings/phat-ka-phrao";
-
-  const timeAgo = post.timeAgo || "2 ชม. ที่แล้ว";
-
-  const displayUserName = post.userId === "mookmhee" ? "มุกรอบอ้วรนิดนิด" : "มุกหมีชอบกิน";
+    try {
+      const canOpen = await Linking.canOpenURL(targetUrl);
+      if (canOpen) {
+        await Linking.openURL(targetUrl);
+      } else {
+        const searchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.trim())}`;
+        await Linking.openURL(searchUrl);
+      }
+    } catch (error) {
+      console.error("Error opening location link:", error);
+      Alert.alert("ไม่สามารถเปิดลิงก์ได้", "โปรดตรวจสอบ URL หรือลองใหม่อีกครั้ง");
+    }
+  };
 
   const card = (
     <View style={styles.card}>
@@ -222,12 +247,24 @@ export default function PopupPost({
         </ThemedText>
 
         {location && (
-          <ThemedText style={styles.location}>
-            พิกัด:{" "}
-            <ThemedText style={styles.link}>
-              {location}
+          <Pressable
+            style={({ pressed }) => [
+              styles.locationContainer,
+              pressed && styles.locationPressed,
+            ]}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleOpenLocation();
+            }}
+            hitSlop={6}
+          >
+            <ThemedText style={styles.location} numberOfLines={2} ellipsizeMode="tail">
+              พิกัด:{" "}
+              <ThemedText style={styles.link}>
+                {location}
+              </ThemedText>
             </ThemedText>
-          </ThemedText>
+          </Pressable>
         )}
 
         <View style={styles.tagContainer}>
@@ -410,10 +447,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
+  locationContainer: {
+    marginBottom: 10,
+    alignSelf: "flex-start",
+  },
+
+  locationPressed: {
+    opacity: 0.6,
+  },
+
   location: {
     fontSize: 14,
     color: "#57423E",
-    marginBottom: 10,
   },
 
   link: {

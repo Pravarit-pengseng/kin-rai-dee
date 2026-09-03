@@ -62,7 +62,6 @@ for (let i = 5; i <= 15; i++) {
 }
 
 export default function SearchScreen() {
-  const [searchText, setSearchText] = useState('');
   const [inputValue, setInputValue] = useState(''); // Separate from submitted text
   const [isSearching, setIsSearching] = useState(false);
   const [recentSearches, setRecentSearches] = useState(['หมูกรอบเจ้าดัง', 'คาเฟ่แมว นิมมาน', 'ข้าวซอยเนื้อ']);
@@ -79,7 +78,6 @@ export default function SearchScreen() {
   // Reset state when screen is focused
   useFocusEffect(
     useCallback(() => {
-      setSearchText('');
       setInputValue('');
       setIsSearching(false);
       setShowFeed(false);
@@ -89,7 +87,6 @@ export default function SearchScreen() {
 
   const handleSearchSubmit = () => {
     const text = inputValue.trim();
-    setSearchText(text);
     if (text !== '') {
       setIsSearching(true);
       setShowFeed(false); // Default to grid when search submitted
@@ -113,7 +110,6 @@ export default function SearchScreen() {
 
   const handleTrendPress = (text: string) => {
     setInputValue(text);
-    setSearchText(text);
     setIsSearching(true);
     setShowFeed(false);
     setRecentSearches(prev => {
@@ -124,7 +120,6 @@ export default function SearchScreen() {
 
   const handleHistoryPress = (text: string) => {
     setInputValue(text);
-    setSearchText(text);
     setIsSearching(true);
     setShowFeed(false);
     setRecentSearches(prev => {
@@ -160,7 +155,6 @@ export default function SearchScreen() {
           } else if (isSearching) {
             setIsSearching(false);
             setInputValue('');
-            setSearchText('');
           } else {
             router.back();
           }

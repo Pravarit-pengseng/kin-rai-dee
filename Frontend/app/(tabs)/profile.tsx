@@ -11,7 +11,7 @@ import {
 } from "expo-router";
 
 import PostGrid, { Post } from "@/components/post-grid";
-import LiquidMenu from "@/components/liquid-menu";
+
 import PopupPost from "@/components/popup-post";
 import DeletePostPopup from "@/components/DeletePopup";
 import LogoutPopup from "@/components/LogoutPopup";

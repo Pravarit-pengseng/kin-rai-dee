@@ -9,9 +9,7 @@ import {
   Pencil,
   SquarePen,
 } from "lucide-react-native";
-import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
-import { router } from "expo-router";
 
 export type ProfileHeaderProps = {
   name?: string;

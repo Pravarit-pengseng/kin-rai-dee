@@ -44,7 +44,11 @@ export function Header({
     if (leftIcon === 'logout') iconName = 'log-out';
 
     return (
-      <Pressable onPress={onLeftPress} style={styles.iconButton} hitSlop={8}>
+      <Pressable
+        onPress={onLeftPress}
+        style={({ pressed }) => [styles.iconButton, pressed && styles.buttonPressed]}
+        hitSlop={8}
+      >
         <Feather name={iconName} size={24} color={iconColor} />
       </Pressable>
     );
@@ -59,7 +63,11 @@ export function Header({
     const handleRightPress = onRightPress || onSearchPress;
 
     return (
-      <Pressable onPress={handleRightPress} style={styles.iconButton} hitSlop={8}>
+      <Pressable
+        onPress={handleRightPress}
+        style={({ pressed }) => [styles.iconButton, pressed && styles.buttonPressed]}
+        hitSlop={8}
+      >
         <Feather name={iconName} size={24} color={iconColor} />
       </Pressable>
     );
@@ -110,5 +118,9 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 4,
+  },
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 });

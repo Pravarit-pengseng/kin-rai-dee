@@ -58,7 +58,10 @@ export function MultiSelectDropdown({
               return (
                 <Pressable
                   key={option.id}
-                  style={styles.optionRow}
+                  style={({ pressed }) => [
+                    styles.optionRow,
+                    pressed && styles.buttonPressed,
+                  ]}
                   onPress={() => toggleOption(option.id)}
                 >
                   <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
@@ -148,5 +151,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#5A4A42',
     fontFamily: 'NotoSansThai_600SemiBold',
+  },
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 });

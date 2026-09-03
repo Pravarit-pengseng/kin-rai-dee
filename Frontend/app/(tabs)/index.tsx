@@ -96,6 +96,7 @@ export default function HomeScreen() {
         title="KIN RAI DEE"
         leftIcon="none"
         rightIcon="search"
+        onSearchPress={() => router.push('/(tabs)/search')}
       />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -125,7 +126,10 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* Floating Action Button */}
-      <Pressable style={styles.fab} onPress={handleCreatePost}>
+      <Pressable
+        style={({ pressed }) => [styles.fab, pressed && styles.buttonPressed]}
+        onPress={handleCreatePost}
+      >
         <SquarePen size={18} color="#721209" strokeWidth={2.5} />
         <ThemedText style={styles.fabText}>โพสต์ใหม่</ThemedText>
       </Pressable>
@@ -189,5 +193,9 @@ const styles = StyleSheet.create({
     fontFamily: "NotoSansThai_700Bold",
     fontWeight: "800",
     color: "#721209",
+  },
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 });

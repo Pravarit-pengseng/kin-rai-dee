@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, Image, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
 import { Header } from '@/components/Header';
 import { RandomButton } from '@/components/RandomButton';
 import { FOOD_LIST, FoodItem } from '@/constants/foodData';
@@ -16,7 +17,7 @@ export default function RandomIngredientScreen() {
   const [randomMeat, setRandomMeat] = useState<FoodItem | null>(null);
 
   const handleSearch = () => {
-    console.log('Search pressed');
+    router.push('/(tabs)/search');
   };
 
   const handleRandomize = () => {
@@ -71,7 +72,11 @@ export default function RandomIngredientScreen() {
         {/* Category Toggles */}
         <View style={styles.toggleContainer}>
           <Pressable
-            style={[styles.toggleBox, isVegSelected ? styles.vegSelected : styles.unselected]}
+            style={({ pressed }) => [
+              styles.toggleBox,
+              isVegSelected ? styles.vegSelected : styles.unselected,
+              pressed && styles.buttonPressed,
+            ]}
             onPress={() => {
               setIsVegSelected(!isVegSelected);
               setHasRandomized(false);
@@ -90,7 +95,11 @@ export default function RandomIngredientScreen() {
           </Pressable>
 
           <Pressable
-            style={[styles.toggleBox, isMeatSelected ? styles.meatSelected : styles.unselected]}
+            style={({ pressed }) => [
+              styles.toggleBox,
+              isMeatSelected ? styles.meatSelected : styles.unselected,
+              pressed && styles.buttonPressed,
+            ]}
             onPress={() => {
               setIsMeatSelected(!isMeatSelected);
               setHasRandomized(false);
@@ -131,14 +140,7 @@ export default function RandomIngredientScreen() {
         {!hasRandomized || (!isVegSelected && !isMeatSelected) ? (
           <RandomButton onPress={handleRandomize} title="สุ่มวัตถุดิบ" iconName="dice" />
         ) : (
-          <RandomButton
-            onPress={handleRandomize}
-            title="สุ่มใหม่อีกครั้ง"
-            backgroundColor="#FADCD9"
-            textColor="#A5352A"
-            iconColor="#A5352A"
-            iconName="redo"
-          />
+          <RandomButton onPress={handleRandomize} variant="rerandom" />
         )}
       </ScrollView>
     </SafeAreaView>
@@ -289,5 +291,9 @@ const styles = StyleSheet.create({
     fontFamily: 'NotoSansThai_700Bold',
     color: '#5A4A42', // Dark brown
     textAlign: 'center',
+  },
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 });

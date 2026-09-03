@@ -27,7 +27,7 @@ export default function TabLayout() {
       }}>
       <Tabs.Screen name="index" />
       <Tabs.Screen name="random-food" />
-      <Tabs.Screen name="explore" />
+      <Tabs.Screen name="search" />
       <Tabs.Screen name="random-ingredient" />
       <Tabs.Screen name="profile" />
     </Tabs>

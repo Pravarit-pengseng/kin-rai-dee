@@ -65,7 +65,10 @@ export default function ProfileHeader({
         <View style={styles.actionRow}>
           {/* Edit Profile */}
           <Pressable
-            style={styles.actionButton}
+            style={({ pressed }) => [
+              styles.actionButton,
+              pressed && styles.buttonPressed,
+            ]}
             onPress={onEditProfile}
           >
             <Pencil
@@ -81,7 +84,10 @@ export default function ProfileHeader({
 
           {/* New Post */}
           <Pressable
-            style={styles.actionButton}
+            style={({ pressed }) => [
+              styles.actionButton,
+              pressed && styles.buttonPressed,
+            ]}
             onPress={onCreatePost}
           >
             <SquarePen
@@ -199,5 +205,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#721209",
+  },
+
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 });

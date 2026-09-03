@@ -7,17 +7,17 @@ import {
 } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 
-export type DeletePostPopupProps = {
+export type LogoutPopupProps = {
   visible: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 };
 
-export default function DeletePostPopup({
+export default function LogoutPopup({
   visible,
   onCancel,
   onConfirm,
-}: DeletePostPopupProps) {
+}: LogoutPopupProps) {
   return (
     <Modal
       transparent
@@ -29,7 +29,7 @@ export default function DeletePostPopup({
         <View style={styles.popup}>
           {/* Title */}
           <ThemedText style={styles.title}>
-            ต้องการลบโพสต์หรือไม่
+            ออกจากระบบบัญชีของคุณใช่ไหม
           </ThemedText>
 
           {/* Buttons */}
@@ -47,16 +47,16 @@ export default function DeletePostPopup({
               </ThemedText>
             </Pressable>
 
-            {/* Delete */}
+            {/* Logout */}
             <Pressable
               style={({ pressed }) => [
-                styles.deleteButton,
+                styles.logoutButton,
                 pressed && styles.buttonPressed,
               ]}
               onPress={onConfirm}
             >
-              <ThemedText style={styles.deleteText}>
-                ลบโพสต์
+              <ThemedText style={styles.logoutText}>
+                ออกจากระบบ
               </ThemedText>
             </Pressable>
           </View>
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 16,
+    gap: 14,
     width: "100%",
   },
 
@@ -126,13 +126,12 @@ const styles = StyleSheet.create({
     borderBottomColor: "#24191733",
   },
 
-  // Delete button
-  deleteButton: {
+  // Logout button
+  logoutButton: {
     flex: 1,
     height: 44,
     borderRadius: 22,
     backgroundColor: "#FF7A6633",
-
     alignItems: "center",
     justifyContent: "center",
 
@@ -151,8 +150,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  deleteText: {
-    fontSize: 16,
+  logoutText: {
+    fontSize: 15,
     fontFamily: "NotoSansThai_700Bold",
     fontWeight: "700",
     color: "#9B2C24",

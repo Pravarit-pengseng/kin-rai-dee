@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
 import { Header } from '@/components/Header';
 import { RandomButton } from '@/components/RandomButton';
 import { MultiSelectDropdown } from '@/components/MultiSelectDropdown';
@@ -14,7 +15,7 @@ export default function RandomFoodScreen() {
   const [randomFood, setRandomFood] = useState<FoodItem | null>(null);
 
   const handleSearch = () => {
-    console.log('Search pressed');
+    router.push('/(tabs)/search');
   };
 
   const handleRandomize = () => {
@@ -72,14 +73,7 @@ export default function RandomFoodScreen() {
         {!hasRandomized ? (
           <RandomButton onPress={handleRandomize} />
         ) : (
-          <RandomButton
-            onPress={handleRandomize}
-            title="สุ่มใหม่อีกครั้ง"
-            backgroundColor="#FADCD9"
-            textColor="#A5352A"
-            iconColor="#A5352A"
-            iconName="redo"
-          />
+          <RandomButton onPress={handleRandomize} variant="rerandom" />
         )}
       </ScrollView>
     </SafeAreaView>

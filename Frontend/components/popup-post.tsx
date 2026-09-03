@@ -156,7 +156,10 @@ export default function PopupPost({
           {/* Edit / Delete menu */}
           {isOwnPost && (
             <Pressable
-              style={styles.iconButton}
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && styles.buttonPressed,
+              ]}
               onPress={handleMenuPress}
             >
               <AlignLeft
@@ -170,7 +173,10 @@ export default function PopupPost({
           {/* Close button */}
           {!inline && (
             <Pressable
-              style={styles.iconButton}
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && styles.buttonPressed,
+              ]}
               onPress={handleClose}
             >
               <X
@@ -237,7 +243,10 @@ export default function PopupPost({
         <View style={styles.footer}>
           <Pressable
             onPress={handleBookmarkPress}
-            style={styles.bookmarkButton}
+            style={({ pressed }) => [
+              styles.bookmarkButton,
+              pressed && styles.buttonPressed,
+            ]}
             hitSlop={8}
           >
             <Bookmark
@@ -446,5 +455,10 @@ const styles = StyleSheet.create({
 
   bookmarkButton: {
     padding: 4,
+  },
+
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 });

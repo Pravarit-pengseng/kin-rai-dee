@@ -115,7 +115,10 @@ export default function AddPost() {
                     {/* Image Picker */}
                     <Pressable
                         onPress={pickImage}
-                        style={styles.imageBox}
+                        style={({ pressed }) => [
+                            styles.imageBox,
+                            pressed && styles.postButtonPressed,
+                        ]}
                     >
                         {post.image ? (
                             <Image
@@ -228,6 +231,7 @@ const styles = StyleSheet.create({
     },
 
     postButtonPressed: {
+        opacity: 0.8,
         transform: [{ translateY: 2 }],
     },
 

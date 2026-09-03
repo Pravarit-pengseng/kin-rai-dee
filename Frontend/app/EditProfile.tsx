@@ -197,8 +197,8 @@ const styles = StyleSheet.create({
   },
 
   cameraButtonPressed: {
-    transform: [{ scale: 0.92 }],
     opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 
   saveButton: {
@@ -217,6 +217,7 @@ const styles = StyleSheet.create({
   },
 
   saveButtonPressed: {
+    opacity: 0.8,
     transform: [{ translateY: 2 }],
   },
 

@@ -122,7 +122,7 @@ export default function OtherProfileScreen() {
           leftIcon="back"
           onLeftPress={() => router.back()}
           rightIcon="search"
-        // onRightPress={() => router.push("/(tabs)/search")}
+          onSearchPress={() => router.push("/(tabs)/search")}
         />
 
         <ScrollView

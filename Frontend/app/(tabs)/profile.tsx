@@ -14,6 +14,7 @@ import PostGrid, { Post } from "@/components/post-grid";
 import LiquidMenu from "@/components/liquid-menu";
 import PopupPost from "@/components/popup-post";
 import DeletePostPopup from "@/components/DeletePopup";
+import LogoutPopup from "@/components/LogoutPopup";
 import ProfileHeader from "@/components/profile-header";
 import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
@@ -45,6 +46,8 @@ export default function ProfileScreen() {
     useState<Post | null>(null);
   const [popupVisible, setPopupVisible] = useState(false);
   const [deletePopupVisible, setDeletePopupVisible] =
+    useState(false);
+  const [logoutPopupVisible, setLogoutPopupVisible] =
     useState(false);
   const [deletePostId, setDeletePostId] =
     useState<string | null>(null);
@@ -178,8 +181,9 @@ export default function ProfileScreen() {
       <Header
         title="KIN RAI DEE"
         leftIcon="logout"
-        onLeftPress={() => alert("ยืนยันออกจากระบบ")}
+        onLeftPress={() => setLogoutPopupVisible(true)}
         rightIcon="search"
+        onSearchPress={() => router.push('/(tabs)/search')}
       />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -197,7 +201,10 @@ export default function ProfileScreen() {
           {(["posts", "saved"] as const).map((tab) => (
             <Pressable
               key={tab}
-              style={styles.tab}
+              style={({ pressed }) => [
+                styles.tab,
+                pressed && styles.buttonPressed,
+              ]}
               onPress={() => setActiveTab(tab)}
             >
               <ThemedText
@@ -267,6 +274,14 @@ export default function ProfileScreen() {
         onConfirm={handleConfirmDelete}
       />
 
+      <LogoutPopup
+        visible={logoutPopupVisible}
+        onCancel={() => setLogoutPopupVisible(false)}
+        onConfirm={() => {
+          setLogoutPopupVisible(false);
+          router.replace("/");
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -333,5 +348,10 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     color: "#9B8E89",
+  },
+
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 });

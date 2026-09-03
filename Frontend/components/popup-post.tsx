@@ -48,6 +48,8 @@ export type PopupPostProps = {
   onRequestDelete?: (postId: string) => void;
 
   inline?: boolean;
+  
+  onUserPress?: (userId: string) => void;
 };
 
 export default function PopupPost({
@@ -60,6 +62,7 @@ export default function PopupPost({
   onEdit,
   onRequestDelete,
   inline = false,
+  onUserPress,
 }: PopupPostProps) {
   const [showMenu, setShowMenu] = useState(false);
 
@@ -95,6 +98,13 @@ export default function PopupPost({
   const handleContentPress = () => {
     setShowMenu(false);
   };
+  
+  const handleUserClick = () => {
+    setShowMenu(false);
+    if (post.userId) {
+      onUserPress?.(post.userId);
+    }
+  };
 
   const title = post.title || "กะเพราไข่ดาว";
 
@@ -110,6 +120,8 @@ export default function PopupPost({
 
   const timeAgo = post.timeAgo || "2 ชม. ที่แล้ว";
 
+  const displayUserName = post.userId === "mookmhee" ? "มุกรอบอ้วรนิดนิด" : "มุกหมีชอบกิน";
+
   const card = (
     <View style={styles.card}>
       {/* Header */}
@@ -117,25 +129,27 @@ export default function PopupPost({
         style={styles.header}
         onPress={handleContentPress}
       >
-        {/* Avatar */}
-        <View style={styles.avatarContainer}>
-          <Image
-            source={require("../assets/images/ProfilePicture.png")}
-            style={styles.avatar}
-            resizeMode="cover"
-          />
-        </View>
+        <Pressable style={styles.userProfileLink} onPress={handleUserClick}>
+          {/* Avatar */}
+          <View style={styles.avatarContainer}>
+            <Image
+              source={require("../assets/images/ProfilePicture.png")}
+              style={styles.avatar}
+              resizeMode="cover"
+            />
+          </View>
 
-        {/* User information */}
-        <View style={styles.userInfo}>
-          <ThemedText style={styles.userName}>
-            มุกหมีชอบกิน
-          </ThemedText>
+          {/* User information */}
+          <View style={styles.userInfo}>
+            <ThemedText style={styles.userName}>
+              {displayUserName}
+            </ThemedText>
 
-          <ThemedText style={styles.timeAgo}>
-            {timeAgo}
-          </ThemedText>
-        </View>
+            <ThemedText style={styles.timeAgo}>
+              {timeAgo}
+            </ThemedText>
+          </View>
+        </Pressable>
 
         {/* Header actions */}
         <View style={styles.headerActions}>
@@ -298,6 +312,12 @@ const styles = StyleSheet.create({
     padding: 16,
   },
 
+  userProfileLink: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
   avatarContainer: {
     width: 38,
     height: 38,
@@ -321,15 +341,16 @@ const styles = StyleSheet.create({
 
   userName: {
     fontSize: 14,
+    fontFamily: "NotoSansThai_700Bold",
     fontWeight: "700",
     color: "#4B3500",
-    marginTop: 5,
-    marginBottom: -7,
+    lineHeight: 20,
   },
 
   timeAgo: {
     fontSize: 11,
     color: "#57423E",
+    lineHeight: 16,
   },
 
   headerActions: {
@@ -365,6 +386,8 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 20,
+    lineHeight: 28,
+    fontFamily: "NotoSansThai_700Bold",
     fontWeight: "900",
     color: "#4B3500",
     marginBottom: 6,
@@ -374,7 +397,7 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 15,
     color: "#57423E",
-    lineHeight: 18,
+    lineHeight: 24,
     marginBottom: 8,
   },
 

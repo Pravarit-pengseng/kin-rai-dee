@@ -148,7 +148,7 @@ export default function RandomIngredientScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAF6F3', // Light pink/beige background
+    backgroundColor: '#FFF8F6',
   },
   container: {
     paddingHorizontal: 20,

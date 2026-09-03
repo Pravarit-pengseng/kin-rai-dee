@@ -5,6 +5,8 @@ import {
   ScrollView,
   StyleSheet,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { router, Stack } from "expo-router";
 import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
@@ -75,7 +77,10 @@ export default function OtherProfileScreen() {
     useState<string[]>([]);
 
   const handleMenuChange = (id: string) => {
-    // LiquidMenu handles navigation
+    if (id === "home") router.replace("/");
+    else if (id === "random") router.replace("/(tabs)/random-food");
+    else if (id === "ingredients") router.replace("/(tabs)/random-ingredient");
+    else if (id === "profile") router.replace("/(tabs)/profile");
   };
 
   const handleToggleBookmark = (
@@ -109,7 +114,8 @@ export default function OtherProfileScreen() {
         }}
       />
 
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" />
         {/* Header */}
         <Header
           title="KIN RAI DEE"
@@ -142,12 +148,12 @@ export default function OtherProfileScreen() {
 
             {/* Name */}
             <ThemedText style={styles.name}>
-              มุกหมีชอบกิน
+              มุกรอบอ้วรนิดนิด
             </ThemedText>
 
             {/* Username */}
             <ThemedText style={styles.username}>
-              @mookmhee
+              @mooKrob
             </ThemedText>
 
             {/* Bio */}
@@ -156,7 +162,7 @@ export default function OtherProfileScreen() {
                 style={styles.bioText}
                 numberOfLines={1}
               >
-                กินเก่ง ทำอาหารนิดหน่อย 🍳✨
+                อ้วนนะ รับไหวมั้ย
               </ThemedText>
             </View>
           </View>
@@ -190,7 +196,7 @@ export default function OtherProfileScreen() {
 
         {/* Bottom Menu */}
         <LiquidMenu
-          active="profile"
+          active="home"
           onChange={handleMenuChange}
         />
 
@@ -214,7 +220,7 @@ export default function OtherProfileScreen() {
             handleToggleBookmark
           }
         />
-      </View>
+      </SafeAreaView>
     </>
   );
 }
@@ -265,6 +271,8 @@ const styles = StyleSheet.create({
   /* Name */
   name: {
     fontSize: 20,
+    lineHeight: 30,
+    fontFamily: "NotoSansThai_700Bold",
     fontWeight: "800",
     color: "#241917",
     marginBottom: 3,

@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 18,
     paddingBottom: 40,
   },
   mainTitle: {

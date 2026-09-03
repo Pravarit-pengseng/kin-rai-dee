@@ -6,7 +6,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { router, Stack } from "expo-router";
-import { Header } from "@/components/header";
+import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
 import PostGrid, {
   Post,

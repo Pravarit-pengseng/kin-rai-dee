@@ -9,7 +9,7 @@ import {
   Pencil,
   SquarePen,
 } from "lucide-react-native";
-import { Header } from "@/components/header";
+import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
 import { router } from "expo-router";
 
@@ -29,18 +29,7 @@ export default function ProfileHeader({
   onCreatePost,
 }: ProfileHeaderProps) {
   return (
-    <>
-      {/* Header */}
-      <Header
-        title="KIN RAI DEE"
-        leftIcon="logout"
-        onLeftPress={() => alert("ยืนยันออกจากระบบ")}
-        rightIcon="search"
-      // onRightPress={() => router.push("/(tabs)/search")}
-      />
-
-      {/* Profile */}
-      <View style={styles.profileSection}>
+    <View style={styles.profileSection}>
         {/* Avatar */}
         <View style={styles.avatarOuter}>
           <View style={styles.avatarInner}>
@@ -107,7 +96,6 @@ export default function ProfileHeader({
           </Pressable>
         </View>
       </View>
-    </>
   );
 }
 

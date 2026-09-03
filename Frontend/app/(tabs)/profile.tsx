@@ -13,9 +13,12 @@ import {
 import PostGrid, { Post } from "@/components/post-grid";
 import LiquidMenu from "@/components/liquid-menu";
 import PopupPost from "@/components/popup-post";
-import DeletePostPopup from "@/components/deletepopup";
+import DeletePostPopup from "@/components/DeletePopup";
 import ProfileHeader from "@/components/profile-header";
+import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 
 const CURRENT_USER_ID = "me";
 
@@ -109,7 +112,7 @@ export default function ProfileScreen() {
     setPopupVisible(false);
 
     router.push({
-      pathname: "/editpost",
+      pathname: "/EditPost",
       params: {
         post: JSON.stringify(post),
       },
@@ -138,7 +141,7 @@ export default function ProfileScreen() {
 
   const handleEditProfile = () => {
     router.push({
-      pathname: "/editprofile",
+      pathname: "/EditProfile",
       params: {
         name: params.name,
         username: params.username,
@@ -148,12 +151,12 @@ export default function ProfileScreen() {
   };
 
   const handleCreatePost = () => {
-    router.push("/addpost");
+    router.push("/AddPost");
   };
 
   const handleOpenPost = (post: Post) => {
     router.push({
-      pathname: "/mypost",
+      pathname: "/MyPost",
       params: {
         postId: post.id,
         ownerId: post.userId ?? CURRENT_USER_ID,
@@ -170,7 +173,14 @@ export default function ProfileScreen() {
     activeTab === "posts" ? posts : savedPosts;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" />
+      <Header
+        title="KIN RAI DEE"
+        leftIcon="logout"
+        onLeftPress={() => alert("ยืนยันออกจากระบบ")}
+        rightIcon="search"
+      />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -257,16 +267,12 @@ export default function ProfileScreen() {
         onConfirm={handleConfirmDelete}
       />
 
-      <LiquidMenu
-        active="profile"
-        onChange={() => { }}
-      />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: "#FFF9F6",
   },

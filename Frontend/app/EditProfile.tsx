@@ -13,7 +13,7 @@ import {
 } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Camera } from "lucide-react-native";
-import { Header } from "@/components/header";
+import { Header } from "@/components/Header";
 import ProfileForm from "@/components/profile-form";
 import LiquidMenu from "@/components/liquid-menu";
 import { ThemedText } from "@/components/themed-text";

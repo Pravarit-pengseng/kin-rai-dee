@@ -11,7 +11,7 @@ import {
 import { Stack, router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Camera } from "lucide-react-native";
-import { Header } from "@/components/header";
+import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
 import PostForm, {
     PostData,

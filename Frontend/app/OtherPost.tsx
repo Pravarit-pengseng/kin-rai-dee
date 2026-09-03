@@ -14,7 +14,7 @@ import {
   Stack,
   useLocalSearchParams,
 } from "expo-router";
-import { Header } from "@/components/header";
+import { Header } from "@/components/Header";
 import PopupPost from "@/components/popup-post";
 import LiquidMenu from "@/components/liquid-menu";
 

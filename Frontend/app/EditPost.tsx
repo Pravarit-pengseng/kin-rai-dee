@@ -12,7 +12,7 @@ import { Stack, router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Camera } from "lucide-react-native";
 
-import { Header } from "@/components/header";
+import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
 import PostForm, {
     PostData,
@@ -107,7 +107,10 @@ export default function EditPost() {
                     {/* Image Picker */}
                     <Pressable
                         onPress={pickImage}
-                        style={styles.imageBox}
+                        style={({ pressed }) => [
+                            styles.imageBox,
+                            pressed && styles.postButtonPressed,
+                        ]}
                     >
                         {imageUri ? (
                             <Image
@@ -222,6 +225,7 @@ const styles = StyleSheet.create({
     },
 
     postButtonPressed: {
+        opacity: 0.8,
         transform: [{ translateY: 2 }],
     },
 

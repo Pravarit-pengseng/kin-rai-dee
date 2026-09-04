@@ -69,50 +69,52 @@ export default function DeletePostPopup({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
     justifyContent: "center",
     alignItems: "center",
   },
 
   popup: {
-    width: 350,
-    height: 180,
+    width: 320,
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 16,
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 22,
+    alignItems: "center",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 5,
+      height: 6,
     },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 8,
   },
 
   title: {
     textAlign: "center",
-    fontSize: 20,
+    fontSize: 18,
+    fontFamily: "NotoSansThai_700Bold",
     fontWeight: "700",
     color: "#241917",
-    marginBottom: 10,
-    marginTop: 27,
+    marginBottom: 20,
+    lineHeight: 26,
   },
 
   buttonContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 35,
-    marginTop: 15,
+    alignItems: "center",
+    gap: 16,
+    width: "100%",
   },
 
   // Cancel button
   cancelButton: {
-    width: 120,
-    height: 45,
-    borderRadius: 30,
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#6B728033",
     alignItems: "center",
     justifyContent: "center",
@@ -120,15 +122,15 @@ const styles = StyleSheet.create({
     // 3D Border Bevel
     borderWidth: 1,
     borderColor: "#24191733",
-    borderBottomWidth: 3.5,
+    borderBottomWidth: 3,
     borderBottomColor: "#24191733",
   },
 
   // Delete button
   deleteButton: {
-    width: 120,
-    height: 45,
-    borderRadius: 30,
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#FF7A6633",
 
     alignItems: "center",
@@ -137,20 +139,24 @@ const styles = StyleSheet.create({
     // 3D Border Bevel
     borderWidth: 1,
     borderColor: "#72120933",
-    borderBottomWidth: 3.5,
+    borderBottomWidth: 3,
     borderBottomColor: "#72120933",
   },
 
   cancelText: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontSize: 16,
+    fontFamily: "NotoSansThai_700Bold",
+    fontWeight: "700",
     color: "#57423E",
+    textAlign: "center",
   },
 
   deleteText: {
-    fontSize: 18,
+    fontSize: 16,
+    fontFamily: "NotoSansThai_700Bold",
     fontWeight: "700",
     color: "#9B2C24",
+    textAlign: "center",
   },
 
   // Press effect

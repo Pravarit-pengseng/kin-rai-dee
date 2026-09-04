@@ -9,9 +9,7 @@ import {
   Pencil,
   SquarePen,
 } from "lucide-react-native";
-import { Header } from "@/components/header";
 import { ThemedText } from "@/components/themed-text";
-import { router } from "expo-router";
 
 export type ProfileHeaderProps = {
   name?: string;
@@ -29,18 +27,7 @@ export default function ProfileHeader({
   onCreatePost,
 }: ProfileHeaderProps) {
   return (
-    <>
-      {/* Header */}
-      <Header
-        title="KIN RAI DEE"
-        leftIcon="logout"
-        onLeftPress={() => alert("ยืนยันออกจากระบบ")}
-        rightIcon="search"
-      // onRightPress={() => router.push("/(tabs)/search")}
-      />
-
-      {/* Profile */}
-      <View style={styles.profileSection}>
+    <View style={styles.profileSection}>
         {/* Avatar */}
         <View style={styles.avatarOuter}>
           <View style={styles.avatarInner}>
@@ -76,7 +63,10 @@ export default function ProfileHeader({
         <View style={styles.actionRow}>
           {/* Edit Profile */}
           <Pressable
-            style={styles.actionButton}
+            style={({ pressed }) => [
+              styles.actionButton,
+              pressed && styles.buttonPressed,
+            ]}
             onPress={onEditProfile}
           >
             <Pencil
@@ -92,7 +82,10 @@ export default function ProfileHeader({
 
           {/* New Post */}
           <Pressable
-            style={styles.actionButton}
+            style={({ pressed }) => [
+              styles.actionButton,
+              pressed && styles.buttonPressed,
+            ]}
             onPress={onCreatePost}
           >
             <SquarePen
@@ -107,7 +100,6 @@ export default function ProfileHeader({
           </Pressable>
         </View>
       </View>
-    </>
   );
 }
 
@@ -145,6 +137,8 @@ const styles = StyleSheet.create({
 
   name: {
     fontSize: 20,
+    lineHeight: 30,
+    fontFamily: "NotoSansThai_700Bold",
     fontWeight: "900",
     color: "#241917",
     marginBottom: 3,
@@ -209,5 +203,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#721209",
+  },
+
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 });

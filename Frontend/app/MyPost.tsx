@@ -15,10 +15,13 @@ import {
   useLocalSearchParams,
 } from "expo-router";
 
-import { Header } from "@/components/header";
+import { Header } from "@/components/Header";
 import PopupPost from "@/components/popup-post";
 import LiquidMenu from "@/components/liquid-menu";
-import DeletePopup from "@/components/deletepopup";
+import DeletePopup from "@/components/DeletePopup";
+import LogoutPopup from "@/components/LogoutPopup";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 
 type Post = {
   id: string;
@@ -156,6 +159,9 @@ export default function MyPost() {
   // Store the post that the user wants to delete
   const [deletePostId, setDeletePostId] =
     useState<string | null>(null);
+
+  const [logoutPopupVisible, setLogoutPopupVisible] =
+    useState(false);
 
   /*
    * Add newly created post.
@@ -320,13 +326,11 @@ export default function MyPost() {
     setDeletePostId(null);
   };
 
-  /*
-   * Bottom menu navigation.
-   */
-  const handleMenuChange = (
-    id: string
-  ) => {
-    // LiquidMenu handles navigation
+  const handleMenuChange = (id: string) => {
+    if (id === "home") router.replace("/");
+    else if (id === "random") router.replace("/(tabs)/random-food");
+    else if (id === "ingredients") router.replace("/(tabs)/random-ingredient");
+    else if (id === "profile") router.replace("/(tabs)/profile");
   };
 
   return (
@@ -334,17 +338,18 @@ export default function MyPost() {
       <Stack.Screen
         options={{
           headerShown: false,
+          animation: 'none',
         }}
       />
 
-      <View style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="dark" />
         <Header
           title="KIN RAI DEE"
-          leftIcon="logout"
-          onLeftPress={() =>
-            alert("ยืนยันออกจากระบบ")
-          }
+          leftIcon="back"
+          onLeftPress={() => router.back()}
           rightIcon="search"
+          onSearchPress={() => router.push("/(tabs)/search")}
         />
 
         <ScrollView
@@ -401,17 +406,27 @@ export default function MyPost() {
           }
         />
 
+        {/* Logout Popup */}
+        <LogoutPopup
+          visible={logoutPopupVisible}
+          onCancel={() => setLogoutPopupVisible(false)}
+          onConfirm={() => {
+            setLogoutPopupVisible(false);
+            router.replace("/");
+          }}
+        />
+
         <LiquidMenu
           active="profile"
           onChange={handleMenuChange}
         />
-      </View>
+      </SafeAreaView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: "#FFF8F6",
   },

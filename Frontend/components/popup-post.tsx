@@ -6,6 +6,8 @@ import {
   StyleSheet,
   Pressable,
   ImageSourcePropType,
+  Linking,
+  Alert,
 } from "react-native";
 
 import {
@@ -48,6 +50,8 @@ export type PopupPostProps = {
   onRequestDelete?: (postId: string) => void;
 
   inline?: boolean;
+  
+  onUserPress?: (userId: string) => void;
 };
 
 export default function PopupPost({
@@ -60,6 +64,7 @@ export default function PopupPost({
   onEdit,
   onRequestDelete,
   inline = false,
+  onUserPress,
 }: PopupPostProps) {
   const [showMenu, setShowMenu] = useState(false);
 
@@ -92,23 +97,55 @@ export default function PopupPost({
     onClose();
   };
 
-  const handleContentPress = () => {
-    setShowMenu(false);
-  };
-
   const title = post.title || "กะเพราไข่ดาว";
-
   const description =
     post.description ||
     "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า ใครยังไม่รู้จะกินอะไร แนะนำเมนูที่อร่อยไม่เคยเปลี่ยน!";
-
-  const tag = post.tag || "อาหารจานเดียว";
-
+  // ลบเครื่องหมาย # ออกถ้ามีติดมาด้วย เพื่อป้องกันการแสดงผลเป็น ##
+  const tag = post.tag ? post.tag.replace(/^#/, "") : "อาหารจานเดียว";
   const location =
     post.location ||
     "https://www.wongnai.com/listings/phat-ka-phrao";
-
   const timeAgo = post.timeAgo || "2 ชม. ที่แล้ว";
+  const displayUserName = post.userId === "mookmhee" ? "มุกรอบอ้วรนิดนิด" : "มุกหมีชอบกิน";
+
+  const handleContentPress = () => {
+    setShowMenu(false);
+  };
+  
+  const handleUserClick = () => {
+    setShowMenu(false);
+    if (post.userId) {
+      onUserPress?.(post.userId);
+    }
+  };
+
+  const handleOpenLocation = async () => {
+    setShowMenu(false);
+    if (!location) return;
+
+    let targetUrl = location.trim();
+    if (!targetUrl) return;
+
+    if (/^www\./i.test(targetUrl)) {
+      targetUrl = `https://${targetUrl}`;
+    } else if (!/^https?:\/\//i.test(targetUrl) && !/^(maps|geo):/i.test(targetUrl)) {
+      targetUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(targetUrl)}`;
+    }
+
+    try {
+      const canOpen = await Linking.canOpenURL(targetUrl);
+      if (canOpen) {
+        await Linking.openURL(targetUrl);
+      } else {
+        const searchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.trim())}`;
+        await Linking.openURL(searchUrl);
+      }
+    } catch (error) {
+      console.error("Error opening location link:", error);
+      Alert.alert("ไม่สามารถเปิดลิงก์ได้", "โปรดตรวจสอบ URL หรือลองใหม่อีกครั้ง");
+    }
+  };
 
   const card = (
     <View style={styles.card}>
@@ -117,32 +154,37 @@ export default function PopupPost({
         style={styles.header}
         onPress={handleContentPress}
       >
-        {/* Avatar */}
-        <View style={styles.avatarContainer}>
-          <Image
-            source={require("../assets/images/ProfilePicture.png")}
-            style={styles.avatar}
-            resizeMode="cover"
-          />
-        </View>
+        <Pressable style={styles.userProfileLink} onPress={handleUserClick}>
+          {/* Avatar */}
+          <View style={styles.avatarContainer}>
+            <Image
+              source={require("../assets/images/ProfilePicture.png")}
+              style={styles.avatar}
+              resizeMode="cover"
+            />
+          </View>
 
-        {/* User information */}
-        <View style={styles.userInfo}>
-          <ThemedText style={styles.userName}>
-            มุกหมีชอบกิน
-          </ThemedText>
+          {/* User information */}
+          <View style={styles.userInfo}>
+            <ThemedText style={styles.userName}>
+              {displayUserName}
+            </ThemedText>
 
-          <ThemedText style={styles.timeAgo}>
-            {timeAgo}
-          </ThemedText>
-        </View>
+            <ThemedText style={styles.timeAgo}>
+              {timeAgo}
+            </ThemedText>
+          </View>
+        </Pressable>
 
         {/* Header actions */}
         <View style={styles.headerActions}>
           {/* Edit / Delete menu */}
           {isOwnPost && (
             <Pressable
-              style={styles.iconButton}
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && styles.buttonPressed,
+              ]}
               onPress={handleMenuPress}
             >
               <AlignLeft
@@ -156,7 +198,10 @@ export default function PopupPost({
           {/* Close button */}
           {!inline && (
             <Pressable
-              style={styles.iconButton}
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && styles.buttonPressed,
+              ]}
               onPress={handleClose}
             >
               <X
@@ -202,12 +247,24 @@ export default function PopupPost({
         </ThemedText>
 
         {location && (
-          <ThemedText style={styles.location}>
-            พิกัด:{" "}
-            <ThemedText style={styles.link}>
-              {location}
+          <Pressable
+            style={({ pressed }) => [
+              styles.locationContainer,
+              pressed && styles.locationPressed,
+            ]}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleOpenLocation();
+            }}
+            hitSlop={6}
+          >
+            <ThemedText style={styles.location} numberOfLines={2} ellipsizeMode="tail">
+              พิกัด:{" "}
+              <ThemedText style={styles.link}>
+                {location}
+              </ThemedText>
             </ThemedText>
-          </ThemedText>
+          </Pressable>
         )}
 
         <View style={styles.tagContainer}>
@@ -223,7 +280,10 @@ export default function PopupPost({
         <View style={styles.footer}>
           <Pressable
             onPress={handleBookmarkPress}
-            style={styles.bookmarkButton}
+            style={({ pressed }) => [
+              styles.bookmarkButton,
+              pressed && styles.buttonPressed,
+            ]}
             hitSlop={8}
           >
             <Bookmark
@@ -298,6 +358,12 @@ const styles = StyleSheet.create({
     padding: 16,
   },
 
+  userProfileLink: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
   avatarContainer: {
     width: 38,
     height: 38,
@@ -321,15 +387,16 @@ const styles = StyleSheet.create({
 
   userName: {
     fontSize: 14,
+    fontFamily: "NotoSansThai_700Bold",
     fontWeight: "700",
     color: "#4B3500",
-    marginTop: 5,
-    marginBottom: -7,
+    lineHeight: 20,
   },
 
   timeAgo: {
     fontSize: 11,
     color: "#57423E",
+    lineHeight: 16,
   },
 
   headerActions: {
@@ -365,6 +432,8 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 20,
+    lineHeight: 28,
+    fontFamily: "NotoSansThai_700Bold",
     fontWeight: "900",
     color: "#4B3500",
     marginBottom: 6,
@@ -374,14 +443,22 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 15,
     color: "#57423E",
-    lineHeight: 18,
+    lineHeight: 24,
     marginBottom: 8,
+  },
+
+  locationContainer: {
+    marginBottom: 10,
+    alignSelf: "flex-start",
+  },
+
+  locationPressed: {
+    opacity: 0.6,
   },
 
   location: {
     fontSize: 14,
     color: "#57423E",
-    marginBottom: 10,
   },
 
   link: {
@@ -423,5 +500,10 @@ const styles = StyleSheet.create({
 
   bookmarkButton: {
     padding: 4,
+  },
+
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 });

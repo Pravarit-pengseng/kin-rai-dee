@@ -74,9 +74,10 @@ export default function LiquidMenu({
             <Pressable
               key={item.id}
               onPress={() => handlePress(item.id)}
-              style={[
+              style={({ pressed }) => [
                 styles.menuItem,
                 isActive && styles.activeItem,
+                pressed && styles.buttonPressed,
               ]}
             >
               <Icon
@@ -168,5 +169,10 @@ const styles = StyleSheet.create({
 
   activeLabel: {
     fontFamily: "NotoSansThai_700Bold",
+  },
+
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 });

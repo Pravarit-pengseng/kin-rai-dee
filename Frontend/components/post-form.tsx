@@ -15,13 +15,9 @@ import {
 } from "lucide-react-native";
 
 import { ThemedText } from "@/components/themed-text";
+import { FOOD_CATEGORIES } from "@/constants/categories";
 
-const categories = [
-  "อาหารจานเดียว",
-  "กับข้าว",
-  "อาหารเล่น",
-  "ของว่าง",
-];
+const categories = FOOD_CATEGORIES.map((c) => c.label);
 
 export type PostData = {
   image: string | null;
@@ -93,7 +89,7 @@ export default function PostForm({
       title: "",
       description: "",
       restaurant: "",
-      categories: ["อาหารจานเดียว"],
+      categories: [],
     }
   );
 
@@ -123,8 +119,8 @@ export default function PostForm({
   const toggleCategory = (item: string) => {
     const selected = post.categories.includes(item)
       ? post.categories.filter(
-          (category) => category !== item
-        )
+        (category) => category !== item
+      )
       : [...post.categories, item];
 
     updatePost({

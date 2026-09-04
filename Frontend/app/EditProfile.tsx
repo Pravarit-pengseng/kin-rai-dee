@@ -13,7 +13,7 @@ import {
 } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Camera } from "lucide-react-native";
-import { Header } from "@/components/header";
+import { Header } from "@/components/Header";
 import ProfileForm from "@/components/profile-form";
 import LiquidMenu from "@/components/liquid-menu";
 import { ThemedText } from "@/components/themed-text";
@@ -197,8 +197,8 @@ const styles = StyleSheet.create({
   },
 
   cameraButtonPressed: {
-    transform: [{ scale: 0.92 }],
     opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 
   saveButton: {
@@ -217,6 +217,7 @@ const styles = StyleSheet.create({
   },
 
   saveButtonPressed: {
+    opacity: 0.8,
     transform: [{ translateY: 2 }],
   },
 

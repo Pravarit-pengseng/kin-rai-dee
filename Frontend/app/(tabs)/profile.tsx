@@ -11,11 +11,15 @@ import {
 } from "expo-router";
 
 import PostGrid, { Post } from "@/components/post-grid";
-import LiquidMenu from "@/components/liquid-menu";
+
 import PopupPost from "@/components/popup-post";
-import DeletePostPopup from "@/components/deletepopup";
+import DeletePostPopup from "@/components/DeletePopup";
+import LogoutPopup from "@/components/LogoutPopup";
 import ProfileHeader from "@/components/profile-header";
+import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 
 const CURRENT_USER_ID = "me";
 
@@ -42,6 +46,8 @@ export default function ProfileScreen() {
     useState<Post | null>(null);
   const [popupVisible, setPopupVisible] = useState(false);
   const [deletePopupVisible, setDeletePopupVisible] =
+    useState(false);
+  const [logoutPopupVisible, setLogoutPopupVisible] =
     useState(false);
   const [deletePostId, setDeletePostId] =
     useState<string | null>(null);
@@ -109,7 +115,7 @@ export default function ProfileScreen() {
     setPopupVisible(false);
 
     router.push({
-      pathname: "/editpost",
+      pathname: "/EditPost",
       params: {
         post: JSON.stringify(post),
       },
@@ -138,7 +144,7 @@ export default function ProfileScreen() {
 
   const handleEditProfile = () => {
     router.push({
-      pathname: "/editprofile",
+      pathname: "/EditProfile",
       params: {
         name: params.name,
         username: params.username,
@@ -148,12 +154,12 @@ export default function ProfileScreen() {
   };
 
   const handleCreatePost = () => {
-    router.push("/addpost");
+    router.push("/AddPost");
   };
 
   const handleOpenPost = (post: Post) => {
     router.push({
-      pathname: "/mypost",
+      pathname: "/MyPost",
       params: {
         postId: post.id,
         ownerId: post.userId ?? CURRENT_USER_ID,
@@ -170,7 +176,15 @@ export default function ProfileScreen() {
     activeTab === "posts" ? posts : savedPosts;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" />
+      <Header
+        title="KIN RAI DEE"
+        leftIcon="logout"
+        onLeftPress={() => setLogoutPopupVisible(true)}
+        rightIcon="search"
+        onSearchPress={() => router.push('/(tabs)/search')}
+      />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -187,7 +201,10 @@ export default function ProfileScreen() {
           {(["posts", "saved"] as const).map((tab) => (
             <Pressable
               key={tab}
-              style={styles.tab}
+              style={({ pressed }) => [
+                styles.tab,
+                pressed && styles.buttonPressed,
+              ]}
               onPress={() => setActiveTab(tab)}
             >
               <ThemedText
@@ -257,16 +274,20 @@ export default function ProfileScreen() {
         onConfirm={handleConfirmDelete}
       />
 
-      <LiquidMenu
-        active="profile"
-        onChange={() => { }}
+      <LogoutPopup
+        visible={logoutPopupVisible}
+        onCancel={() => setLogoutPopupVisible(false)}
+        onConfirm={() => {
+          setLogoutPopupVisible(false);
+          router.replace("/");
+        }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: "#FFF9F6",
   },
@@ -327,5 +348,10 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     color: "#9B8E89",
+  },
+
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 });

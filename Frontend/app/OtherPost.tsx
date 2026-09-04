@@ -9,12 +9,14 @@ import {
   StyleSheet,
   ImageSourcePropType,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import {
   router,
   Stack,
   useLocalSearchParams,
 } from "expo-router";
-import { Header } from "@/components/header";
+import { Header } from "@/components/Header";
 import PopupPost from "@/components/popup-post";
 import LiquidMenu from "@/components/liquid-menu";
 
@@ -227,7 +229,10 @@ export default function PostScreen() {
   const handleMenuChange = (
     id: string
   ) => {
-    // LiquidMenu handles navigation
+    if (id === "home") router.replace("/");
+    else if (id === "random") router.replace("/(tabs)/random-food");
+    else if (id === "ingredients") router.replace("/(tabs)/random-ingredient");
+    else if (id === "profile") router.replace("/(tabs)/profile");
   };
 
   return (
@@ -238,13 +243,14 @@ export default function PostScreen() {
           headerShown: false,
         }}
       />
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" />
         <Header
           title="KIN RAI DEE"
           leftIcon="back"
           onLeftPress={() => router.back()}
           rightIcon="search"
-        // onRightPress={() => router.push("/(tabs)/search")}
+          onSearchPress={() => router.push("/(tabs)/search")}
         />
 
         <ScrollView
@@ -283,10 +289,10 @@ export default function PostScreen() {
         </ScrollView>
 
         <LiquidMenu
-          active="profile"
+          active="home"
           onChange={handleMenuChange}
         />
-      </View>
+      </SafeAreaView>
     </>
   );
 }

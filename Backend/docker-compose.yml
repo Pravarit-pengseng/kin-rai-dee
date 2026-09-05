@@ -2,12 +2,18 @@ services:
   api:
     build: .
     container_name: kin-rai-dee-api
+
+    env_file:
+      - .env
+
     ports:
       - "8000:8000"
+
     volumes:
       - ./app:/app/app
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     command: >
-      uvicorn app.main:app 
-      --host 0.0.0.0
-      --port 8000
-      --reload
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

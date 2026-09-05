@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     SafeAreaView,
     View,
@@ -16,8 +16,17 @@ import { ThemedText } from "@/components/themed-text";
 import PostForm, {
     PostData,
 } from "@/components/post-form";
+import { useAuth } from "@/context/AuthContext";
 
 export default function AddPost() {
+    const { isLoggedIn } = useAuth();
+
+    useEffect(() => {
+        if (!isLoggedIn) {
+            router.replace({ pathname: '/(auth)/login', params: { returnTo: '/' } });
+        }
+    }, [isLoggedIn]);
+
     const [post, setPost] = useState<PostData>({
         image: null,
         title: "",

@@ -20,6 +20,7 @@ import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { useAuth } from "@/context/AuthContext";
 
 const CURRENT_USER_ID = "me";
 
@@ -33,6 +34,7 @@ const allPosts: Post[] = Array.from(
 );
 
 export default function ProfileScreen() {
+  const { isLoggedIn, logout } = useAuth();
   const params = useLocalSearchParams<{
     name?: string;
     username?: string;
@@ -40,6 +42,12 @@ export default function ProfileScreen() {
     post?: string;
     mode?: string;
   }>();
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      router.replace({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/profile', from: '/' } });
+    }
+  }, [isLoggedIn]);
 
   const [posts, setPosts] = useState<Post[]>(allPosts);
   const [selectedPost, setSelectedPost] =
@@ -154,6 +162,10 @@ export default function ProfileScreen() {
   };
 
   const handleCreatePost = () => {
+    if (!isLoggedIn) {
+      router.push({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/profile' } });
+      return;
+    }
     router.push("/AddPost");
   };
 
@@ -180,7 +192,7 @@ export default function ProfileScreen() {
       <StatusBar style="dark" />
       <Header
         title="KIN RAI DEE"
-        leftIcon="logout"
+        leftIcon={isLoggedIn ? "logout" : "none"}
         onLeftPress={() => setLogoutPopupVisible(true)}
         rightIcon="search"
         onSearchPress={() => router.push('/(tabs)/search')}
@@ -277,8 +289,9 @@ export default function ProfileScreen() {
       <LogoutPopup
         visible={logoutPopupVisible}
         onCancel={() => setLogoutPopupVisible(false)}
-        onConfirm={() => {
+        onConfirm={async () => {
           setLogoutPopupVisible(false);
+          await logout();
           router.replace("/");
         }}
       />

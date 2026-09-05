@@ -15,6 +15,8 @@ import {
   Bookmark,
   AlignLeft,
 } from "lucide-react-native";
+import { useRouter, usePathname } from "expo-router";
+import { useAuth } from "@/context/AuthContext";
 
 import PostDropdown from "./post-dropdown";
 import { ThemedText } from "@/components/themed-text";
@@ -66,6 +68,9 @@ export default function PopupPost({
   inline = false,
   onUserPress,
 }: PopupPostProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isLoggedIn } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
 
   if (!post) {
@@ -74,6 +79,14 @@ export default function PopupPost({
 
   const handleBookmarkPress = () => {
     setShowMenu(false);
+    if (!isLoggedIn) {
+      onClose();
+      router.push({
+        pathname: '/(auth)/login',
+        params: { returnTo: pathname || '/', from: pathname || '/' },
+      });
+      return;
+    }
     onBookmark?.(post.id);
   };
 

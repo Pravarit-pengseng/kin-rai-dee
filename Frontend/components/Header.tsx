@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { StatusBar, StatusBarStyle } from 'expo-status-bar';
+import { useAuth } from '@/context/AuthContext';
 
 export type HeaderLeftIcon = 'back' | 'close' | 'logout' | 'none';
 export type HeaderRightIcon = 'search' | 'none';
@@ -33,11 +34,13 @@ export function Header({
   statusBarStyle = 'dark',
   showBorder = true,
 }: HeaderProps) {
+  const { isLoggedIn } = useAuth();
   const isThai = /[\u0E00-\u0E7F]/.test(title);
   const fontFamily = isThai ? 'NotoSansThai_700Bold' : 'PlusJakartaSans_700Bold';
 
   const renderLeftIcon = () => {
     if (leftIcon === 'none') return null;
+    if (leftIcon === 'logout' && !isLoggedIn) return null;
 
     let iconName: keyof typeof Feather.glyphMap = 'arrow-left';
     if (leftIcon === 'close') iconName = 'x';

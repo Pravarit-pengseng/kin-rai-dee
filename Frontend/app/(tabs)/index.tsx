@@ -10,6 +10,7 @@ import { Header } from "@/components/Header";
 import PopupPost from "@/components/popup-post";
 import DeletePopup from "@/components/DeletePopup";
 import { ThemedText } from "@/components/themed-text";
+import { useAuth } from "@/context/AuthContext";
 
 // Mock data
 const CURRENT_USER_ID = "me";
@@ -56,6 +57,7 @@ const initialPosts = [
 ];
 
 export default function HomeScreen() {
+  const { isLoggedIn } = useAuth();
   const [posts, setPosts] = useState(initialPosts);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
@@ -78,12 +80,20 @@ export default function HomeScreen() {
   };
 
   const handleCreatePost = () => {
+    if (!isLoggedIn) {
+      router.push({ pathname: '/(auth)/login', params: { returnTo: '/AddPost', from: '/' } });
+      return;
+    }
     router.push("/AddPost");
   };
 
   const handleUserPress = (userId: string) => {
     if (userId === CURRENT_USER_ID) {
-      router.push("/(tabs)/profile");
+      if (!isLoggedIn) {
+        router.push({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/profile', from: '/' } });
+      } else {
+        router.push("/(tabs)/profile");
+      }
     } else {
       router.push("/OtherProfile");
     }

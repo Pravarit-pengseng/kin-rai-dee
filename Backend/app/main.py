@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
+from app.core.security import get_current_user
 from app.db.supabase import supabase
 
 app = FastAPI()
@@ -8,11 +9,6 @@ app = FastAPI()
 @app.get("/")
 def read_root():
     return {"Hello": "World"}
-
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: str | None = None):
-    return {"item_id": item_id, "q": q}
 
 
 @app.get("/test/supabase")
@@ -28,4 +24,12 @@ def test_supabase():
     return {
         "success": True,
         "data": response.data,
+    }
+
+
+@app.get("/me")
+def get_me(user: dict = Depends(get_current_user)):
+    return {
+        "success": True,
+        "user": user,
     }

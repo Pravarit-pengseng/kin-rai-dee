@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -48,54 +48,56 @@ const menuItems: MenuItem[] = [
 ];
 
 export default function LiquidMenu({
-  active: initialActive = "profile",
+  active = "home",
   onChange,
 }: LiquidMenuProps) {
-  const [active, setActive] = useState(initialActive);
+  const handlePress = (id: string) => {
+    onChange?.(id);
+  };
 
   return (
     <View style={styles.wrapper}>
+      {/* Layer 1: Background Blur */}
       <BlurView
         intensity={80}
         tint="light"
-        style={styles.blur}
-      >
-        <View style={styles.menu}>
-          {menuItems.map((item) => {
-            const isActive = active === item.id;
-            const Icon = item.icon;
+        style={[StyleSheet.absoluteFill, styles.blur]}
+      />
 
-            return (
-              <Pressable
-                key={item.id}
-                onPress={() => {
-                  setActive(item.id);
-                  onChange?.(item.id);
-                }}
+      {/* Layer 2: Menu Items */}
+      <View style={styles.menu}>
+        {menuItems.map((item) => {
+          const isActive = active === item.id;
+          const Icon = item.icon;
+
+          return (
+            <Pressable
+              key={item.id}
+              onPress={() => handlePress(item.id)}
+              style={({ pressed }) => [
+                styles.menuItem,
+                isActive && styles.activeItem,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              <Icon
+                size={22}
+                color="#57423E"
+                strokeWidth={isActive ? 2.5 : 2}
+              />
+
+              <Text
                 style={[
-                  styles.menuItem,
-                  isActive && styles.activeItem,
+                  styles.label,
+                  isActive && styles.activeLabel,
                 ]}
               >
-                <Icon
-                  size={22}
-                  color="#57423E"
-                  strokeWidth={isActive ? 2.5 : 2}
-                />
-
-                <Text
-                  style={[
-                    styles.label,
-                    isActive && styles.activeLabel,
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </BlurView>
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -132,7 +134,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-around",
     paddingHorizontal: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.6)",
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
   },
 
   menuItem: {
@@ -143,12 +145,10 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
 
-  // กรอบของเมนูที่กำลังเปิดอยู่
   activeItem: {
     borderRadius: 30,
-    backgroundColor: "rgba(255, 233, 229, 0.5)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.75)",
+    backgroundColor: "rgba(255, 233, 229, 0.45)",
+
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -164,9 +164,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#57423E",
     fontWeight: "500",
+    fontFamily: "NotoSansThai_600SemiBold",
   },
 
   activeLabel: {
-    fontWeight: "700",
+    fontFamily: "NotoSansThai_700Bold",
+  },
+
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 });

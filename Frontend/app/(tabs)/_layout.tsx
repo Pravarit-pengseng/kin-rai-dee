@@ -1,35 +1,46 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter, usePathname } from 'expo-router';
 import React from 'react';
-
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import LiquidMenu from '@/components/liquid-menu';
+import { useAuth } from '@/context/AuthContext';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { isLoggedIn } = useAuth();
+
+  // Determine active tab based on current pathname
+  let activeTab = 'home';
+  if (pathname.includes('random-food')) activeTab = 'random';
+  else if (pathname.includes('random-ingredient')) activeTab = 'ingredients';
+  else if (pathname.includes('profile')) activeTab = 'profile';
+
+  const handleTabChange = (id: string) => {
+    if (id === 'home') router.push('/');
+    else if (id === 'random') router.push('/(tabs)/random-food');
+    else if (id === 'ingredients') router.push('/(tabs)/random-ingredient');
+    else if (id === 'profile') {
+      if (!isLoggedIn) {
+        router.push({
+          pathname: '/(auth)/login',
+          params: { returnTo: '/(tabs)/profile', from: pathname || '/' },
+        });
+      } else {
+        router.push('/(tabs)/profile');
+      }
+    }
+  };
 
   return (
     <Tabs
+      tabBar={() => <LiquidMenu active={activeTab} onChange={handleTabChange} />}
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
       }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
+      <Tabs.Screen name="index" />
+      <Tabs.Screen name="random-food" />
+      <Tabs.Screen name="search" />
+      <Tabs.Screen name="random-ingredient" />
+      <Tabs.Screen name="profile" />
     </Tabs>
   );
 }

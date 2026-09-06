@@ -1,20 +1,42 @@
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.security import get_current_user
 from app.db.supabase import supabase
-from app.routes.profile import router as profile_router
-from app.routes.auth import router as auth_router
-from app.routes.posts import router as posts_router
 
-app = FastAPI()
+from app.routers import categories, foods, search, posts, profiles
 
-app.include_router(auth_router)
-app.include_router(profile_router)
-app.include_router(posts_router)
+
+app = FastAPI(
+    title="Kin-Rai-Dee Backend API",
+    version="1.0.0",
+)
+
+
+# Enable CORS for frontend app
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Register Routers
+app.include_router(categories.router)
+app.include_router(foods.router)
+app.include_router(search.router)
+app.include_router(posts.router)
+app.include_router(profiles.router)
+
 
 @app.get("/")
 def read_root():
-    return {"Hello": "World"}
+    return {
+        "message": "Kin-Rai-Dee API is running and connected to Supabase DB",
+        "status": "ok",
+    }
 
 
 @app.get("/test/supabase")

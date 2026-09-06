@@ -1,22 +1,22 @@
-import React, { useState } from "react";
-import { View, ScrollView, StyleSheet, Pressable } from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
+import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SquarePen } from "lucide-react-native";
 
 import { Header } from "@/components/Header";
-import PopupPost from "@/components/popup-post";
+import PopupPost, { PopupPostData } from "@/components/popup-post";
 import DeletePopup from "@/components/DeletePopup";
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/context/AuthContext";
+import { fetchFeedPosts } from "@/services/postService";
 
-// Mock data
 const CURRENT_USER_ID = "me";
 const OTHER_USER_ID = "mookmhee";
 
-const initialPosts = [
+const initialPosts: PopupPostData[] = [
   {
     id: "1",
     image: require("../../assets/images/StirFriedHolyBasil.png"),
@@ -58,9 +58,25 @@ const initialPosts = [
 
 export default function HomeScreen() {
   const { isLoggedIn } = useAuth();
-  const [posts, setPosts] = useState(initialPosts);
+  const [posts, setPosts] = useState<PopupPostData[]>(initialPosts);
+  const [loading, setLoading] = useState(false);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
+
+  const loadFeed = async () => {
+    setLoading(true);
+    const fetched = await fetchFeedPosts();
+    if (fetched && fetched.length > 0) {
+      setPosts(fetched);
+    }
+    setLoading(false);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFeed();
+    }, [])
+  );
 
   const handleToggleBookmark = (postId: string) => {
     setBookmarkedIds((prev) =>
@@ -115,6 +131,12 @@ export default function HomeScreen() {
           <ThemedText style={styles.pageTitle}>วันนี้กินอะไรกันดี?</ThemedText>
           <MaterialCommunityIcons name="silverware-fork-knife" size={26} color="#DCA64E" />
         </View>
+
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#DCA64E" />
+          </View>
+        )}
 
         {/* Posts */}
         {posts.map((post) => (
@@ -176,6 +198,7 @@ const styles = StyleSheet.create({
     color: "#46302B",
   },
   postWrapper: { marginBottom: 16 },
+  loadingContainer: { marginVertical: 20, alignItems: "center" },
   fab: {
     position: "absolute",
     bottom: 90,

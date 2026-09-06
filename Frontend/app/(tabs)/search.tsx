@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, TextInput, Pressable, ScrollView } from 'react-native';
+import { View, StyleSheet, TextInput, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect } from 'expo-router';
@@ -8,11 +8,12 @@ import { Header } from '@/components/Header';
 import PostGrid from '@/components/post-grid';
 import PopupPost, { PopupPostData } from '@/components/popup-post';
 import { ThemedText } from '@/components/themed-text';
+import { searchPosts, fetchSearchHistory, addSearchHistory, deleteSearchHistoryItem, clearAllSearchHistory } from '@/services/searchService';
+import { useAuth } from '@/context/AuthContext';
 
 const CURRENT_USER_ID = "me";
 const OTHER_USER_ID = "mookmhee";
 
-// Generate mock posts for the grid
 const MOCK_POSTS: PopupPostData[] = [
   {
     id: "1",
@@ -53,7 +54,6 @@ const MOCK_POSTS: PopupPostData[] = [
   }
 ];
 
-// Fill up to 12 items to make a nice grid
 for (let i = 5; i <= 15; i++) {
   MOCK_POSTS.push({
     ...MOCK_POSTS[(i % 4)],
@@ -62,74 +62,98 @@ for (let i = 5; i <= 15; i++) {
 }
 
 export default function SearchScreen() {
-  const [inputValue, setInputValue] = useState(''); // Separate from submitted text
+  const { user } = useAuth();
+  const userId = user?.id || CURRENT_USER_ID;
+
+  const [inputValue, setInputValue] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [recentSearches, setRecentSearches] = useState(['หมูกรอบเจ้าดัง', 'คาเฟ่แมว นิมมาน', 'ข้าวซอยเนื้อ']);
+  const [loading, setLoading] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<{ id?: string | number; query: string }[]>([
+    { query: 'หมูกรอบเจ้าดัง' },
+    { query: 'คาเฟ่แมว นิมมาน' },
+    { query: 'ข้าวซอยเนื้อ' }
+  ]);
+  const [searchResults, setSearchResults] = useState<PopupPostData[]>(MOCK_POSTS);
 
-  // Feed view mode
   const [showFeed, setShowFeed] = useState(false);
-
-  // Popup modal state
   const [popupPost, setPopupPost] = useState<PopupPostData | null>(null);
-
-  // Bookmarked posts
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
 
-  // Reset state when screen is focused
+  const loadHistory = async () => {
+    const history = await fetchSearchHistory(userId);
+    if (history && history.length > 0) {
+      setRecentSearches(history.map(item => ({ id: item.id, query: item.query })));
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       setInputValue('');
       setIsSearching(false);
       setShowFeed(false);
       setPopupPost(null);
-    }, [])
+      loadHistory();
+    }, [userId])
   );
 
-  const handleSearchSubmit = () => {
-    const text = inputValue.trim();
-    if (text !== '') {
-      setIsSearching(true);
-      setShowFeed(false); // Default to grid when search submitted
-      setRecentSearches(prev => {
-        const newRecent = [text, ...prev.filter(item => item !== text)];
-        return newRecent.slice(0, 10);
-      });
-    } else {
+  const performSearch = async (text: string) => {
+    const queryStr = text.trim();
+    if (queryStr === '') {
       setIsSearching(false);
       setShowFeed(false);
+      setSearchResults(MOCK_POSTS);
+      return;
     }
+
+    setIsSearching(true);
+    setShowFeed(false);
+    setLoading(true);
+
+    await addSearchHistory(userId, queryStr);
+    loadHistory();
+
+    const results = await searchPosts(queryStr);
+    if (results && results.length > 0) {
+      setSearchResults(results);
+    } else {
+      setSearchResults(MOCK_POSTS.filter(p =>
+        p.title?.includes(queryStr) ||
+        p.description?.includes(queryStr) ||
+        p.tag?.includes(queryStr)
+      ));
+    }
+
+    setLoading(false);
   };
 
-  const handleClearHistory = (index: number) => {
+  const handleSearchSubmit = () => {
+    performSearch(inputValue);
+  };
+
+  const handleClearHistory = async (index: number) => {
+    const item = recentSearches[index];
+    if (item.id) {
+      await deleteSearchHistoryItem(item.id);
+    }
     setRecentSearches(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleClearAllHistory = () => {
+  const handleClearAllHistory = async () => {
+    await clearAllSearchHistory(userId);
     setRecentSearches([]);
   };
 
   const handleTrendPress = (text: string) => {
     setInputValue(text);
-    setIsSearching(true);
-    setShowFeed(false);
-    setRecentSearches(prev => {
-      const newRecent = [text, ...prev.filter(item => item !== text)];
-      return newRecent.slice(0, 10);
-    });
+    performSearch(text);
   };
 
   const handleHistoryPress = (text: string) => {
     setInputValue(text);
-    setIsSearching(true);
-    setShowFeed(false);
-    setRecentSearches(prev => {
-      const newRecent = [text, ...prev.filter(item => item !== text)];
-      return newRecent.slice(0, 10);
-    });
+    performSearch(text);
   };
 
   const handlePostPress = (post: PopupPostData) => {
-    // Show full feed of posts, scrolling to this one (or just show all for now)
     setShowFeed(true);
   };
 
@@ -203,10 +227,10 @@ export default function SearchScreen() {
               </View>
 
               {recentSearches.map((item, index) => (
-                <View key={`${item}-${index}`} style={styles.historyItem}>
-                  <Pressable style={styles.historyItemContent} onPress={() => handleHistoryPress(item)}>
+                <View key={`${item.query}-${index}`} style={styles.historyItem}>
+                  <Pressable style={styles.historyItemContent} onPress={() => handleHistoryPress(item.query)}>
                     <MaterialCommunityIcons name="history" size={20} color="#C4B5A5" style={styles.historyIcon} />
-                    <ThemedText style={styles.historyText}>{item}</ThemedText>
+                    <ThemedText style={styles.historyText}>{item.query}</ThemedText>
                   </Pressable>
                   <Pressable onPress={() => handleClearHistory(index)} hitSlop={8}>
                     <Feather name="x" size={18} color="#C4B5A5" />
@@ -215,10 +239,14 @@ export default function SearchScreen() {
               ))}
             </View>
           </>
+        ) : loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#DCA64E" />
+          </View>
         ) : showFeed ? (
           /* Feed View Mode */
           <View style={styles.feedContainer}>
-            {MOCK_POSTS.map((post) => (
+            {searchResults.map((post) => (
               <View key={post.id} style={styles.postWrapper}>
                 <PopupPost
                   visible={true}
@@ -243,7 +271,7 @@ export default function SearchScreen() {
           /* Grid View Mode */
           <View style={styles.gridContainer}>
             <PostGrid
-              posts={MOCK_POSTS}
+              posts={searchResults}
               onPressPost={handlePostPress}
               onLongPressPost={handlePostLongPress}
             />
@@ -251,7 +279,7 @@ export default function SearchScreen() {
         )}
       </ScrollView>
 
-      {/* Popup Post Modal (triggered by long press in grid) */}
+      {/* Popup Post Modal */}
       <PopupPost
         visible={popupPost !== null}
         post={popupPost}
@@ -377,6 +405,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'NotoSansThai_400Regular',
     color: '#57423E',
+  },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
   },
   gridContainer: {
     flex: 1,

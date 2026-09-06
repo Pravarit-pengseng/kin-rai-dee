@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Image, Pressable, Alert } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Image, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { Header } from '@/components/Header';
 import { RandomButton } from '@/components/RandomButton';
-import { FOOD_LIST, FoodItem } from '@/constants/foodData';
+import { FoodItem } from '@/constants/foodData';
+import { getRandomIngredient } from '@/services/foodService';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function RandomIngredientScreen() {
   const [isVegSelected, setIsVegSelected] = useState(false);
   const [isMeatSelected, setIsMeatSelected] = useState(false);
   const [hasRandomized, setHasRandomized] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [randomVeg, setRandomVeg] = useState<FoodItem | null>(null);
   const [randomMeat, setRandomMeat] = useState<FoodItem | null>(null);
@@ -20,31 +22,18 @@ export default function RandomIngredientScreen() {
     router.push('/(tabs)/search');
   };
 
-  const handleRandomize = () => {
+  const handleRandomize = async () => {
     if (!isVegSelected && !isMeatSelected) {
       Alert.alert('แจ้งเตือน', 'กรุณาเลือกหมวดวัตถุดิบอย่างน้อย 1 อย่างก่อนกดสุ่ม');
       return;
     }
 
-    if (isVegSelected) {
-      const vegPool = FOOD_LIST.filter(item => item.categoryId === '7'); // 7 = ผัก
-      if (vegPool.length > 0) {
-        setRandomVeg(vegPool[Math.floor(Math.random() * vegPool.length)]);
-      }
-    } else {
-      setRandomVeg(null);
-    }
-
-    if (isMeatSelected) {
-      const meatPool = FOOD_LIST.filter(item => item.categoryId === '5'); // 5 = เนื้อสัตว์
-      if (meatPool.length > 0) {
-        setRandomMeat(meatPool[Math.floor(Math.random() * meatPool.length)]);
-      }
-    } else {
-      setRandomMeat(null);
-    }
-
+    setLoading(true);
+    const { veg, meat } = await getRandomIngredient(isVegSelected, isMeatSelected);
+    setRandomVeg(veg);
+    setRandomMeat(meat);
     setHasRandomized(true);
+    setLoading(false);
   };
 
   const renderCard = (food: FoodItem) => (
@@ -54,6 +43,11 @@ export default function RandomIngredientScreen() {
         style={styles.foodImageHalf}
         resizeMode="cover"
       />
+      {food.name && (
+        <View style={styles.nameOverlay}>
+          <Text style={styles.foodName}>{food.name}</Text>
+        </View>
+      )}
     </View>
   );
 
@@ -120,7 +114,11 @@ export default function RandomIngredientScreen() {
 
         {/* Display Area for Logo or Result */}
         <View style={styles.resultsArea}>
-          {!hasRandomized || (!isVegSelected && !isMeatSelected) ? (
+          {loading ? (
+            <View style={styles.resultCardFull}>
+              <ActivityIndicator size="large" color="#DCA64E" />
+            </View>
+          ) : !hasRandomized || (!isVegSelected && !isMeatSelected) ? (
             <View style={styles.resultCardFull}>
               <Image
                 source={require('@/assets/images/kinraidee-logo.png')}
@@ -184,7 +182,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    // shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -192,15 +189,15 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   unselected: {
-    backgroundColor: '#E5E5E5', // Gray
+    backgroundColor: '#E5E5E5',
     borderColor: '#D0D5DD',
   },
   vegSelected: {
-    backgroundColor: '#A5E3C5', // Light green
+    backgroundColor: '#A5E3C5',
     borderColor: '#81ac99ff',
   },
   meatSelected: {
-    backgroundColor: '#F6D0CE', // Light pink/red
+    backgroundColor: '#F6D0CE',
     borderColor: '#c18079ff',
   },
   iconCircle: {
@@ -272,24 +269,28 @@ const styles = StyleSheet.create({
     width: 165,
     height: 245,
     borderRadius: 16,
-    padding: 0, // override base padding
+    padding: 0,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-  },
-  foodImageFull: {
-    width: '100%',
-    height: 260,
-    borderRadius: 16,
   },
   foodImageHalf: {
     width: '100%',
     height: '100%',
   },
+  nameOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
   foodName: {
-    fontSize: 20,
+    fontSize: 14,
     fontFamily: 'NotoSansThai_700Bold',
-    color: '#5A4A42', // Dark brown
+    color: '#FFFFFF',
     textAlign: 'center',
   },
   buttonPressed: {

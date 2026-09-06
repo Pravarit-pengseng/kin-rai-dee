@@ -1,37 +1,43 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { Header } from '@/components/Header';
 import { RandomButton } from '@/components/RandomButton';
 import { MultiSelectDropdown } from '@/components/MultiSelectDropdown';
-import { FOOD_CATEGORIES } from '@/constants/categories';
-import { FOOD_LIST, FoodItem } from '@/constants/foodData';
+import { FOOD_CATEGORIES, FoodCategory } from '@/constants/categories';
+import { FoodItem } from '@/constants/foodData';
+import { fetchFoodCategories } from '@/services/categoryService';
+import { getRandomFood } from '@/services/foodService';
 
 export default function RandomFoodScreen() {
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]); // Empty default
+  const [categories, setCategories] = useState<FoodCategory[]>(FOOD_CATEGORIES);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [hasRandomized, setHasRandomized] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [randomFood, setRandomFood] = useState<FoodItem | null>(null);
+
+  useEffect(() => {
+    async function loadCategories() {
+      const catList = await fetchFoodCategories();
+      if (catList && catList.length > 0) {
+        setCategories(catList);
+      }
+    }
+    loadCategories();
+  }, []);
 
   const handleSearch = () => {
     router.push('/(tabs)/search');
   };
 
-  const handleRandomize = () => {
-    // Get all valid food category IDs (excluding ingredients like meat and vegetables)
-    const validCategoryIds = FOOD_CATEGORIES.map(c => c.id);
-
-    // Filter pool based on selected categories (if empty, pick from all valid food categories)
-    const pool = selectedCategories.length > 0
-      ? FOOD_LIST.filter(item => selectedCategories.includes(item.categoryId))
-      : FOOD_LIST.filter(item => validCategoryIds.includes(item.categoryId));
-
-    if (pool.length > 0) {
-      const randomIndex = Math.floor(Math.random() * pool.length);
-      setRandomFood(pool[randomIndex]);
-      setHasRandomized(true);
-    }
+  const handleRandomize = async () => {
+    setLoading(true);
+    const result = await getRandomFood(selectedCategories);
+    setRandomFood(result);
+    setHasRandomized(true);
+    setLoading(false);
   };
 
   return (
@@ -47,7 +53,7 @@ export default function RandomFoodScreen() {
         <Text style={styles.subTitle}>คิดไม่ออกใช่ไหม? ให้เราช่วยเลือก!</Text>
 
         <MultiSelectDropdown
-          options={FOOD_CATEGORIES}
+          options={categories}
           selectedIds={selectedCategories}
           onSelectionChange={setSelectedCategories}
           placeholder="เลือกประเภทอาหาร"
@@ -55,18 +61,23 @@ export default function RandomFoodScreen() {
 
         {/* Display Area for Logo or Result */}
         <View style={styles.resultCard}>
-          {!hasRandomized || !randomFood ? (
+          {loading ? (
+            <ActivityIndicator size="large" color="#DCA64E" />
+          ) : !hasRandomized || !randomFood ? (
             <Image
               source={require('@/assets/images/kinraidee-logo.png')}
               style={styles.logoImage}
               resizeMode="contain"
             />
           ) : (
-            <Image
-              source={randomFood.image}
-              style={styles.foodImage}
-              resizeMode="contain"
-            />
+            <View style={styles.foodContainer}>
+              <Image
+                source={randomFood.image}
+                style={styles.foodImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.foodTitle}>{randomFood.name}</Text>
+            </View>
           )}
         </View>
 
@@ -112,7 +123,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 20,
-    // Add shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
@@ -123,9 +133,20 @@ const styles = StyleSheet.create({
     width: 250,
     height: 250,
   },
+  foodContainer: {
+    alignItems: 'center',
+    width: '100%',
+  },
   foodImage: {
     width: '100%',
-    height: 260,
+    height: 240,
     borderRadius: 16,
+  },
+  foodTitle: {
+    fontSize: 20,
+    fontFamily: 'NotoSansThai_700Bold',
+    color: '#46302B',
+    marginTop: 12,
+    textAlign: 'center',
   },
 });

@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.security import get_current_user
 from app.db.supabase import supabase
 
-from app.routers import categories, foods, search, posts, profiles
+from app.routers import auth, categories, foods, search, posts, profiles
 
 
 app = FastAPI(
@@ -24,6 +24,7 @@ app.add_middleware(
 
 
 # Register Routers
+app.include_router(auth.router)
 app.include_router(categories.router)
 app.include_router(foods.router)
 app.include_router(search.router)

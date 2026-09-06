@@ -130,22 +130,33 @@ def get_post_detail(post_id: int):
     """Fetch single post details."""
     if not supabase:
         raise HTTPException(status_code=404, detail="Post not found")
+
     try:
         response = (
             supabase.table("posts")
             .select("*, post_categories(categories(id, name))")
             .eq("id", post_id)
-            .maybe_single()
             .execute()
         )
-        if not response.data:
-            raise HTTPException(status_code=404, detail="Post not found")
-        return attach_profiles_to_posts([response.data])[0]
+
+        posts = response.data or []
+
+        if not posts:
+            raise HTTPException(
+                status_code=404,
+                detail="Post not found",
+            )
+
+        return attach_profiles_to_posts([posts[0]])[0]
+
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e),
+        )
 
 @router.post("")
 def create_post(
@@ -299,18 +310,73 @@ def delete_post(
 # ── Bookmark endpoints ──────────────────────────────────────────────────────
 
 @router.post("/{post_id}/bookmark")
-def save_post(post_id: int, user: dict = Depends(get_current_user)):
+def save_post(
+    post_id: int,
+    user: dict = Depends(get_current_user),
+):
     """Bookmark a post (auth required)."""
     if not supabase:
-        return {"status": "ok"}
-    try:
-        supabase.table("saved_posts").insert(
-            {"user_id": user["id"], "post_id": post_id}
-        ).execute()
-        return {"success": True, "status": "saved", "post_id": post_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="Database connection uninitialized",
+        )
 
+    try:
+        # Check whether the post exists
+        post_response = (
+            supabase.table("posts")
+            .select("id")
+            .eq("id", post_id)
+            .maybe_single()
+            .execute()
+        )
+
+        if not post_response.data:
+            raise HTTPException(
+                status_code=404,
+                detail="Post not found",
+            )
+
+        # Check whether already bookmarked
+        existing = (
+            supabase.table("saved_posts")
+            .select("user_id, post_id")
+            .eq("user_id", user["id"])
+            .eq("post_id", post_id)
+            .maybe_single()
+            .execute()
+        )
+
+        if existing.data:
+            return {
+                "success": True,
+                "status": "saved",
+                "post_id": post_id,
+                "message": "Post already bookmarked",
+            }
+
+        # Create bookmark
+        supabase.table("saved_posts").insert(
+            {
+                "user_id": user["id"],
+                "post_id": post_id,
+            }
+        ).execute()
+
+        return {
+            "success": True,
+            "status": "saved",
+            "post_id": post_id,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e),
+        )
 
 @router.delete("/{post_id}/bookmark")
 def unsave_post(post_id: int, user: dict = Depends(get_current_user)):

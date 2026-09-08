@@ -9,82 +9,40 @@ import PostGrid from '@/components/post-grid';
 import PopupPost, { PopupPostData } from '@/components/popup-post';
 import { ThemedText } from '@/components/themed-text';
 import { searchPosts, fetchSearchHistory, addSearchHistory, deleteSearchHistoryItem, clearAllSearchHistory } from '@/services/searchService';
+import { getSavedPosts, bookmarkPost, unbookmarkPost } from '@/services/postService';
 import { useAuth } from '@/context/AuthContext';
 
-const CURRENT_USER_ID = "me";
-const OTHER_USER_ID = "mookmhee";
 
-const MOCK_POSTS: PopupPostData[] = [
-  {
-    id: "1",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-    title: "กะเพราไข่ดาว",
-    description: "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า ใครยังไม่รู้จะกินอะไร แนะนำเมนูที่อร่อยไม่เคยเปลี่ยน!",
-    location: "https://www.wongnai.com/listings/phat-ka-phrao",
-    tag: "อาหารจานเดียว",
-    timeAgo: "2 ชม. ที่แล้ว",
-  },
-  {
-    id: "2",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-    title: "กะเพราหมูสับ",
-    description: "กะเพราหมูสับไข่ดาว อร่อยเหมือนเดิม",
-    tag: "อาหารจานเดียว",
-    timeAgo: "4 ชม. ที่แล้ว",
-  },
-  {
-    id: "3",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-    title: "ข้าวผัดกุ้ง",
-    description: "ข้าวผัดกุ้งร้อนๆ มาแล้วครับทุกคน อร่อยมาก!",
-    tag: "อาหารจานเดียว",
-    timeAgo: "5 ชม. ที่แล้ว",
-  },
-  {
-    id: "4",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-    title: "ผัดพริกแกงหมูกรอบ",
-    description: "หมูกรอบชิ้นใหญ่เต็มคำ รสชาติจัดจ้าน",
-    tag: "อาหารไทย",
-    timeAgo: "1 วันที่แล้ว",
-  }
-];
-
-for (let i = 5; i <= 15; i++) {
-  MOCK_POSTS.push({
-    ...MOCK_POSTS[(i % 4)],
-    id: String(i),
-  });
-}
 
 export default function SearchScreen() {
   const { user } = useAuth();
-  const userId = user?.id || CURRENT_USER_ID;
-
   const [inputValue, setInputValue] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<{ id?: string | number; query: string }[]>([
-    { query: 'หมูกรอบเจ้าดัง' },
-    { query: 'คาเฟ่แมว นิมมาน' },
-    { query: 'ข้าวซอยเนื้อ' }
-  ]);
-  const [searchResults, setSearchResults] = useState<PopupPostData[]>(MOCK_POSTS);
+  const [recentSearches, setRecentSearches] = useState<{ id?: string | number; query: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<PopupPostData[]>([]);
 
   const [showFeed, setShowFeed] = useState(false);
   const [popupPost, setPopupPost] = useState<PopupPostData | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
 
-  const loadHistory = async () => {
-    const history = await fetchSearchHistory(userId);
+  const loadHistory = useCallback(async () => {
+    const history = await fetchSearchHistory();
     if (history && history.length > 0) {
       setRecentSearches(history.map(item => ({ id: item.id, query: item.query })));
     }
-  };
+    
+    if (user?.id) {
+      const saved = await getSavedPosts();
+      if (saved && saved.length > 0) {
+        setBookmarkedIds(saved.map((s) => s.id));
+      } else {
+        setBookmarkedIds([]);
+      }
+    } else {
+      setBookmarkedIds([]);
+    }
+  }, [user?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -93,7 +51,7 @@ export default function SearchScreen() {
       setShowFeed(false);
       setPopupPost(null);
       loadHistory();
-    }, [userId])
+    }, [loadHistory])
   );
 
   const performSearch = async (text: string) => {
@@ -101,7 +59,7 @@ export default function SearchScreen() {
     if (queryStr === '') {
       setIsSearching(false);
       setShowFeed(false);
-      setSearchResults(MOCK_POSTS);
+      setSearchResults([]);
       return;
     }
 
@@ -109,19 +67,11 @@ export default function SearchScreen() {
     setShowFeed(false);
     setLoading(true);
 
-    await addSearchHistory(userId, queryStr);
+    await addSearchHistory(queryStr);
     loadHistory();
 
     const results = await searchPosts(queryStr);
-    if (results && results.length > 0) {
-      setSearchResults(results);
-    } else {
-      setSearchResults(MOCK_POSTS.filter(p =>
-        p.title?.includes(queryStr) ||
-        p.description?.includes(queryStr) ||
-        p.tag?.includes(queryStr)
-      ));
-    }
+    setSearchResults(results || []);
 
     setLoading(false);
   };
@@ -139,7 +89,7 @@ export default function SearchScreen() {
   };
 
   const handleClearAllHistory = async () => {
-    await clearAllSearchHistory(userId);
+    await clearAllSearchHistory();
     setRecentSearches([]);
   };
 
@@ -161,10 +111,19 @@ export default function SearchScreen() {
     setPopupPost(post);
   };
 
-  const handleToggleBookmark = (postId: string) => {
+  const handleToggleBookmark = async (postId: string) => {
+    const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
     setBookmarkedIds((prev) =>
-      prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId]
+      isCurrentlyBookmarked ? prev.filter((id) => id !== postId) : [...prev, postId]
     );
+    
+    if (user?.id) {
+      if (isCurrentlyBookmarked) {
+        await unbookmarkPost(postId);
+      } else {
+        await bookmarkPost(postId);
+      }
+    }
   };
 
   return (
@@ -253,14 +212,17 @@ export default function SearchScreen() {
                   post={post}
                   onClose={() => { }}
                   inline
-                  isOwnPost={post.userId === CURRENT_USER_ID}
+                  isOwnPost={!!user && post.userId === user.id}
                   isBookmarked={bookmarkedIds.includes(post.id)}
                   onBookmark={handleToggleBookmark}
-                  onUserPress={(userId) => {
-                    if (userId === CURRENT_USER_ID) {
+                  onUserPress={(postUserId) => {
+                    if (user && postUserId === user.id) {
                       router.push("/(tabs)/profile");
                     } else {
-                      router.push("/OtherProfile");
+                      router.push({
+                        pathname: "/OtherProfile",
+                        params: { userId: postUserId },
+                      });
                     }
                   }}
                 />
@@ -284,15 +246,18 @@ export default function SearchScreen() {
         visible={popupPost !== null}
         post={popupPost}
         onClose={() => setPopupPost(null)}
-        isOwnPost={popupPost?.userId === CURRENT_USER_ID}
+        isOwnPost={!!user && popupPost?.userId === user.id}
         isBookmarked={popupPost ? bookmarkedIds.includes(popupPost.id) : false}
         onBookmark={handleToggleBookmark}
-        onUserPress={(userId) => {
+        onUserPress={(postUserId) => {
           setPopupPost(null);
-          if (userId === CURRENT_USER_ID) {
+          if (user && postUserId === user.id) {
             router.push("/(tabs)/profile");
           } else {
-            router.push("/OtherProfile");
+            router.push({
+              pathname: "/OtherProfile",
+              params: { userId: postUserId },
+            });
           }
         }}
       />

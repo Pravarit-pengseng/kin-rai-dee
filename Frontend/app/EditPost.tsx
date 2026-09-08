@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     SafeAreaView,
     View,
@@ -7,8 +7,9 @@ import {
     StyleSheet,
     ScrollView,
     Alert,
+    ActivityIndicator,
 } from "react-native";
-import { Stack, router } from "expo-router";
+import { Stack, router, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Camera } from "lucide-react-native";
 
@@ -17,23 +18,32 @@ import { ThemedText } from "@/components/themed-text";
 import PostForm, {
     PostData,
 } from "@/components/post-form";
-
-const mockPost: PostData = {
-    image: null,
-    title: "กะเพราไข่ดาว",
-    description:
-        "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า",
-    restaurant:
-        "https://www.wongnai.com/listings/phat-ka-phrao",
-    categories: ["อาหารจานเดียว"],
-};
+import { updatePost } from "@/services/postService";
+import { FOOD_CATEGORIES } from "@/constants/categories";
 
 export default function EditPost() {
-    const [post, setPost] =
-        useState<PostData>(mockPost);
+    const { postId, post: postParam } = useLocalSearchParams<{
+        postId?: string;
+        post?: string;
+    }>();
 
-    const [imageUri, setImageUri] = useState(
-        require("../assets/images/StirFriedHolyBasil.png")
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Parse post จาก params
+    const parsedPost = postParam ? (() => {
+        try { return JSON.parse(postParam as string); } catch { return null; }
+    })() : null;
+
+    const [post, setPost] = useState<PostData>({
+        image: null,
+        title: parsedPost?.title ?? "",
+        description: parsedPost?.description ?? "",
+        restaurant: parsedPost?.location ?? "",
+        categories: parsedPost?.tags?.length ? parsedPost.tags : (parsedPost?.tag ? [parsedPost.tag] : []),
+    });
+
+    const [imageUri, setImageUri] = useState<any>(
+        parsedPost?.image ?? require("../assets/images/StirFriedHolyBasil.png")
     );
 
     const pickImage = async () => {
@@ -53,22 +63,24 @@ export default function EditPost() {
                 mediaTypes: ["images"],
                 allowsEditing: true,
                 aspect: [4, 3],
-                quality: 0.9,
+                quality: 0.5,
+                base64: true,
             });
 
         if (!result.canceled) {
             const uri = result.assets[0].uri;
+            const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
 
             setImageUri({ uri });
 
             setPost((currentPost) => ({
                 ...currentPost,
-                image: uri,
+                image: base64Img,
             }));
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!post.title.trim()) {
             Alert.alert(
                 "กรุณากรอกข้อมูล",
@@ -77,9 +89,54 @@ export default function EditPost() {
             return;
         }
 
-        console.log("Updated post:", post);
+        if (!postId) {
+            Alert.alert("เกิดข้อผิดพลาด", "ไม่พบ ID โพสต์");
+            return;
+        }
 
-        router.back();
+        setIsSubmitting(true);
+
+        // Map category labels → numeric IDs
+        const categoryIds = post.categories
+            .map((label) => {
+                const found = FOOD_CATEGORIES.find((c) => c.label === label);
+                return found ? Number(found.id) : null;
+            })
+            .filter((id): id is number => id !== null);
+
+        const result = await updatePost(postId, {
+            food_name: post.title.trim(),
+            description: post.description?.trim() || undefined,
+            restaurant_url: post.restaurant?.trim() || undefined,
+            image_url: post.image || undefined,
+            category_ids: categoryIds.length > 0 ? categoryIds : undefined,
+        });
+
+        setIsSubmitting(false);
+
+        if (!result) {
+            Alert.alert("บันทึกไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
+            return;
+        }
+
+        // ส่งข้อมูลอัปเดตกลับไปยัง profile screen
+        const updatedPostForUI = {
+            id: postId,
+            image: post.image ? { uri: post.image } : parsedPost?.image,
+            title: post.title.trim(),
+            description: post.description?.trim() || "",
+            tags: post.categories?.length > 0 ? post.categories : (parsedPost?.tags || ["อาหารจานเดียว"]),
+            location: post.restaurant?.trim() || "",
+            userId: parsedPost?.userId,
+        };
+
+        router.replace({
+            pathname: "/(tabs)/profile",
+            params: {
+                post: JSON.stringify(updatedPostForUI),
+                mode: "edit",
+            },
+        });
     };
 
     return (
@@ -152,11 +209,13 @@ export default function EditPost() {
                             styles.postButton,
                             pressed &&
                             styles.postButtonPressed,
+                            isSubmitting && styles.postButtonDisabled,
                         ]}
                         onPress={handleSave}
+                        disabled={isSubmitting}
                     >
                         <ThemedText style={styles.postText}>
-                            บันทึก
+                            {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
                         </ThemedText>
                     </Pressable>
                 </ScrollView>
@@ -227,6 +286,10 @@ const styles = StyleSheet.create({
     postButtonPressed: {
         opacity: 0.8,
         transform: [{ translateY: 2 }],
+    },
+
+    postButtonDisabled: {
+        opacity: 0.5,
     },
 
     postText: {

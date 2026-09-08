@@ -17,9 +17,12 @@ import PostForm, {
     PostData,
 } from "@/components/post-form";
 import { useAuth } from "@/context/AuthContext";
+import { createPost } from "@/services/postService";
+import { FOOD_CATEGORIES } from "@/constants/categories";
 
 export default function AddPost() {
     const { isLoggedIn } = useAuth();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (!isLoggedIn) {
@@ -53,47 +56,74 @@ export default function AddPost() {
                 mediaTypes: ["images"],
                 allowsEditing: true,
                 aspect: [4, 3],
-                quality: 0.9,
+                quality: 0.5,
+                base64: true,
             });
 
         if (!result.canceled) {
+            const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
             setPost((currentPost) => ({
                 ...currentPost,
-                image: result.assets[0].uri,
+                image: base64Img,
             }));
         }
     };
 
-    // Create a new post and return to profile
-    const handlePost = () => {
-        if (!post.image || !post.title.trim()) {
+    // Create a new post via API then return to profile
+    const handlePost = async () => {
+        if (!post.title.trim()) {
             Alert.alert(
                 "กรุณากรอกข้อมูล",
-                "เลือกรูปและกรอกชื่อเมนูก่อนโพสต์",
+                "กรอกชื่อเมนูก่อนโพสต์",
             );
             return;
         }
 
-        const newPost = {
-            id: Date.now().toString(),
+        setIsSubmitting(true);
 
-            // Convert image URI to React Native ImageSource format
-            image: {
-                uri: post.image,
-            },
+        // Map category labels → numeric IDs
+        const categoryIds = post.categories
+            .map((label) => {
+                const found = FOOD_CATEGORIES.find((c) => c.label === label);
+                return found ? Number(found.id) : null;
+            })
+            .filter((id): id is number => id !== null);
 
+        const result = await createPost({
+            food_name: post.title.trim(),
+            description: post.description?.trim() || undefined,
+            restaurant_url: post.restaurant?.trim() || undefined,
+            image_url: post.image || undefined,
+            category_ids: categoryIds,
+        });
+
+        setIsSubmitting(false);
+
+        if (!result) {
+            Alert.alert(
+                "โพสต์ไม่สำเร็จ",
+                "กรุณาลองใหม่อีกครั้ง",
+            );
+            return;
+        }
+
+        // ส่ง post ใหม่จาก backend ไปให้ profile screen แสดง
+        const createdPost = result?.data ?? result;
+        const newPostForUI = {
+            id: String(createdPost?.id ?? Date.now()),
+            image: post.image ? { uri: post.image } : undefined,
             title: post.title.trim(),
             description: post.description?.trim() || "",
-            tag: post.categories?.[0] || "อาหารจานเดียว",
+            tags: post.categories?.length > 0 ? post.categories : ["อาหารจานเดียว"],
             location: post.restaurant?.trim() || "",
             timeAgo: "เมื่อสักครู่นี้",
             userId: "me",
         };
 
         router.replace({
-            pathname: "/profile",
+            pathname: "/(tabs)/profile",
             params: {
-                post: JSON.stringify(newPost),
+                post: JSON.stringify(newPostForUI),
             },
         });
     };
@@ -154,6 +184,7 @@ export default function AddPost() {
 
                     {/* Post Form */}
                     <PostForm
+                        initialData={post}
                         onChange={(data) => {
                             setPost((currentPost) => ({
                                 ...data,
@@ -167,11 +198,13 @@ export default function AddPost() {
                         style={({ pressed }) => [
                             styles.postButton,
                             pressed && styles.postButtonPressed,
+                            isSubmitting && styles.postButtonDisabled,
                         ]}
                         onPress={handlePost}
+                        disabled={isSubmitting}
                     >
                         <ThemedText style={styles.postText}>
-                            โพสต์
+                            {isSubmitting ? "กำลังโพสต์..." : "โพสต์"}
                         </ThemedText>
                     </Pressable>
                 </ScrollView>
@@ -242,6 +275,10 @@ const styles = StyleSheet.create({
     postButtonPressed: {
         opacity: 0.8,
         transform: [{ translateY: 2 }],
+    },
+
+    postButtonDisabled: {
+        opacity: 0.5,
     },
 
     postText: {

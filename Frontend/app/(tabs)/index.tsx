@@ -11,77 +11,57 @@ import PopupPost, { PopupPostData } from "@/components/popup-post";
 import DeletePopup from "@/components/DeletePopup";
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/context/AuthContext";
-import { fetchFeedPosts } from "@/services/postService";
+import { fetchFeedPosts, bookmarkPost, unbookmarkPost, deletePost, getSavedPosts } from "@/services/postService";
 
-const CURRENT_USER_ID = "me";
-const OTHER_USER_ID = "mookmhee";
 
-const initialPosts: PopupPostData[] = [
-  {
-    id: "1",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-    title: "กะเพราไข่ดาว",
-    description: "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า ใครยังไม่รู้จะกินอะไร แนะนำเมนูที่อร่อยไม่เคยเปลี่ยน!",
-    location: "https://www.wongnai.com/listings/phat-ka-phrao",
-    tag: "อาหารจานเดียว",
-    timeAgo: "2 ชม. ที่แล้ว",
-  },
-  {
-    id: "2",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-    title: "กะเพราหมูสับ",
-    description: "กะเพราหมูสับไข่ดาว อร่อยเหมือนเดิม",
-    tag: "อาหารจานเดียว",
-    timeAgo: "4 ชม. ที่แล้ว",
-  },
-  {
-    id: "3",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-    title: "ข้าวผัดกุ้ง",
-    description: "ข้าวผัดกุ้งร้อนๆ มาแล้วครับทุกคน อร่อยมาก!",
-    tag: "อาหารจานเดียว",
-    timeAgo: "5 ชม. ที่แล้ว",
-  },
-  {
-    id: "4",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-    title: "ผัดพริกแกงหมูกรอบ",
-    description: "หมูกรอบชิ้นใหญ่เต็มคำ รสชาติจัดจ้าน",
-    tag: "อาหารไทย",
-    timeAgo: "1 วันที่แล้ว",
-  }
-];
 
 export default function HomeScreen() {
-  const { isLoggedIn } = useAuth();
-  const [posts, setPosts] = useState<PopupPostData[]>(initialPosts);
+  const { isLoggedIn, user } = useAuth();
+  const [posts, setPosts] = useState<PopupPostData[]>([]);
   const [loading, setLoading] = useState(false);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
-  const loadFeed = async () => {
+  const loadFeed = useCallback(async () => {
     setLoading(true);
     const fetched = await fetchFeedPosts();
     if (fetched && fetched.length > 0) {
       setPosts(fetched);
     }
+    
+    if (isLoggedIn) {
+      const saved = await getSavedPosts();
+      if (saved && saved.length > 0) {
+        setBookmarkedIds(saved.map((s) => s.id));
+      } else {
+        setBookmarkedIds([]);
+      }
+    } else {
+      setBookmarkedIds([]);
+    }
     setLoading(false);
-  };
+  }, [isLoggedIn]);
 
   useFocusEffect(
     useCallback(() => {
       loadFeed();
-    }, [])
+    }, [loadFeed])
   );
 
-  const handleToggleBookmark = (postId: string) => {
+  const handleToggleBookmark = async (postId: string) => {
+    const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
+    // Optimistic update
     setBookmarkedIds((prev) =>
-      prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId]
+      isCurrentlyBookmarked ? prev.filter((id) => id !== postId) : [...prev, postId]
     );
+    // API call (เฉพาะเมื่อ login แล้ว)
+    if (isLoggedIn) {
+      if (isCurrentlyBookmarked) {
+        await unbookmarkPost(postId);
+      } else {
+        await bookmarkPost(postId);
+      }
+    }
   };
 
   const handleEditPost = (post: any) => {
@@ -103,15 +83,16 @@ export default function HomeScreen() {
     router.push("/AddPost");
   };
 
-  const handleUserPress = (userId: string) => {
-    if (userId === CURRENT_USER_ID) {
-      if (!isLoggedIn) {
-        router.push({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/profile', from: '/' } });
-      } else {
-        router.push("/(tabs)/profile");
-      }
+  const handleUserPress = (postUserId: string) => {
+    if (user && postUserId === user.id) {
+      router.push("/(tabs)/profile");
+    } else if (!isLoggedIn && !postUserId) {
+      router.push({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/profile', from: '/' } });
     } else {
-      router.push("/OtherProfile");
+      router.push({
+        pathname: "/OtherProfile",
+        params: { userId: postUserId },
+      });
     }
   };
 
@@ -146,7 +127,7 @@ export default function HomeScreen() {
               post={post}
               onClose={() => { }}
               inline
-              isOwnPost={post.userId === CURRENT_USER_ID}
+              isOwnPost={!!user && post.userId === user.id}
               isBookmarked={bookmarkedIds.includes(post.id)}
               onBookmark={handleToggleBookmark}
               onEdit={handleEditPost}

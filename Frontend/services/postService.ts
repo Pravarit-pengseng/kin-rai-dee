@@ -20,7 +20,7 @@ export interface PostUpdatePayload {
   category_ids?: number[];
 }
 
-function resolveCategoryNames(post: any): string[] {
+export function resolveCategoryNames(post: any): string[] {
   const tags: string[] = [];
 
   // 1. post_categories: [{ categories: { name } }]  (Supabase join หรือ API)

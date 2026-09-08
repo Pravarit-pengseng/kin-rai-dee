@@ -5,6 +5,7 @@ import {
   View,
   Pressable,
   Image,
+  Alert,
 } from "react-native";
 import {
   Stack,
@@ -17,6 +18,9 @@ import { Header } from "@/components/Header";
 import ProfileForm from "@/components/profile-form";
 import LiquidMenu from "@/components/liquid-menu";
 import { ThemedText } from "@/components/themed-text";
+import { updateMyProfile } from "@/services/profileService";
+import { API_BASE_URL } from "@/services/api";
+import { supabase } from "@/lib/supabase";
 
 export default function EditProfile() {
   const params = useLocalSearchParams<{
@@ -25,15 +29,15 @@ export default function EditProfile() {
     bio?: string;
   }>();
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [profileData, setProfileData] = useState({
-    name: params.name ?? "บุคคลที่ชอบกิน",
-    username: params.username ?? "@mookmhee",
-    bio:
-      params.bio ??
-      "กินเก่ง ทำอาหารกินเองบ่อย 🔍✨",
+    name: params.name ?? "",
+    username: params.username ?? "",
+    bio: params.bio ?? "",
   });
 
-  const [profileImage, setProfileImage] = useState(
+  const [profileImage, setProfileImage] = useState<any>(
     require("../assets/images/ProfilePicture.png")
   );
 
@@ -60,15 +64,63 @@ export default function EditProfile() {
     }
   };
 
-  const handleSave = () => {
-    router.replace({
-      pathname: "/profile",
-      params: {
-        name: profileData.name,
-        username: profileData.username,
-        bio: profileData.bio,
-      },
-    });
+  const handleSave = async () => {
+    setIsSubmitting(true);
+
+    try {
+      // อัปโหลดรูปภาพ avatar ถ้ามีการเลือกรูปใหม่ (uri ไม่ใช่ local asset)
+      let avatarUrl: string | undefined = undefined;
+      if (profileImage?.uri && profileImage.uri.startsWith('file')) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
+        const formData = new FormData();
+        const filename = profileImage.uri.split('/').pop() || 'avatar.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        formData.append('file', { uri: profileImage.uri, name: filename, type } as any);
+
+        const res = await fetch(`${API_BASE_URL}/api/profiles/me/avatar`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          avatarUrl = json.avatar_url;
+        }
+      }
+
+      // อัปเดต profile ผ่าน API
+      const result = await updateMyProfile({
+        display_name: profileData.name.trim() || undefined,
+        username: profileData.username.replace('@', '').trim() || undefined,
+        bio: profileData.bio.trim() || null,  // null เพื่อล้างค่า bio ใน DB
+        ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+      });
+
+      if (!result) {
+        Alert.alert("บันทึกไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // navigate กลับ profile พร้อม params อัปเดต
+      router.replace({
+        pathname: "/(tabs)/profile",
+        params: {
+          name: result.display_name || profileData.name || '',
+          username: result.username || profileData.username || '',
+          bio: result.bio || '',  // ส่ง string ว่างแทน null
+        },
+      });
+    } catch (e) {
+      console.warn("EditProfile handleSave error:", e);
+      Alert.alert("เกิดข้อผิดพลาด", "กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -133,13 +185,15 @@ export default function EditProfile() {
               styles.saveButton,
               pressed &&
               styles.saveButtonPressed,
+              isSubmitting && styles.saveButtonDisabled,
             ]}
             onPress={handleSave}
+            disabled={isSubmitting}
           >
             <ThemedText
               style={styles.saveText}
             >
-              บันทึก
+              {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
             </ThemedText>
           </Pressable>
         </View>
@@ -219,6 +273,10 @@ const styles = StyleSheet.create({
   saveButtonPressed: {
     opacity: 0.8,
     transform: [{ translateY: 2 }],
+  },
+
+  saveButtonDisabled: {
+    opacity: 0.5,
   },
 
   saveText: {

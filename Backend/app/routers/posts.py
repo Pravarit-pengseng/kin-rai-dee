@@ -216,11 +216,10 @@ def update_post(
             .select("id")
             .eq("id", post_id)
             .eq("user_id", user["id"])
-            .maybe_single()
             .execute()
         )
 
-        if not owner_check.data:
+        if not getattr(owner_check, "data", None):
             raise HTTPException(
                 status_code=404,
                 detail="Post not found or not owned by user",
@@ -295,10 +294,9 @@ def delete_post(
             .select("id")
             .eq("id", post_id)
             .eq("user_id", user["id"])
-            .maybe_single()
             .execute()
         )
-        if not owner_check.data:
+        if not getattr(owner_check, "data", None):
             raise HTTPException(
                 status_code=404, detail="Post not found or not owned by user"
             )
@@ -342,11 +340,10 @@ def save_post(
             supabase.table("posts")
             .select("id")
             .eq("id", post_id)
-            .maybe_single()
             .execute()
         )
 
-        if not post_response.data:
+        if not post_response or not getattr(post_response, "data", None):
             raise HTTPException(
                 status_code=404,
                 detail="Post not found",
@@ -358,11 +355,10 @@ def save_post(
             .select("user_id, post_id")
             .eq("user_id", user["id"])
             .eq("post_id", post_id)
-            .maybe_single()
             .execute()
         )
 
-        if existing.data:
+        if existing and getattr(existing, "data", None):
             return {
                 "success": True,
                 "status": "saved",
@@ -388,6 +384,9 @@ def save_post(
         raise
 
     except Exception as e:
+        import traceback
+        with open("bookmark_error.log", "w") as f:
+            f.write(traceback.format_exc())
         raise HTTPException(
             status_code=500,
             detail=str(e),

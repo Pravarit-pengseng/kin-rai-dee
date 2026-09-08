@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   ImageSourcePropType,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -19,118 +20,25 @@ import {
 import { Header } from "@/components/Header";
 import PopupPost from "@/components/popup-post";
 import LiquidMenu from "@/components/liquid-menu";
+import { bookmarkPost, unbookmarkPost, resolveCategoryNames, getSavedPosts, mapPostToPopup } from "@/services/postService";
+import { getUserPosts } from "@/services/profileService";
+import { useAuth } from "@/context/AuthContext";
+
+const DEFAULT_IMAGE = require("../assets/images/StirFriedHolyBasil.png");
 
 type Post = {
   id: string;
   image: ImageSourcePropType;
   title?: string;
   description?: string;
-  tag?: string;
+  tags?: string[];
   location?: string;
   timeAgo?: string;
   userId?: string;
 };
 
-const CURRENT_USER_ID = "me";
-const OTHER_USER_ID = "mookmhee";
-
-const allPosts: Post[] = [
-  // My Posts
-  {
-    id: "1",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "2",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "3",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "4",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "5",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "6",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "7",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "8",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "9",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-
-  // Other User Posts
-  {
-    id: "10",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "11",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "12",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "13",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "14",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "15",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "16",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "17",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "18",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-];
-
 export default function PostScreen() {
+  const { user } = useAuth();
   const {
     postId,
     ownerId,
@@ -148,20 +56,38 @@ export default function PostScreen() {
   const [ready, setReady] =
     useState(false);
 
-  /*
-   * Get the owner of the selected post.
-   */
-  const currentOwnerId =
-    ownerId ?? CURRENT_USER_ID;
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // โหลดโพสต์ของ owner จาก API
+  useEffect(() => {
+    if (!ownerId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    getUserPosts(ownerId).then((apiPosts) => {
+      if (apiPosts && apiPosts.length > 0) {
+        setPosts(apiPosts.map(mapPostToPopup));
+      }
+      if (user?.id) {
+        getSavedPosts().then((saved) => {
+          if (saved && saved.length > 0) {
+            setBookmarkedIds(saved.map((s) => s.id));
+          }
+        });
+      }
+      setLoading(false);
+    });
+  }, [ownerId, user?.id]);
 
   /*
    * Get all posts belonging to
    * the selected owner.
    */
-  const ownerPosts = allPosts.filter(
-    (post) =>
-      post.userId === currentOwnerId
-  );
+  const ownerPosts = ownerId
+    ? posts.filter((post) => post.userId === ownerId)
+    : posts;
 
   /*
    * Find the selected post.
@@ -208,19 +134,24 @@ export default function PostScreen() {
   }, [ready, startIndex]);
 
   /*
-   * Toggle bookmark.
+   * Toggle bookmark — เรียก API จริง
    */
-  const handleToggleBookmark = (
+  const handleToggleBookmark = async (
     postId: string
   ) => {
+    const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
+    // Optimistic update
     setBookmarkedIds((prev) =>
-      prev.includes(postId)
-        ? prev.filter(
-          (id) =>
-            id !== postId
-        )
+      isCurrentlyBookmarked
+        ? prev.filter((id) => id !== postId)
         : [...prev, postId]
     );
+    // API call
+    if (isCurrentlyBookmarked) {
+      await unbookmarkPost(postId);
+    } else {
+      await bookmarkPost(postId);
+    }
   };
 
   /*
@@ -253,40 +184,43 @@ export default function PostScreen() {
           onSearchPress={() => router.push("/(tabs)/search")}
         />
 
-        <ScrollView
-          ref={scrollRef}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={
-            styles.scrollContent
-          }
-          onContentSizeChange={() =>
-            setReady(true)
-          }
-        >
-          {ownerPosts.map((post) => (
-            <View
-              key={post.id}
-              style={styles.postWrapper}
-            >
-              <PopupPost
-                visible={true}
-                post={post}
-                onClose={() => { }}
-                inline
-                isOwnPost={
-                  post.userId ===
-                  CURRENT_USER_ID
-                }
-                isBookmarked={bookmarkedIds.includes(
-                  post.id
-                )}
-                onBookmark={
-                  handleToggleBookmark
-                }
-              />
-            </View>
-          ))}
-        </ScrollView>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#DCA64E" />
+          </View>
+        ) : (
+          <ScrollView
+            ref={scrollRef}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={
+              styles.scrollContent
+            }
+            onContentSizeChange={() =>
+              setReady(true)
+            }
+          >
+            {ownerPosts.map((post) => (
+              <View
+                key={post.id}
+                style={styles.postWrapper}
+              >
+                <PopupPost
+                  visible={true}
+                  post={post}
+                  onClose={() => { }}
+                  inline
+                  isOwnPost={post.userId === user?.id}
+                  isBookmarked={bookmarkedIds.includes(
+                    post.id
+                  )}
+                  onBookmark={
+                    handleToggleBookmark
+                  }
+                />
+              </View>
+            ))}
+          </ScrollView>
+        )}
 
         <LiquidMenu
           active="home"
@@ -301,6 +235,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFF8F6",
+  },
+
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   scrollContent: {

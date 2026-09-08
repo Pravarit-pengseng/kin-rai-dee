@@ -1,13 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
-  Image,
   ScrollView,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { router, Stack } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
 import PostGrid, {
@@ -15,66 +16,61 @@ import PostGrid, {
 } from "@/components/post-grid";
 import LiquidMenu from "@/components/liquid-menu";
 import PopupPost from "@/components/popup-post";
+import { getUserProfile, getUserPosts, UserProfile } from "@/services/profileService";
+import { bookmarkPost, unbookmarkPost, getSavedPosts, mapPostToPopup } from "@/services/postService";
+import { useAuth } from "@/context/AuthContext";
 
-const OTHER_USER_ID = "mookmhee";
-
-const allPosts: Post[] = [
-  {
-    id: "1",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "2",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "3",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "4",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "5",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "6",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "7",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "8",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "9",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-];
+const DEFAULT_AVATAR = require("../assets/images/ProfilePicture.png");
+const DEFAULT_IMAGE = require("../assets/images/StirFriedHolyBasil.png");
 
 export default function OtherProfileScreen() {
+  const { user } = useAuth();
+  const { userId } = useLocalSearchParams<{ userId?: string }>();
+
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+
   const [selectedPost, setSelectedPost] =
-    useState<Post | null>(null);
+    useState<any | null>(null);
 
   const [popupVisible, setPopupVisible] =
     useState(false);
 
   const [bookmarkedIds, setBookmarkedIds] =
     useState<string[]>([]);
+
+  useEffect(() => {
+    if (!userId) {
+      setLoadingProfile(false);
+      setLoadingPosts(false);
+      return;
+    }
+
+    // โหลด profile
+    getUserProfile(userId).then((data) => {
+      setProfile(data);
+      setLoadingProfile(false);
+    });
+
+    // โหลด posts
+    getUserPosts(userId).then((apiPosts) => {
+      if (apiPosts && apiPosts.length > 0) {
+        setPosts(apiPosts.map(mapPostToPopup));
+      }
+      
+      if (user?.id) {
+        getSavedPosts().then((saved) => {
+          if (saved && saved.length > 0) {
+            setBookmarkedIds(saved.map((s) => s.id));
+          }
+        });
+      }
+      
+      setLoadingPosts(false);
+    });
+  }, [userId, user?.id]);
 
   const handleMenuChange = (id: string) => {
     if (id === "home") router.replace("/");
@@ -83,27 +79,34 @@ export default function OtherProfileScreen() {
     else if (id === "profile") router.replace("/(tabs)/profile");
   };
 
-  const handleToggleBookmark = (
+  const handleToggleBookmark = async (
     postId: string
   ) => {
+    const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
     setBookmarkedIds((prev) =>
-      prev.includes(postId)
-        ? prev.filter(
-          (id) => id !== postId
-        )
+      isCurrentlyBookmarked
+        ? prev.filter((id) => id !== postId)
         : [...prev, postId]
     );
+    if (isCurrentlyBookmarked) {
+      await unbookmarkPost(postId);
+    } else {
+      await bookmarkPost(postId);
+    }
   };
 
   const handleOpenPost = (post: Post) => {
+    if (!userId) return;
     router.push({
       pathname: "/OtherPost",
       params: {
         postId: post.id,
-        ownerId: OTHER_USER_ID,
+        ownerId: userId,
       },
     });
   };
+
+  const isLoading = loadingProfile || loadingPosts;
 
   return (
     <>
@@ -125,74 +128,84 @@ export default function OtherProfileScreen() {
           onSearchPress={() => router.push("/(tabs)/search")}
         />
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={
-            styles.scrollContent
-          }
-        >
-          {/* Profile Header */}
-          <View style={styles.profileSection}>
-            {/* Avatar */}
-            <View style={styles.avatarOuter}>
-              <View style={styles.avatarInner}>
-                <Image
-                  source={require(
-                    "../assets/images/ProfilePicture.png"
-                  )}
-                  style={styles.avatar}
-                  resizeMode="contain"
-                />
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#DCA64E" />
+          </View>
+        ) : (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={
+              styles.scrollContent
+            }
+          >
+            {/* Profile Header */}
+            <View style={styles.profileSection}>
+              {/* Avatar */}
+              <View style={styles.avatarOuter}>
+                <View style={styles.avatarInner}>
+                  <Image
+                    source={
+                      profile?.avatar_url
+                        ? { uri: profile.avatar_url }
+                        : DEFAULT_AVATAR
+                    }
+                    style={styles.avatar}
+                    contentFit="contain"
+                    transition={200}
+                  />
+                </View>
               </View>
+
+              {/* Name */}
+              <ThemedText style={styles.name}>
+                {profile?.display_name || profile?.username || "ผู้ใช้งาน"}
+              </ThemedText>
+
+              {/* Username */}
+              <ThemedText style={styles.username}>
+                @{profile?.username || "user"}
+              </ThemedText>
+
+              {/* Bio */}
+              {profile?.bio ? (
+                <View style={styles.bio}>
+                  <ThemedText
+                    style={styles.bioText}
+                    numberOfLines={1}
+                  >
+                    {profile.bio}
+                  </ThemedText>
+                </View>
+              ) : null}
             </View>
 
-            {/* Name */}
-            <ThemedText style={styles.name}>
-              มุกรอบอ้วรนิดนิด
-            </ThemedText>
-
-            {/* Username */}
-            <ThemedText style={styles.username}>
-              @mooKrob
-            </ThemedText>
-
-            {/* Bio */}
-            <View style={styles.bio}>
-              <ThemedText
-                style={styles.bioText}
-                numberOfLines={1}
-              >
-                อ้วนนะ รับไหวมั้ย
+            {/* Posts Title */}
+            <View style={styles.postsHeader}>
+              <ThemedText style={styles.postsTitle}>
+                โพสต์ทั้งหมด
               </ThemedText>
             </View>
-          </View>
 
-          {/* Posts Title */}
-          <View style={styles.postsHeader}>
-            <ThemedText style={styles.postsTitle}>
-              โพสต์ทั้งหมด
-            </ThemedText>
-          </View>
-
-          {/* Post Grid */}
-          <PostGrid
-            posts={allPosts}
-            onPressPost={handleOpenPost}
-            onLongPressPost={(post) => {
-              setSelectedPost(post);
-              setPopupVisible(true);
-            }}
-          />
-
-          {/* Empty */}
-          {allPosts.length === 0 && (
-            <View style={styles.empty}>
-              <ThemedText style={styles.emptyText}>
-                ยังไม่มีโพสต์
-              </ThemedText>
-            </View>
-          )}
-        </ScrollView>
+            {/* Post Grid */}
+            {posts.length > 0 ? (
+              <PostGrid
+                posts={posts}
+                onPressPost={handleOpenPost}
+                onLongPressPost={(post) => {
+                  setSelectedPost(post);
+                  setPopupVisible(true);
+                }}
+              />
+            ) : (
+              <View style={styles.empty}>
+                <ThemedText style={styles.emptyText}>
+                  ยังไม่มีโพสต์
+                </ThemedText>
+              </View>
+            )}
+          </ScrollView>
+        )}
 
         {/* Bottom Menu */}
         <LiquidMenu
@@ -229,6 +242,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFF9F6",
+  },
+
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   scrollContent: {

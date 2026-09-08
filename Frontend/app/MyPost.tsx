@@ -23,126 +23,33 @@ import LogoutPopup from "@/components/LogoutPopup";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/context/AuthContext";
+import { deletePost, bookmarkPost, unbookmarkPost, resolveCategoryNames, getSavedPosts, mapPostToPopup } from "@/services/postService";
+import { getUserPosts } from "@/services/profileService";
 
 type Post = {
   id: string;
   image: ImageSourcePropType;
   title?: string;
   description?: string;
-  tag?: string;
+  tags?: string[];
   location?: string;
   timeAgo?: string;
   userId?: string;
 };
 
-const CURRENT_USER_ID = "me";
-const OTHER_USER_ID = "mookmhee";
 
-const allPosts: Post[] = [
-  // My Posts
-  {
-    id: "1",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "2",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "3",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "4",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "5",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "6",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "7",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "8",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "9",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-
-  // Other User Posts
-  {
-    id: "10",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "11",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "12",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "13",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "14",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "15",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "16",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "17",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "18",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-];
 
 export default function MyPost() {
-  const { isLoggedIn, logout } = useAuth();
+  const { isLoggedIn, logout, user } = useAuth();
   const {
     postId,
     ownerId,
+    mode,
     post: postParam,
   } = useLocalSearchParams<{
     postId?: string;
     ownerId?: string;
+    mode?: string;
     post?: string;
   }>();
 
@@ -156,7 +63,32 @@ export default function MyPost() {
     useState(false);
 
   const [posts, setPosts] =
-    useState<Post[]>(allPosts);
+    useState<Post[]>([]);
+
+  // โหลดโพสต์จาก API
+  useEffect(() => {
+    if (mode === "saved") {
+      getSavedPosts().then((saved) => {
+        if (saved && saved.length > 0) {
+          setPosts(saved as Post[]);
+          setBookmarkedIds(saved.map((s) => s.id));
+        }
+      });
+    } else if (ownerId) {
+      getUserPosts(ownerId).then((apiPosts) => {
+        if (apiPosts && apiPosts.length > 0) {
+          setPosts(apiPosts.map(mapPostToPopup));
+        }
+        if (user?.id) {
+          getSavedPosts().then((saved) => {
+            if (saved && saved.length > 0) {
+              setBookmarkedIds(saved.map((s) => s.id));
+            }
+          });
+        }
+      });
+    }
+  }, [ownerId, mode, user?.id]);
 
   // Store the post that the user wants to delete
   const [deletePostId, setDeletePostId] =
@@ -201,16 +133,16 @@ export default function MyPost() {
    * Get the owner.
    */
   const currentOwnerId =
-    ownerId ?? CURRENT_USER_ID;
+    ownerId ?? user?.id ?? '';
 
   /*
-   * Get all posts belonging
-   * to the selected owner.
+   * Get all posts to display.
+   * If in saved mode, show all posts loaded (which are saved posts).
+   * Otherwise, filter by selected owner.
    */
-  const ownerPosts = posts.filter(
-    (post) =>
-      post.userId === currentOwnerId
-  );
+  const ownerPosts = mode === "saved" 
+    ? posts 
+    : posts.filter((post) => post.userId === currentOwnerId);
 
   /*
    * Find selected post.
@@ -256,18 +188,24 @@ export default function MyPost() {
   }, [ready, startIndex]);
 
   /*
-   * Toggle bookmark.
+   * Toggle bookmark — เรียก API จริง
    */
-  const handleToggleBookmark = (
+  const handleToggleBookmark = async (
     postId: string
   ) => {
+    const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
+    // Optimistic update
     setBookmarkedIds((prev) =>
-      prev.includes(postId)
-        ? prev.filter(
-          (id) => id !== postId
-        )
+      isCurrentlyBookmarked
+        ? prev.filter((id) => id !== postId)
         : [...prev, postId]
     );
+    // API call
+    if (isCurrentlyBookmarked) {
+      await unbookmarkPost(postId);
+    } else {
+      await bookmarkPost(postId);
+    }
   };
 
   /*
@@ -305,27 +243,22 @@ export default function MyPost() {
   };
 
   /*
-   * Confirm delete.
+   * Confirm delete — ลบผ่าน API
    */
-  const handleConfirmDelete = () => {
-    if (!deletePostId) {
-      return;
-    }
+  const handleConfirmDelete = async () => {
+    if (!deletePostId) return;
 
+    // Optimistic UI: ลบออกจาก list ก่อน
     setPosts((prev) =>
-      prev.filter(
-        (post) =>
-          post.id !== deletePostId
-      )
+      prev.filter((post) => post.id !== deletePostId)
     );
-
     setBookmarkedIds((prev) =>
-      prev.filter(
-        (id) => id !== deletePostId
-      )
+      prev.filter((id) => id !== deletePostId)
     );
-
     setDeletePostId(null);
+
+    // เรียก API
+    await deletePost(deletePostId);
   };
 
   const handleMenuChange = (id: string) => {
@@ -381,8 +314,8 @@ export default function MyPost() {
                 onClose={() => { }}
                 inline
                 isOwnPost={
-                  post.userId ===
-                  CURRENT_USER_ID
+                  post.userId === user?.id ||
+                  post.userId === ownerId
                 }
                 isBookmarked={bookmarkedIds.includes(
                   post.id

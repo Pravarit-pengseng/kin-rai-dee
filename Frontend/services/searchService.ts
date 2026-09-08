@@ -1,7 +1,7 @@
 import { fetchApi } from './api';
 import { supabase } from '@/lib/supabase';
 import { PopupPostData } from '@/components/popup-post';
-import { resolveCategoryNames } from './postService';
+import { resolveCategoryNames, mapPostToPopup } from './postService';
 
 export interface SearchHistoryItem {
   id: number | string;
@@ -19,16 +19,7 @@ export async function searchPosts(query: string): Promise<PopupPostData[]> {
   }
 
   if (data && Array.isArray(data) && data.length > 0) {
-    return data.map((post) => ({
-      id: String(post.id),
-      image: post.image_url ? { uri: post.image_url } : require('@/assets/images/StirFriedHolyBasil.png'),
-      userId: post.user_id || 'unknown',
-      title: post.food_name || 'ไม่มีชื่อเมนู',
-      description: post.description || '',
-      location: post.restaurant_url || '',
-      tags: resolveCategoryNames(post),
-      timeAgo: post.created_at ? new Date(post.created_at).toLocaleDateString('th-TH') : 'เมื่อเร็วๆ นี้',
-    }));
+    return data.map(mapPostToPopup);
   }
 
   // Supabase fallback
@@ -40,16 +31,7 @@ export async function searchPosts(query: string): Promise<PopupPostData[]> {
       .order('created_at', { ascending: false });
 
     if (!error && posts && posts.length > 0) {
-      return posts.map((post: any) => ({
-        id: String(post.id),
-        image: post.image_url ? { uri: post.image_url } : require('@/assets/images/StirFriedHolyBasil.png'),
-        userId: post.user_id || 'unknown',
-        title: post.food_name || 'ไม่มีชื่อเมนู',
-        description: post.description || '',
-        location: post.restaurant_url || '',
-        tags: resolveCategoryNames(post),
-        timeAgo: post.created_at ? new Date(post.created_at).toLocaleDateString('th-TH') : 'เมื่อเร็วๆ นี้',
-      }));
+      return posts.map(mapPostToPopup);
     }
   } catch (e) {
     console.warn('Supabase search posts fallback error:', e);

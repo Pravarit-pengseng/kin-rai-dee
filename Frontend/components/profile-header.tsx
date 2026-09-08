@@ -42,7 +42,7 @@ export default function ProfileHeader({
 
         {/* Name */}
         <ThemedText style={styles.name}>
-          {name || 'ผู้ใช้งาน'}
+          {name || (username ? username.replace(/^@/, '') : 'ผู้ใช้งาน')}
         </ThemedText>
 
         {/* Username */}

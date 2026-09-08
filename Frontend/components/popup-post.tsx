@@ -26,10 +26,13 @@ export type PopupPostData = {
   image: ImageSourcePropType;
   title?: string;
   description?: string;
-  tag?: string;
+  tags?: string[];
   location?: string;
   timeAgo?: string;
   userId?: string;
+  avatarUrl?: string;
+  displayName?: string;
+  username?: string;
 };
 
 export type PopupPostProps = {
@@ -113,14 +116,11 @@ export default function PopupPost({
   const title = post.title || "กะเพราไข่ดาว";
   const description =
     post.description ||
-    "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า ใครยังไม่รู้จะกินอะไร แนะนำเมนูที่อร่อยไม่เคยเปลี่ยน!";
-  // ลบเครื่องหมาย # ออกถ้ามีติดมาด้วย เพื่อป้องกันการแสดงผลเป็น ##
-  const tag = post.tag ? post.tag.replace(/^#/, "") : "อาหารจานเดียว";
-  const location =
-    post.location ||
-    "https://www.wongnai.com/listings/phat-ka-phrao";
-  const timeAgo = post.timeAgo || "2 ชม. ที่แล้ว";
-  const displayUserName = post.userId === "mookmhee" ? "มุกรอบอ้วรนิดนิด" : "มุกหมีชอบกิน";
+    "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า";
+  const tags = post.tags && post.tags.length > 0 ? post.tags.map(t => t.replace(/^#+/, "")) : ["อาหารทั่วไป"];
+  const location = post.location || "";
+  const timeAgo = post.timeAgo || "เมื่อเร็วๆ นี้";
+  const displayUserName = post.displayName || post.username || 'ผู้ใช้งาน';
 
   const handleContentPress = () => {
     setShowMenu(false);
@@ -170,11 +170,19 @@ export default function PopupPost({
         <Pressable style={styles.userProfileLink} onPress={handleUserClick}>
           {/* Avatar */}
           <View style={styles.avatarContainer}>
-            <Image
-              source={require("../assets/images/ProfilePicture.png")}
-              style={styles.avatar}
-              resizeMode="cover"
-            />
+            {post.avatarUrl ? (
+              <Image
+                source={{ uri: post.avatarUrl }}
+                style={styles.avatar}
+                resizeMode="cover"
+              />
+            ) : (
+              <Image
+                source={require("../assets/images/ProfilePicture.png")}
+                style={styles.avatar}
+                resizeMode="cover"
+              />
+            )}
           </View>
 
           {/* User information */}
@@ -259,7 +267,7 @@ export default function PopupPost({
           {description}
         </ThemedText>
 
-        {location && (
+        {location !== "" && (
           <Pressable
             style={({ pressed }) => [
               styles.locationContainer,
@@ -281,11 +289,13 @@ export default function PopupPost({
         )}
 
         <View style={styles.tagContainer}>
-          <View style={styles.tagPill}>
-            <ThemedText style={styles.tagText}>
-              #{tag}
-            </ThemedText>
-          </View>
+          {tags.map((t, index) => (
+            <View key={index} style={styles.tagPill}>
+              <ThemedText style={styles.tagText}>
+                #{t}
+              </ThemedText>
+            </View>
+          ))}
         </View>
 
         <View style={styles.divider} />

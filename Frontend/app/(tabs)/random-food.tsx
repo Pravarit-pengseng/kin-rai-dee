@@ -7,37 +7,49 @@ import { Header } from '@/components/Header';
 import { RandomButton } from '@/components/RandomButton';
 import { MultiSelectDropdown } from '@/components/MultiSelectDropdown';
 import { FOOD_CATEGORIES, FoodCategory } from '@/constants/categories';
-import { FoodItem } from '@/constants/foodData';
-import { fetchFoodCategories } from '@/services/categoryService';
-import { getRandomFood } from '@/services/foodService';
+import { FOOD_LIST, FoodItem } from '@/constants/foodData';
 
 export default function RandomFoodScreen() {
   const [categories, setCategories] = useState<FoodCategory[]>(FOOD_CATEGORIES);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [hasRandomized, setHasRandomized] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isRandomizing, setIsRandomizing] = useState(false);
   const [randomFood, setRandomFood] = useState<FoodItem | null>(null);
-
-  useEffect(() => {
-    async function loadCategories() {
-      const catList = await fetchFoodCategories();
-      if (catList && catList.length > 0) {
-        setCategories(catList);
-      }
-    }
-    loadCategories();
-  }, []);
 
   const handleSearch = () => {
     router.push('/(tabs)/search');
   };
 
-  const handleRandomize = async () => {
-    setLoading(true);
-    const result = await getRandomFood(selectedCategories);
-    setRandomFood(result);
+  const handleRandomize = () => {
+    if (isRandomizing) return;
+
+    const pool =
+      selectedCategories.length > 0
+        ? FOOD_LIST.filter((item) =>
+          selectedCategories.includes(String(item.categoryId))
+        )
+        : FOOD_LIST;
+
+    if (pool.length === 0) return;
+
     setHasRandomized(true);
-    setLoading(false);
+    setIsRandomizing(true);
+
+    let count = 0;
+    const maxCount = 15;
+
+    const intervalId = setInterval(() => {
+      const randomIndex = Math.floor(Math.random() * pool.length);
+
+      setRandomFood(pool[randomIndex]);
+
+      count++;
+
+      if (count >= maxCount) {
+        clearInterval(intervalId);
+        setIsRandomizing(false);
+      }
+    }, 100);
   };
 
   return (
@@ -61,9 +73,7 @@ export default function RandomFoodScreen() {
 
         {/* Display Area for Logo or Result */}
         <View style={styles.resultCard}>
-          {loading ? (
-            <ActivityIndicator size="large" color="#DCA64E" />
-          ) : !hasRandomized || !randomFood ? (
+          {!hasRandomized || !randomFood ? (
             <Image
               source={require('@/assets/images/kinraidee-logo.png')}
               style={styles.logoImage}
@@ -76,15 +86,14 @@ export default function RandomFoodScreen() {
                 style={styles.foodImage}
                 resizeMode="contain"
               />
-              <Text style={styles.foodTitle}>{randomFood.name}</Text>
             </View>
           )}
         </View>
 
         {!hasRandomized ? (
-          <RandomButton onPress={handleRandomize} />
+          <RandomButton onPress={handleRandomize} disabled={isRandomizing} />
         ) : (
-          <RandomButton onPress={handleRandomize} variant="rerandom" />
+          <RandomButton onPress={handleRandomize} variant="rerandom" disabled={isRandomizing} />
         )}
       </ScrollView>
     </SafeAreaView>

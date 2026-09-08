@@ -54,6 +54,7 @@ export default function PostGrid({
             source={post.image}
             style={styles.image}
             resizeMode="cover"
+            progressiveRenderingEnabled={true}
           />
         </Pressable>
       ))}

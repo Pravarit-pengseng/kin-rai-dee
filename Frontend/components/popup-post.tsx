@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import {
   Modal,
   View,
-  Image,
   StyleSheet,
   Pressable,
   ImageSourcePropType,
   Linking,
   Alert,
 } from "react-native";
+import { Image } from "expo-image";
 
 import {
   X,
@@ -23,7 +23,7 @@ import { ThemedText } from "@/components/themed-text";
 
 export type PopupPostData = {
   id: string;
-  image: ImageSourcePropType;
+  image: ImageSourcePropType | any;
   title?: string;
   description?: string;
   tags?: string[];
@@ -174,13 +174,15 @@ export default function PopupPost({
               <Image
                 source={{ uri: post.avatarUrl }}
                 style={styles.avatar}
-                resizeMode="cover"
+                contentFit="cover"
+                transition={200}
               />
             ) : (
               <Image
                 source={require("../assets/images/ProfilePicture.png")}
                 style={styles.avatar}
-                resizeMode="cover"
+                contentFit="cover"
+                transition={200}
               />
             )}
           </View>
@@ -250,7 +252,8 @@ export default function PopupPost({
         <Image
           source={post.image}
           style={styles.postImage}
-          resizeMode="cover"
+          contentFit="cover"
+          transition={200}
         />
       </Pressable>
 

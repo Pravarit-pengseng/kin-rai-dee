@@ -289,6 +289,25 @@ def delete_post(
     if not supabase:
         raise HTTPException(status_code=500, detail="Database connection uninitialized")
     try:
+        # Check ownership first
+        owner_check = (
+            supabase.table("posts")
+            .select("id")
+            .eq("id", post_id)
+            .eq("user_id", user["id"])
+            .maybe_single()
+            .execute()
+        )
+        if not owner_check.data:
+            raise HTTPException(
+                status_code=404, detail="Post not found or not owned by user"
+            )
+
+        # Delete dependent records manually in case ON DELETE CASCADE is missing
+        supabase.table("post_categories").delete().eq("post_id", post_id).execute()
+        supabase.table("saved_posts").delete().eq("post_id", post_id).execute()
+
+        # Delete the post
         res = (
             supabase.table("posts")
             .delete()
@@ -296,10 +315,6 @@ def delete_post(
             .eq("user_id", user["id"])
             .execute()
         )
-        if not res.data:
-            raise HTTPException(
-                status_code=404, detail="Post not found or not owned by user"
-            )
         return {"success": True, "message": "Post deleted successfully"}
     except HTTPException:
         raise

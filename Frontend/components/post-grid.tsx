@@ -1,16 +1,16 @@
 import React from "react";
 import {
   View,
-  Image,
   Pressable,
   useWindowDimensions,
   StyleSheet,
   ImageSourcePropType,
 } from "react-native";
+import { Image } from "expo-image";
 
 export type Post = {
   id: string;
-  image: ImageSourcePropType;
+  image: ImageSourcePropType | any;
   userId?: string;
   title?: string;
   description?: string;
@@ -53,8 +53,8 @@ export default function PostGrid({
           <Image
             source={post.image}
             style={styles.image}
-            resizeMode="cover"
-            progressiveRenderingEnabled={true}
+            contentFit="cover"
+            transition={200}
           />
         </Pressable>
       ))}
@@ -71,6 +71,7 @@ const styles = StyleSheet.create({
   post: {
     borderWidth: 0.5,
     borderColor: "#FFF9F6",
+    backgroundColor: "#EADBD6",
   },
 
   image: {

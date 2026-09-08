@@ -42,15 +42,38 @@ def search_posts(
 
             return attach_profiles_to_posts(posts)
 
-        # Search food name or description
+        # Search users
+        user_resp = supabase.table("profiles").select("id").or_(f"username.ilike.%{search_term}%,display_name.ilike.%{search_term}%").execute()
+        user_ids = [u["id"] for u in user_resp.data] if user_resp.data else []
+
+        # Search categories
+        cat_resp = supabase.table("categories").select("id").ilike("name", f"%{search_term}%").execute()
+        cat_ids = [c["id"] for c in cat_resp.data] if cat_resp.data else []
+        
+        cat_post_ids = []
+        if cat_ids:
+            post_cats_resp = supabase.table("post_categories").select("post_id").in_("category_id", cat_ids).execute()
+            cat_post_ids = [pc["post_id"] for pc in post_cats_resp.data] if post_cats_resp.data else []
+
+        or_conds = [
+            f"food_name.ilike.%{search_term}%",
+            f"description.ilike.%{search_term}%"
+        ]
+        if user_ids:
+            user_id_list = ",".join(user_ids)
+            or_conds.append(f"user_id.in.({user_id_list})")
+            
+        if cat_post_ids:
+            post_id_list = ",".join(map(str, cat_post_ids))
+            or_conds.append(f"id.in.({post_id_list})")
+            
+        or_query = ",".join(or_conds)
+
         response = (
             supabase
             .table("posts")
             .select("*, post_categories(categories(id, name))")
-            .or_(
-                f"food_name.ilike.%{search_term}%,"
-                f"description.ilike.%{search_term}%"
-            )
+            .or_(or_query)
             .order("created_at", desc=True)
             .execute()
         )

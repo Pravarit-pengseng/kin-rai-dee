@@ -13,10 +13,12 @@ def get_current_user(
 
     try:
         response = supabase.auth.get_user(token)
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.error(f"Auth get_user failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired access token",
+            detail=f"Invalid or expired access token: {e}",
         )
 
     user = response.user

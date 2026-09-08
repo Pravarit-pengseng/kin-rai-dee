@@ -1,10 +1,10 @@
 import React from "react";
 import {
   View,
-  Image,
   Pressable,
   StyleSheet,
 } from "react-native";
+import { Image } from "expo-image";
 import {
   Pencil,
   SquarePen,
@@ -34,7 +34,8 @@ export default function ProfileHeader({
             <Image
               source={require("../assets/images/ProfilePicture.png")}
               style={styles.avatar}
-              resizeMode="contain"
+              contentFit="contain"
+              transition={200}
             />
           </View>
         </View>

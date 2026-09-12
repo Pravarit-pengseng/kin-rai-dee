@@ -1,16 +1,28 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, StyleSheet, TextInput, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import PostGrid from '@/components/post-grid';
 import PopupPost, { PopupPostData } from '@/components/popup-post';
+import PostSkeleton from '@/components/PostSkeleton';
 import { ThemedText } from '@/components/themed-text';
+import DeletePopup from '@/components/DeletePopup';
 import { searchPosts, fetchSearchHistory, addSearchHistory, deleteSearchHistoryItem, clearAllSearchHistory } from '@/services/searchService';
-import { getSavedPosts, bookmarkPost, unbookmarkPost } from '@/services/postService';
+import { getSavedPosts, bookmarkPost, unbookmarkPost, deletePost } from '@/services/postService';
+import { setCachedPostList } from '@/services/postCache';
 import { useAuth } from '@/context/AuthContext';
+import { FOOD_CATEGORIES, INGREDIENT_CATEGORIES } from '@/constants/categories';
+
+const isFoodCategory = (query: string): boolean => {
+  const clean = query.trim().replace(/^#/, '').toLowerCase();
+  return (
+    FOOD_CATEGORIES.some((c) => c.label.toLowerCase() === clean) ||
+    INGREDIENT_CATEGORIES.some((c) => c.label.toLowerCase() === clean)
+  );
+};
 
 
 
@@ -21,15 +33,47 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState<{ id?: string | number; query: string }[]>([]);
   const [searchResults, setSearchResults] = useState<PopupPostData[]>([]);
-
-  const [showFeed, setShowFeed] = useState(false);
   const [popupPost, setPopupPost] = useState<PopupPostData | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+  const [deletePostId, setDeletePostId] = useState<string | null>(null);
+  const [deletePopupVisible, setDeletePopupVisible] = useState(false);
+
+  const { from } = useLocalSearchParams<{ from?: string }>();
+
+  const lastFromRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (from !== undefined && from !== lastFromRef.current) {
+      lastFromRef.current = from;
+      setInputValue('');
+      setIsSearching(false);
+      setSearchResults([]);
+    }
+  }, [from]);
 
   const loadHistory = useCallback(async () => {
     const history = await fetchSearchHistory();
     if (history && history.length > 0) {
-      setRecentSearches(history.map(item => ({ id: item.id, query: item.query })));
+      const seen = new Set<string>();
+      const uniqueHistory: { id?: string | number; query: string }[] = [];
+
+      for (const item of history) {
+        if (!item?.query) continue;
+        const queryText = item.query.trim();
+        const clean = queryText.replace(/^#/, '').toLowerCase();
+
+        // 1. Skip if it's from foodcat / ingredientcat
+        if (isFoodCategory(clean)) continue;
+
+        // 2. Skip duplicates (show only once)
+        if (seen.has(clean)) continue;
+        seen.add(clean);
+
+        uniqueHistory.push({ id: item.id, query: queryText });
+      }
+
+      setRecentSearches(uniqueHistory);
+    } else {
+      setRecentSearches([]);
     }
     
     if (user?.id) {
@@ -44,31 +88,29 @@ export default function SearchScreen() {
     }
   }, [user?.id]);
 
+  // Keep search state when returning from a post; only refresh history and bookmarks
   useFocusEffect(
     useCallback(() => {
-      setInputValue('');
-      setIsSearching(false);
-      setShowFeed(false);
-      setPopupPost(null);
       loadHistory();
     }, [loadHistory])
   );
 
-  const performSearch = async (text: string) => {
+  const performSearch = async (text: string, saveHistory = true) => {
     const queryStr = text.trim();
     if (queryStr === '') {
       setIsSearching(false);
-      setShowFeed(false);
       setSearchResults([]);
       return;
     }
 
     setIsSearching(true);
-    setShowFeed(false);
     setLoading(true);
 
-    await addSearchHistory(queryStr);
-    loadHistory();
+    const isCategory = isFoodCategory(queryStr);
+    if (saveHistory && !isCategory) {
+      await addSearchHistory(queryStr);
+      loadHistory();
+    }
 
     const results = await searchPosts(queryStr);
     setSearchResults(results || []);
@@ -77,7 +119,7 @@ export default function SearchScreen() {
   };
 
   const handleSearchSubmit = () => {
-    performSearch(inputValue);
+    performSearch(inputValue, true);
   };
 
   const handleClearHistory = async (index: number) => {
@@ -95,16 +137,23 @@ export default function SearchScreen() {
 
   const handleTrendPress = (text: string) => {
     setInputValue(text);
-    performSearch(text);
+    performSearch(text, false);
   };
 
   const handleHistoryPress = (text: string) => {
     setInputValue(text);
-    performSearch(text);
+    performSearch(text, false);
   };
 
   const handlePostPress = (post: PopupPostData) => {
-    setShowFeed(true);
+    setCachedPostList(searchResults);
+    router.push({
+      pathname: "/OtherPost",
+      params: {
+        postId: post.id,
+        post: JSON.stringify(post),
+      },
+    });
   };
 
   const handlePostLongPress = (post: PopupPostData) => {
@@ -126,6 +175,29 @@ export default function SearchScreen() {
     }
   };
 
+  const handleRequestDelete = (postId: string) => {
+    setDeletePostId(postId);
+    setPopupPost(null);
+    setDeletePopupVisible(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletePostId) return;
+    const idToDelete = deletePostId;
+    
+    setSearchResults((prev) => prev.filter((p) => p.id !== idToDelete));
+    setBookmarkedIds((prev) => prev.filter((id) => id !== idToDelete));
+    setDeletePostId(null);
+    setDeletePopupVisible(false);
+    
+    await deletePost(idToDelete);
+  };
+
+  const handleCancelDelete = () => {
+    setDeletePostId(null);
+    setDeletePopupVisible(false);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
@@ -133,13 +205,16 @@ export default function SearchScreen() {
         title="ค้นหาสิ่งที่สนใจ"
         leftIcon="back"
         onLeftPress={() => {
-          if (showFeed) {
-            setShowFeed(false);
-          } else if (isSearching) {
+          if (isSearching) {
             setIsSearching(false);
             setInputValue('');
+            setSearchResults([]);
           } else {
-            router.back();
+            if (from) {
+              router.push(decodeURIComponent(from) as any);
+            } else {
+              router.push('/');
+            }
           }
         }}
         rightIcon="none"
@@ -158,6 +233,18 @@ export default function SearchScreen() {
             onSubmitEditing={handleSearchSubmit}
             returnKeyType="search"
           />
+          {inputValue.length > 0 && (
+            <Pressable
+              onPress={() => {
+                setInputValue('');
+                setIsSearching(false);
+                setSearchResults([]);
+              }}
+              hitSlop={8}
+            >
+              <Feather name="x" size={18} color="#A0938F" style={{ marginRight: 4 }} />
+            </Pressable>
+          )}
         </View>
 
         {!isSearching ? (
@@ -199,44 +286,21 @@ export default function SearchScreen() {
             </View>
           </>
         ) : loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#DCA64E" />
-          </View>
-        ) : showFeed ? (
-          /* Feed View Mode */
-          <View style={styles.feedContainer}>
-            {searchResults.map((post) => (
-              <View key={post.id} style={styles.postWrapper}>
-                <PopupPost
-                  visible={true}
-                  post={post}
-                  onClose={() => { }}
-                  inline
-                  isOwnPost={!!user && post.userId === user.id}
-                  isBookmarked={bookmarkedIds.includes(post.id)}
-                  onBookmark={handleToggleBookmark}
-                  onUserPress={(postUserId) => {
-                    if (user && postUserId === user.id) {
-                      router.push("/(tabs)/profile");
-                    } else {
-                      router.push({
-                        pathname: "/OtherProfile",
-                        params: { userId: postUserId },
-                      });
-                    }
-                  }}
-                />
-              </View>
-            ))}
-          </View>
+          <PostSkeleton count={2} />
         ) : (
           /* Grid View Mode */
           <View style={styles.gridContainer}>
-            <PostGrid
-              posts={searchResults}
-              onPressPost={handlePostPress}
-              onLongPressPost={handlePostLongPress}
-            />
+            {searchResults.length > 0 ? (
+              <PostGrid
+                posts={searchResults}
+                onPressPost={handlePostPress}
+                onLongPressPost={handlePostLongPress}
+              />
+            ) : (
+              <View style={styles.emptyContainer}>
+                <ThemedText style={styles.emptyText}>ไม่พบผลการค้นหา</ThemedText>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -249,6 +313,7 @@ export default function SearchScreen() {
         isOwnPost={!!user && popupPost?.userId === user.id}
         isBookmarked={popupPost ? bookmarkedIds.includes(popupPost.id) : false}
         onBookmark={handleToggleBookmark}
+        onRequestDelete={handleRequestDelete}
         onUserPress={(postUserId) => {
           setPopupPost(null);
           if (user && postUserId === user.id) {
@@ -260,6 +325,12 @@ export default function SearchScreen() {
             });
           }
         }}
+      />
+
+      <DeletePopup
+        visible={deletePopupVisible}
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
       />
     </SafeAreaView>
   );
@@ -383,5 +454,15 @@ const styles = StyleSheet.create({
   },
   postWrapper: {
     marginBottom: 16,
+  },
+  emptyContainer: {
+    paddingVertical: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    fontFamily: 'NotoSansThai_400Regular',
+    color: '#8A7B75',
   },
 });

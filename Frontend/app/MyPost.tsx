@@ -2,12 +2,12 @@ import React, {
   useEffect,
   useRef,
   useState,
+  useCallback,
 } from "react";
 import {
   View,
   ScrollView,
   StyleSheet,
-  ImageSourcePropType,
 } from "react-native";
 import {
   Stack,
@@ -16,28 +16,23 @@ import {
 } from "expo-router";
 
 import { Header } from "@/components/Header";
-import PopupPost from "@/components/popup-post";
+import PopupPost, { PopupPostData } from "@/components/popup-post";
+import PostSkeleton from "@/components/PostSkeleton";
 import LiquidMenu from "@/components/liquid-menu";
 import DeletePopup from "@/components/DeletePopup";
 import LogoutPopup from "@/components/LogoutPopup";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/context/AuthContext";
-import { deletePost, bookmarkPost, unbookmarkPost, resolveCategoryNames, getSavedPosts, mapPostToPopup } from "@/services/postService";
+import {
+  deletePost,
+  bookmarkPost,
+  unbookmarkPost,
+  getSavedPosts,
+  mapPostToPopup,
+} from "@/services/postService";
 import { getUserPosts } from "@/services/profileService";
-
-type Post = {
-  id: string;
-  image: ImageSourcePropType;
-  title?: string;
-  description?: string;
-  tags?: string[];
-  location?: string;
-  timeAgo?: string;
-  userId?: string;
-};
-
-
+import { getCachedPostList } from "@/services/postCache";
 
 export default function MyPost() {
   const { isLoggedIn, logout, user } = useAuth();
@@ -53,28 +48,69 @@ export default function MyPost() {
     post?: string;
   }>();
 
-  const scrollRef =
-    useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
-  const [bookmarkedIds, setBookmarkedIds] =
-    useState<string[]>([]);
+  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+  const [deletePostId, setDeletePostId] = useState<string | null>(null);
+  const [logoutPopupVisible, setLogoutPopupVisible] = useState(false);
 
-  const [ready, setReady] =
-    useState(false);
+  // ---- Get initial posts from memory cache or param ----
+  const [posts, setPosts] = useState<PopupPostData[]>(() => {
+    const cached = getCachedPostList();
+    if (cached && cached.length > 0) return cached;
+    if (postParam) {
+      try {
+        const single = JSON.parse(postParam as string);
+        if (single?.id) return [single];
+      } catch { /* ignore */ }
+    }
+    return [];
+  });
 
-  const [posts, setPosts] =
-    useState<Post[]>([]);
+  // If posts are empty initially, we need to load from API
+  const [loading, setLoading] = useState(() => posts.length === 0);
 
-  // โหลดโพสต์จาก API
+  // Check if target post is the first one or further down
+  const targetIndex = posts.findIndex((p) => p.id === postId);
+  // If targetIndex is 0 (or not found yet), no jump needed; otherwise wait until scrolled
+  const [ready, setReady] = useState(() => targetIndex <= 0);
+  const hasScrolledRef = useRef(targetIndex <= 0);
+
+  // Reset scroll tracker on postId change
+  useEffect(() => {
+    const idx = posts.findIndex((p) => p.id === postId);
+    if (idx > 0) {
+      hasScrolledRef.current = false;
+      setReady(false);
+    } else {
+      hasScrolledRef.current = true;
+      setReady(true);
+    }
+  }, [postId]);
+
+  // Fallback timer so screen never stays stuck on skeleton
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setReady(true);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [postId]);
+
+  // ---- Sync posts & bookmarks from API in background ----
   useEffect(() => {
     if (mode === "saved") {
+      if (posts.length === 0) setLoading(true);
       getSavedPosts().then((saved) => {
         if (saved && saved.length > 0) {
-          setPosts(saved as Post[]);
+          setPosts(saved as PopupPostData[]);
           setBookmarkedIds(saved.map((s) => s.id));
         }
+        setLoading(false);
+      }).catch(() => {
+        setLoading(false);
       });
     } else if (ownerId) {
+      if (posts.length === 0) setLoading(true);
       getUserPosts(ownerId).then((apiPosts) => {
         if (apiPosts && apiPosts.length > 0) {
           setPosts(apiPosts.map(mapPostToPopup));
@@ -84,204 +120,100 @@ export default function MyPost() {
             if (saved && saved.length > 0) {
               setBookmarkedIds(saved.map((s) => s.id));
             }
-          });
+          }).catch(() => {});
         }
+        setLoading(false);
+      }).catch(() => {
+        setLoading(false);
       });
+    } else {
+      setLoading(false);
     }
   }, [ownerId, mode, user?.id]);
 
-  // Store the post that the user wants to delete
-  const [deletePostId, setDeletePostId] =
-    useState<string | null>(null);
-
-  const [logoutPopupVisible, setLogoutPopupVisible] =
-    useState(false);
-
-  /*
-   * Add newly created post.
-   */
+  // Ensure all saved mode posts are marked as bookmarked initially
   useEffect(() => {
-    if (!postParam) {
-      return;
+    if (mode === "saved" && posts.length > 0) {
+      setBookmarkedIds((prev) => {
+        const ids = posts.map((p) => p.id);
+        const set = new Set([...prev, ...ids]);
+        return Array.from(set);
+      });
     }
+  }, [mode, posts.length]);
 
-    try {
-      const newPost =
-        JSON.parse(postParam) as Post;
-
-      if (!newPost.id || !newPost.image) {
-        return;
+  // Handle post measurement and scroll directly to target post
+  const handlePostLayout = useCallback(
+    (id: string, y: number) => {
+      if (id === postId && !hasScrolledRef.current) {
+        hasScrolledRef.current = true;
+        scrollRef.current?.scrollTo({ y, animated: false });
+        requestAnimationFrame(() => {
+          setReady(true);
+        });
       }
+    },
+    [postId]
+  );
 
-      setPosts((prev) => {
-        const alreadyExists = prev.some(
-          (post) => post.id === newPost.id
-        );
-
-        if (alreadyExists) {
-          return prev;
-        }
-
-        return [newPost, ...prev];
-      });
-    } catch {
-      // Ignore invalid post parameter
-    }
-  }, [postParam]);
-
-  /*
-   * Get the owner.
-   */
-  const currentOwnerId =
-    ownerId ?? user?.id ?? '';
-
-  /*
-   * Get all posts to display.
-   * If in saved mode, show all posts loaded (which are saved posts).
-   * Otherwise, filter by selected owner.
-   */
-  const ownerPosts = mode === "saved" 
-    ? posts 
-    : posts.filter((post) => post.userId === currentOwnerId);
-
-  /*
-   * Find selected post.
-   */
-  const selectedIndex =
-    ownerPosts.findIndex(
-      (post) =>
-        post.id === postId
-    );
-
-  /*
-   * Start from selected post.
-   */
-  const startIndex =
-    selectedIndex >= 0
-      ? selectedIndex
-      : 0;
-
-  /*
-   * Scroll to selected post.
-   */
-  useEffect(() => {
-    if (!ready) {
-      return;
-    }
-
-    if (startIndex === 0) {
-      return;
-    }
-
-    const cardHeight = 520;
-
-    const timer = setTimeout(() => {
-      scrollRef.current?.scrollTo({
-        y: startIndex * cardHeight,
-        animated: false,
-      });
-    }, 100);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [ready, startIndex]);
-
-  /*
-   * Toggle bookmark — เรียก API จริง
-   */
-  const handleToggleBookmark = async (
-    postId: string
-  ) => {
-    const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
-    // Optimistic update
+  // ---- Bookmark toggle ----
+  const handleToggleBookmark = async (id: string) => {
+    const isBookmarked = bookmarkedIds.includes(id);
     setBookmarkedIds((prev) =>
-      isCurrentlyBookmarked
-        ? prev.filter((id) => id !== postId)
-        : [...prev, postId]
+      isBookmarked ? prev.filter((b) => b !== id) : [...prev, id]
     );
-    // API call
-    if (isCurrentlyBookmarked) {
-      await unbookmarkPost(postId);
-    } else {
-      await bookmarkPost(postId);
-    }
+    if (isBookmarked) await unbookmarkPost(id);
+    else await bookmarkPost(id);
   };
 
-  /*
-   * Open EditPost.
-   *
-   * Send the complete post so EditPost
-   * can display the existing information.
-   */
-  const handleEditPost = (
-    post: Post
-  ) => {
+  // ---- Edit post ----
+  const handleEditPost = (post: PopupPostData) => {
     router.push({
       pathname: "/EditPost",
-      params: {
-        postId: post.id,
-        post: JSON.stringify(post),
-      },
+      params: { postId: post.id, post: JSON.stringify(post) },
     });
   };
 
-  /*
-   * Open delete popup.
-   */
-  const handleRequestDelete = (
-    postId: string
-  ) => {
-    setDeletePostId(postId);
-  };
-
-  /*
-   * Cancel delete.
-   */
-  const handleCancelDelete = () => {
-    setDeletePostId(null);
-  };
-
-  /*
-   * Confirm delete — ลบผ่าน API
-   */
+  // ---- Delete post ----
+  const handleRequestDelete = (id: string) => setDeletePostId(id);
+  const handleCancelDelete = () => setDeletePostId(null);
   const handleConfirmDelete = async () => {
     if (!deletePostId) return;
-
-    // Optimistic UI: ลบออกจาก list ก่อน
-    setPosts((prev) =>
-      prev.filter((post) => post.id !== deletePostId)
-    );
-    setBookmarkedIds((prev) =>
-      prev.filter((id) => id !== deletePostId)
-    );
+    const id = deletePostId;
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+    setBookmarkedIds((prev) => prev.filter((b) => b !== id));
     setDeletePostId(null);
-
-    // เรียก API
-    await deletePost(deletePostId);
+    await deletePost(id);
   };
 
+  // ---- Menu ----
   const handleMenuChange = (id: string) => {
     if (id === "home") router.replace("/");
     else if (id === "random") router.replace("/(tabs)/random-food");
     else if (id === "ingredients") router.replace("/(tabs)/random-ingredient");
     else if (id === "profile") {
       if (!isLoggedIn) {
-        router.push({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/profile' } });
+        router.push({ pathname: "/(auth)/login", params: { returnTo: "/(tabs)/profile" } });
       } else {
         router.replace("/(tabs)/profile");
       }
     }
   };
 
+  const handleUserPress = (postUserId: string) => {
+    if (user && postUserId === user.id) {
+      router.push("/(tabs)/profile");
+    } else {
+      router.push({
+        pathname: "/OtherProfile",
+        params: { userId: postUserId },
+      });
+    }
+  };
+
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-          animation: 'none',
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false, animation: "none" }} />
 
       <SafeAreaView style={styles.safeArea}>
         <StatusBar style="dark" />
@@ -290,64 +222,74 @@ export default function MyPost() {
           leftIcon="back"
           onLeftPress={() => router.back()}
           rightIcon="search"
-          onSearchPress={() => router.push("/(tabs)/search")}
+          onSearchPress={() =>
+            router.push(
+              `/(tabs)/search?from=${encodeURIComponent(
+                `/MyPost?postId=${postId}&ownerId=${ownerId || ""}&mode=${mode || ""}`
+              )}`
+            )
+          }
         />
 
-        <ScrollView
-          ref={scrollRef}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={
-            styles.scrollContent
-          }
-          onContentSizeChange={() =>
-            setReady(true)
-          }
-        >
-          {ownerPosts.map((post) => (
-            <View
-              key={post.id}
-              style={styles.postWrapper}
+        {loading ? (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            scrollEnabled={false}
+          >
+            <PostSkeleton count={2} />
+          </ScrollView>
+        ) : (
+          <View style={styles.container}>
+            {/* Show skeleton while scrolling to target post (prevents post 0 flash) */}
+            {!ready && (
+              <View style={styles.skeletonOverlay}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.scrollContent}
+                  scrollEnabled={false}
+                >
+                  <PostSkeleton count={1} />
+                </ScrollView>
+              </View>
+            )}
+
+            <ScrollView
+              ref={scrollRef}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
+              style={!ready ? styles.hidden : styles.visible}
             >
-              <PopupPost
-                visible={true}
-                post={post}
-                onClose={() => { }}
-                inline
-                isOwnPost={
-                  post.userId === user?.id ||
-                  post.userId === ownerId
-                }
-                isBookmarked={bookmarkedIds.includes(
-                  post.id
-                )}
-                onBookmark={
-                  handleToggleBookmark
-                }
+              {posts.map((post) => (
+                <View
+                  key={post.id}
+                  style={styles.postWrapper}
+                  onLayout={(e) => handlePostLayout(post.id, e.nativeEvent.layout.y)}
+                >
+                  <PopupPost
+                    visible={true}
+                    post={post}
+                    onClose={() => {}}
+                    inline
+                    isOwnPost={post.userId === user?.id}
+                    isBookmarked={bookmarkedIds.includes(post.id)}
+                    onBookmark={handleToggleBookmark}
+                    onEdit={handleEditPost}
+                    onRequestDelete={handleRequestDelete}
+                    onUserPress={handleUserPress}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
-                // Edit Post
-                onEdit={handleEditPost}
-
-                // Delete Post
-                onRequestDelete={
-                  handleRequestDelete
-                }
-              />
-            </View>
-          ))}
-        </ScrollView>
-
-        {/* Delete Popup */}
         <DeletePopup
-          visible={
-            deletePostId !== null
-          }
+          visible={deletePostId !== null}
           onCancel={handleCancelDelete}
-          onConfirm={
-            handleConfirmDelete
-          }
+          onConfirm={handleConfirmDelete}
         />
 
-        {/* Logout Popup */}
         <LogoutPopup
           visible={logoutPopupVisible}
           onCancel={() => setLogoutPopupVisible(false)}
@@ -358,10 +300,7 @@ export default function MyPost() {
           }}
         />
 
-        <LiquidMenu
-          active="profile"
-          onChange={handleMenuChange}
-        />
+        <LiquidMenu active="profile" onChange={handleMenuChange} />
       </SafeAreaView>
     </>
   );
@@ -372,15 +311,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFF8F6",
   },
-
+  container: {
+    flex: 1,
+  },
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 110,
   },
-
   postWrapper: {
     width: "100%",
     marginBottom: 16,
+  },
+  skeletonOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+    backgroundColor: "#FFF8F6",
+  },
+  hidden: {
+    opacity: 0,
+  },
+  visible: {
+    opacity: 1,
   },
 });

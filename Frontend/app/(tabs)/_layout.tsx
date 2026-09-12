@@ -15,7 +15,10 @@ export default function TabLayout() {
   else if (pathname.includes('profile')) activeTab = 'profile';
 
   const handleTabChange = (id: string) => {
-    if (id === 'home') router.push('/');
+    if (id === 'home') {
+      if (activeTab === 'home') router.push(`/?refresh=${Date.now()}`);
+      else router.push('/');
+    }
     else if (id === 'random') router.push('/(tabs)/random-food');
     else if (id === 'ingredients') router.push('/(tabs)/random-ingredient');
     else if (id === 'profile') {
@@ -25,7 +28,8 @@ export default function TabLayout() {
           params: { returnTo: '/(tabs)/profile', from: pathname || '/' },
         });
       } else {
-        router.push('/(tabs)/profile');
+        if (activeTab === 'profile') router.push(`/(tabs)/profile?refresh=${Date.now()}`);
+        else router.push('/(tabs)/profile');
       }
     }
   };

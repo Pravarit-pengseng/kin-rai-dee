@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator } from "react-native";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SquarePen } from "lucide-react-native";
 
 import { Header } from "@/components/Header";
 import PopupPost, { PopupPostData } from "@/components/popup-post";
+import PostSkeleton from "@/components/PostSkeleton";
 import DeletePopup from "@/components/DeletePopup";
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/context/AuthContext";
@@ -19,8 +20,19 @@ export default function HomeScreen() {
   const { isLoggedIn, user } = useAuth();
   const [posts, setPosts] = useState<PopupPostData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const params = useLocalSearchParams<{ refresh?: string }>();
+
+  useEffect(() => {
+    if (params.refresh) {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      loadFeed();
+    }
+  }, [params.refresh]);
 
   const loadFeed = useCallback(async () => {
     setLoading(true);
@@ -28,7 +40,7 @@ export default function HomeScreen() {
     if (fetched && fetched.length > 0) {
       setPosts(fetched);
     }
-    
+
     if (isLoggedIn) {
       const saved = await getSavedPosts();
       if (saved && saved.length > 0) {
@@ -41,6 +53,12 @@ export default function HomeScreen() {
     }
     setLoading(false);
   }, [isLoggedIn]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadFeed();
+    setRefreshing(false);
+  }, [loadFeed]);
 
   useFocusEffect(
     useCallback(() => {
@@ -103,20 +121,30 @@ export default function HomeScreen() {
         title="KIN RAI DEE"
         leftIcon="none"
         rightIcon="search"
-        onSearchPress={() => router.push('/(tabs)/search')}
+        onSearchPress={() => router.push('/(tabs)/search?from=/')}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#DCA64E"]}
+            tintColor="#DCA64E"
+          />
+        }
+      >
         {/* Title Section */}
         <View style={styles.titleContainer}>
           <ThemedText style={styles.pageTitle}>วันนี้กินอะไรกันดี?</ThemedText>
           <MaterialCommunityIcons name="silverware-fork-knife" size={26} color="#DCA64E" />
         </View>
 
-        {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#DCA64E" />
-          </View>
+        {!refreshing && loading && (
+          <PostSkeleton count={3} />
         )}
 
         {/* Posts */}
@@ -150,10 +178,12 @@ export default function HomeScreen() {
       <DeletePopup
         visible={deletePostId !== null}
         onCancel={() => setDeletePostId(null)}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (deletePostId) {
-            setPosts((prev) => prev.filter((p) => p.id !== deletePostId));
+            const idToDelete = deletePostId;
+            setPosts((prev) => prev.filter((p) => p.id !== idToDelete));
             setDeletePostId(null);
+            await deletePost(idToDelete);
           }
         }}
       />
@@ -179,7 +209,6 @@ const styles = StyleSheet.create({
     color: "#46302B",
   },
   postWrapper: { marginBottom: 16 },
-  loadingContainer: { marginVertical: 20, alignItems: "center" },
   fab: {
     position: "absolute",
     bottom: 90,

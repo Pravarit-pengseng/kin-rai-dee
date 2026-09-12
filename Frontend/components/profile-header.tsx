@@ -15,6 +15,7 @@ export type ProfileHeaderProps = {
   name?: string;
   username?: string;
   bio?: string;
+  avatarUrl?: string;
   onEditProfile: () => void;
   onCreatePost: () => void;
 };
@@ -23,6 +24,7 @@ export default function ProfileHeader({
   name,
   username,
   bio,
+  avatarUrl,
   onEditProfile,
   onCreatePost,
 }: ProfileHeaderProps) {
@@ -32,7 +34,7 @@ export default function ProfileHeader({
         <View style={styles.avatarOuter}>
           <View style={styles.avatarInner}>
             <Image
-              source={require("../assets/images/ProfilePicture.png")}
+              source={avatarUrl ? { uri: avatarUrl } : require("../assets/images/ProfilePicture.png")}
               style={styles.avatar}
               contentFit="contain"
               transition={200}

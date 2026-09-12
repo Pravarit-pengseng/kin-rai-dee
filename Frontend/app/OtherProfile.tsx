@@ -18,6 +18,8 @@ import LiquidMenu from "@/components/liquid-menu";
 import PopupPost from "@/components/popup-post";
 import { getUserProfile, getUserPosts, UserProfile } from "@/services/profileService";
 import { bookmarkPost, unbookmarkPost, getSavedPosts, mapPostToPopup } from "@/services/postService";
+import { PostGridSkeleton } from "@/components/PostSkeleton";
+import { setCachedPostList } from "@/services/postCache";
 import { useAuth } from "@/context/AuthContext";
 
 const DEFAULT_AVATAR = require("../assets/images/ProfilePicture.png");
@@ -97,16 +99,16 @@ export default function OtherProfileScreen() {
 
   const handleOpenPost = (post: Post) => {
     if (!userId) return;
+    setCachedPostList(posts);
     router.push({
       pathname: "/OtherPost",
       params: {
         postId: post.id,
         ownerId: userId,
+        post: JSON.stringify(post),
       },
     });
   };
-
-  const isLoading = loadingProfile || loadingPosts;
 
   return (
     <>
@@ -125,20 +127,15 @@ export default function OtherProfileScreen() {
           leftIcon="back"
           onLeftPress={() => router.back()}
           rightIcon="search"
-          onSearchPress={() => router.push("/(tabs)/search")}
+          onSearchPress={() => router.push(`/(tabs)/search?from=${encodeURIComponent(`/OtherProfile?userId=${userId}`)}`)}
         />
 
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#DCA64E" />
-          </View>
-        ) : (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={
-              styles.scrollContent
-            }
-          >
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={
+            styles.scrollContent
+          }
+        >
             {/* Profile Header */}
             <View style={styles.profileSection}>
               {/* Avatar */}
@@ -188,7 +185,9 @@ export default function OtherProfileScreen() {
             </View>
 
             {/* Post Grid */}
-            {posts.length > 0 ? (
+            {loadingPosts ? (
+              <PostGridSkeleton count={6} />
+            ) : posts.length > 0 ? (
               <PostGrid
                 posts={posts}
                 onPressPost={handleOpenPost}
@@ -205,7 +204,6 @@ export default function OtherProfileScreen() {
               </View>
             )}
           </ScrollView>
-        )}
 
         {/* Bottom Menu */}
         <LiquidMenu

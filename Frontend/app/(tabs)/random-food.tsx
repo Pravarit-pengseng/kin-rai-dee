@@ -17,7 +17,7 @@ export default function RandomFoodScreen() {
   const [randomFood, setRandomFood] = useState<FoodItem | null>(null);
 
   const handleSearch = () => {
-    router.push('/(tabs)/search');
+    router.push('/(tabs)/search?from=/(tabs)/random-food');
   };
 
   const handleRandomize = () => {

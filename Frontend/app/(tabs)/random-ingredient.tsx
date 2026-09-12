@@ -29,7 +29,7 @@ export default function RandomIngredientScreen() {
   const [randomMeat, setRandomMeat] = useState<IngredientItem | null>(null);
 
   const handleSearch = () => {
-    router.push('/(tabs)/search');
+    router.push('/(tabs)/search?from=/(tabs)/random-ingredient');
   };
 
   const handleRandomize = () => {

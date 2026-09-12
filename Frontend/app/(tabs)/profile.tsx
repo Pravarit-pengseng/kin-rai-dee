@@ -4,13 +4,15 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
+  Alert,
+  RefreshControl,
 } from "react-native";
 import {
   router,
   useLocalSearchParams,
   useFocusEffect,
 } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 import PostGrid, { Post } from "@/components/post-grid";
 
@@ -24,7 +26,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/context/AuthContext";
 import { getMyProfile, getUserPosts } from "@/services/profileService";
-import { getSavedPosts, deletePost, mapPostToPopup } from "@/services/postService";
+import { getSavedPosts, deletePost, mapPostToPopup, bookmarkPost, unbookmarkPost } from "@/services/postService";
+import { PostGridSkeleton } from "@/components/PostSkeleton";
+import { setCachedPostList } from "@/services/postCache";
+
 
 
 export default function ProfileScreen() {
@@ -33,14 +38,26 @@ export default function ProfileScreen() {
     name?: string;
     username?: string;
     bio?: string;
+    avatarUrl?: string;
     post?: string;
     mode?: string;
+    refresh?: string;
   }>();
+
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (params.refresh) {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      onRefresh();
+    }
+  }, [params.refresh]);
 
   // Profile data จาก API
   const [profileName, setProfileName] = useState<string | undefined>(undefined);
   const [profileUsername, setProfileUsername] = useState<string | undefined>(undefined);
   const [profileBio, setProfileBio] = useState<string | undefined>(undefined);
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -54,17 +71,49 @@ export default function ProfileScreen() {
         // username จาก DB ไม่มี @ นำหน้า ให้เก็บตรงๆ
         setProfileUsername(profile.username ?? undefined);
         setProfileBio(profile.bio ?? undefined);
+        setProfileAvatarUrl(profile.avatar_url ?? undefined);
       }
     });
   }, [isLoggedIn]);
 
   const [posts, setPosts] = useState<PopupPostData[]>([]);
   const [savedPosts, setSavedPosts] = useState<PopupPostData[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingSaved, setLoadingSaved] = useState(true);
   const [selectedPost, setSelectedPost] =
     useState<PopupPostData | null>(null);
   const [popupVisible, setPopupVisible] = useState(false);
   const [deletePopupVisible, setDeletePopupVisible] =
     useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (user?.id) {
+      try {
+        const [profileData, apiPosts, saved] = await Promise.all([
+          getMyProfile(),
+          getUserPosts(user.id),
+          getSavedPosts()
+        ]);
+        if (profileData) {
+          setProfileName(profileData.display_name ?? undefined);
+          setProfileUsername(profileData.username ?? undefined);
+          setProfileBio(profileData.bio ?? undefined);
+          setProfileAvatarUrl(profileData.avatar_url ?? undefined);
+        }
+        setPosts((apiPosts || []).map(mapPostToPopup));
+        setSavedPosts(Array.isArray(saved) ? saved : []);
+        setLoadingPosts(false);
+        setLoadingSaved(false);
+      } catch (e) {
+        console.warn("Refresh profile error:", e);
+        setLoadingPosts(false);
+        setLoadingSaved(false);
+      }
+    }
+    setRefreshing(false);
+  }, [user?.id]);
   const [logoutPopupVisible, setLogoutPopupVisible] =
     useState(false);
   const [deletePostId, setDeletePostId] =
@@ -83,6 +132,9 @@ export default function ProfileScreen() {
       getUserPosts(user.id).then((apiPosts) => {
         const safePosts = Array.isArray(apiPosts) ? apiPosts : [];
         setPosts(safePosts.map(mapPostToPopup));
+        setLoadingPosts(false);
+      }).catch(() => {
+        setLoadingPosts(false);
       });
 
       // โหลดโพสต์ที่บันทึกไว้
@@ -94,6 +146,9 @@ export default function ProfileScreen() {
         } else {
           setBookmarkedIds([]);
         }
+        setLoadingSaved(false);
+      }).catch(() => {
+        setLoadingSaved(false);
       });
     }, [isLoggedIn, user?.id])
   );
@@ -142,12 +197,21 @@ export default function ProfileScreen() {
     setPopupVisible(true);
   };
 
-  const handleToggleBookmark = (postId: string) => {
+  const handleToggleBookmark = async (postId: string) => {
+    const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
     setBookmarkedIds((prev) =>
-      prev.includes(postId)
+      isCurrentlyBookmarked
         ? prev.filter((id) => id !== postId)
         : [...prev, postId],
     );
+    
+    if (user?.id) {
+      if (isCurrentlyBookmarked) {
+        await unbookmarkPost(postId);
+      } else {
+        await bookmarkPost(postId);
+      }
+    }
   };
 
   const handleRequestDelete = (postId: string) => {
@@ -220,6 +284,7 @@ export default function ProfileScreen() {
         name: params.name ?? profileName,
         username: params.username ?? profileUsername,
         bio: params.bio ?? profileBio,
+        avatarUrl: params.avatarUrl ?? profileAvatarUrl,
       },
     });
   };
@@ -233,6 +298,8 @@ export default function ProfileScreen() {
   };
 
   const handleOpenPost = (post: PopupPostData) => {
+    const allPosts = activeTab === "saved" ? savedPosts : posts;
+    setCachedPostList(allPosts);
     router.push({
       pathname: "/MyPost",
       params: {
@@ -256,16 +323,26 @@ export default function ProfileScreen() {
         leftIcon={isLoggedIn ? "logout" : "none"}
         onLeftPress={() => setLogoutPopupVisible(true)}
         rightIcon="search"
-        onSearchPress={() => router.push('/(tabs)/search')}
+        onSearchPress={() => router.push('/(tabs)/search?from=/(tabs)/profile')}
       />
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={["#DCA64E"]}
+            tintColor="#DCA64E"
+          />
+        }
       >
         <ProfileHeader
           name={profileName || params.name || undefined}
           username={profileUsername || params.username || undefined}
           bio={(profileBio || params.bio) || undefined}
+          avatarUrl={params.avatarUrl ?? profileAvatarUrl}
           onEditProfile={handleEditProfile}
           onCreatePost={handleCreatePost}
         />
@@ -304,7 +381,9 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {displayPosts.length > 0 ? (
+        {(activeTab === "posts" ? loadingPosts : loadingSaved) ? (
+          <PostGridSkeleton count={6} />
+        ) : displayPosts.length > 0 ? (
           <PostGrid
             posts={displayPosts}
             onPressPost={handleOpenPost}

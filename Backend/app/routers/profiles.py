@@ -58,7 +58,7 @@ async def upload_avatar(
     if not file.content_type:
         raise HTTPException(status_code=400, detail="Invalid file type")
 
-    allowed_types = {"image/jpeg", "image/png", "image/webp"}
+    allowed_types = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
     if file.content_type not in allowed_types:
         raise HTTPException(
             status_code=400,
@@ -80,7 +80,9 @@ async def upload_avatar(
             status_code=500, detail=f"Failed to upload avatar: {str(e)}"
         )
 
-    avatar_url = supabase.storage.from_("avatars").get_public_url(file_path)
+    import time
+    timestamp = int(time.time())
+    avatar_url = f"{supabase.storage.from_('avatars').get_public_url(file_path)}?t={timestamp}"
 
     response = (
         supabase.table("profiles")

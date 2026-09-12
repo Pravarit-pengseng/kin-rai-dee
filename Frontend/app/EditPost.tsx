@@ -8,6 +8,8 @@ import {
     ScrollView,
     Alert,
     ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
 } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -156,11 +158,15 @@ export default function EditPost() {
                     rightIcon="none"
                 />
 
-                <ScrollView
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.content}
-                    keyboardShouldPersistTaps="handled"
+                <KeyboardAvoidingView 
+                    style={{ flex: 1 }}
+                    behavior={Platform.OS === "ios" ? "padding" : undefined}
                 >
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={styles.content}
+                        keyboardShouldPersistTaps="handled"
+                    >
                     {/* Image Picker */}
                     <Pressable
                         onPress={pickImage}
@@ -218,7 +224,8 @@ export default function EditPost() {
                             {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
                         </ThemedText>
                     </Pressable>
-                </ScrollView>
+                    </ScrollView>
+                </KeyboardAvoidingView>
             </SafeAreaView>
         </>
     );

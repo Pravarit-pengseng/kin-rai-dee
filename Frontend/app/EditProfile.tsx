@@ -6,6 +6,11 @@ import {
   Pressable,
   Image,
   Alert,
+  TouchableWithoutFeedback,
+  Keyboard,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from "react-native";
 import {
   Stack,
@@ -13,6 +18,7 @@ import {
   useLocalSearchParams,
 } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import { uploadAsync, FileSystemUploadType } from "expo-file-system/legacy";
 import { Camera } from "lucide-react-native";
 import { Header } from "@/components/Header";
 import ProfileForm from "@/components/profile-form";
@@ -27,6 +33,7 @@ export default function EditProfile() {
     name?: string;
     username?: string;
     bio?: string;
+    avatarUrl?: string;
   }>();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,7 +45,7 @@ export default function EditProfile() {
   });
 
   const [profileImage, setProfileImage] = useState<any>(
-    require("../assets/images/ProfilePicture.png")
+    params.avatarUrl ? { uri: params.avatarUrl } : require("../assets/images/ProfilePicture.png")
   );
 
   const handlePickImage = async () => {
@@ -73,22 +80,26 @@ export default function EditProfile() {
       if (profileImage?.uri && profileImage.uri.startsWith('file')) {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
+        
+        const res = await uploadAsync(
+          `${API_BASE_URL}/api/profiles/me/avatar`,
+          profileImage.uri,
+          {
+            httpMethod: 'POST',
+            uploadType: FileSystemUploadType.MULTIPART,
+            fieldName: 'file',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          }
+        );
 
-        const formData = new FormData();
-        const filename = profileImage.uri.split('/').pop() || 'avatar.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
-        formData.append('file', { uri: profileImage.uri, name: filename, type } as any);
-
-        const res = await fetch(`${API_BASE_URL}/api/profiles/me/avatar`, {
-          method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          body: formData,
-        });
-
-        if (res.ok) {
-          const json = await res.json();
+        if (res.status >= 200 && res.status < 300) {
+          const json = JSON.parse(res.body);
           avatarUrl = json.avatar_url;
+        } else {
+          console.warn("Avatar upload failed:", res.body);
+          Alert.alert("อัปโหลดรูปไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
+          setIsSubmitting(false);
+          return;
         }
       }
 
@@ -113,6 +124,7 @@ export default function EditProfile() {
           name: result.display_name || profileData.name || '',
           username: result.username || profileData.username || '',
           bio: result.bio || '',  // ส่ง string ว่างแทน null
+          avatarUrl: result.avatar_url || avatarUrl || params.avatarUrl || '',
         },
       });
     } catch (e) {
@@ -141,62 +153,73 @@ export default function EditProfile() {
           rightIcon="none"
         />
 
-        <View style={styles.content}>
-          {/* Profile Picture */}
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatarWrapper}>
-              <Image
-                source={profileImage}
-                style={styles.avatar}
-                resizeMode="cover"
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+          >
+              {/* Profile Picture */}
+              <View style={styles.avatarContainer}>
+                <View style={styles.avatarOuter}>
+                  <View style={styles.avatarInner}>
+                    <Image
+                      source={profileImage}
+                      style={styles.avatar}
+                      resizeMode="cover"
+                    />
+                  </View>
+
+                  {/* Upload Image Button */}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.cameraButton,
+                      pressed &&
+                      styles.cameraButtonPressed,
+                    ]}
+                    onPress={handlePickImage}
+                  >
+                    <Camera
+                      size={17}
+                      color="#721209"
+                      strokeWidth={3}
+                    />
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Profile Form */}
+              <ProfileForm
+                initialName={profileData.name}
+                initialUsername={
+                  profileData.username
+                }
+                initialBio={profileData.bio}
+                onChange={setProfileData}
               />
 
-              {/* Upload Image Button */}
+              {/* Save Button */}
               <Pressable
                 style={({ pressed }) => [
-                  styles.cameraButton,
+                  styles.saveButton,
                   pressed &&
-                  styles.cameraButtonPressed,
+                  styles.saveButtonPressed,
+                  isSubmitting && styles.saveButtonDisabled,
                 ]}
-                onPress={handlePickImage}
+                onPress={handleSave}
+                disabled={isSubmitting}
               >
-                <Camera
-                  size={17}
-                  color="#721209"
-                  strokeWidth={3}
-                />
+                <ThemedText
+                  style={styles.saveText}
+                >
+                  {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
+                </ThemedText>
               </Pressable>
-            </View>
-          </View>
-
-          {/* Profile Form */}
-          <ProfileForm
-            initialName={profileData.name}
-            initialUsername={
-              profileData.username
-            }
-            initialBio={profileData.bio}
-            onChange={setProfileData}
-          />
-
-          {/* Save Button */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.saveButton,
-              pressed &&
-              styles.saveButtonPressed,
-              isSubmitting && styles.saveButtonDisabled,
-            ]}
-            onPress={handleSave}
-            disabled={isSubmitting}
-          >
-            <ThemedText
-              style={styles.saveText}
-            >
-              {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
-            </ThemedText>
-          </Pressable>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
         {/* Bottom Menu */}
         <LiquidMenu />
@@ -211,10 +234,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF9F7",
   },
 
-  content: {
+  innerContainer: {
     flex: 1,
+  },
+
+  content: {
     paddingHorizontal: 14,
     paddingTop: 16,
+    paddingBottom: 40,
   },
 
   avatarContainer: {
@@ -222,24 +249,37 @@ const styles = StyleSheet.create({
     marginBottom: 50,
   },
 
-  avatarWrapper: {
+  avatarOuter: {
     position: "relative",
     width: 110,
     height: 110,
+    marginBottom: 10,
+    borderRadius: 55,
+    borderWidth: 3,
+    borderColor: "#F3D6D0",
+    backgroundColor: "#FFF1B8",
+    padding: 4,
+  },
+
+  avatarInner: {
+    width: "100%",
+    height: "100%",
+    overflow: "hidden",
+    borderRadius: 40,
+    backgroundColor: "#FFF8E5",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   avatar: {
-    width: 110,
-    height: 110,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
+    width: "100%",
+    height: "100%",
   },
 
   cameraButton: {
     position: "absolute",
-    right: 2,
-    bottom: 8,
+    right: -2,
+    bottom: 2,
     width: 35,
     height: 35,
     borderRadius: 35,

@@ -18,6 +18,21 @@ export interface UpdateProfilePayload {
     avatar_url?: string;
 }
 
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+
+export function normalizeAvatarUrl(url?: string | null): string | undefined {
+    if (!url) return undefined;
+    const marker = '/storage/v1/object/public/avatars/';
+    if (url.includes(marker)) {
+        const idx = url.indexOf(marker);
+        const path = url.substring(idx);
+        if (SUPABASE_URL) {
+            return `${SUPABASE_URL.replace(/\/$/, '')}${path}`;
+        }
+    }
+    return url;
+}
+
 /**
  * GET My Profile
  * Auth required
@@ -28,7 +43,11 @@ export async function getMyProfile(): Promise<UserProfile | null> {
     );
 
     if (resp?.data) {
-        return resp.data;
+        const profile = Array.isArray(resp.data) ? resp.data[0] : resp.data;
+        if (profile?.avatar_url) {
+            profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
+        }
+        return profile;
     }
 
     // Supabase fallback
@@ -55,6 +74,9 @@ export async function getMyProfile(): Promise<UserProfile | null> {
             return null;
         }
 
+        if (profile?.avatar_url) {
+            profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
+        }
         return profile;
     } catch (e) {
         console.warn(
@@ -81,7 +103,11 @@ export async function updateMyProfile(
     );
 
     if (resp?.data) {
-        return resp.data;
+        const profile = Array.isArray(resp.data) ? resp.data[0] : resp.data;
+        if (profile?.avatar_url) {
+            profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
+        }
+        return profile;
     }
 
     // Supabase fallback
@@ -109,6 +135,9 @@ export async function updateMyProfile(
             return null;
         }
 
+        if (profile?.avatar_url) {
+            profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
+        }
         return profile;
     } catch (e) {
         console.warn(
@@ -131,6 +160,9 @@ export async function getUserProfile(
     );
 
     if (data) {
+        if (data.avatar_url) {
+            data.avatar_url = normalizeAvatarUrl(data.avatar_url);
+        }
         return data;
     }
 
@@ -150,6 +182,9 @@ export async function getUserProfile(
             return null;
         }
 
+        if (profile?.avatar_url) {
+            profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
+        }
         return profile;
     } catch (e) {
         console.warn(
@@ -182,7 +217,7 @@ export async function getUserPosts(
         const { data: posts, error } = await supabase
             .from('posts')
             .select(
-                '*, post_categories(categories(id, name))',
+                '*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))',
             )
             .eq('user_id', userId)
             .order('created_at', {

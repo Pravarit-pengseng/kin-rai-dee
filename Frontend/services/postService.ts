@@ -1,6 +1,7 @@
 import { fetchApi } from './api';
 import { supabase } from '@/lib/supabase';
 import { PopupPostData } from '@/components/popup-post';
+import { normalizeAvatarUrl } from './profileService';
 
 const DEFAULT_IMAGE = require('@/assets/images/StirFriedHolyBasil.png');
 
@@ -23,19 +24,19 @@ export interface PostUpdatePayload {
 export function resolveCategoryNames(post: any): string[] {
   const tags: string[] = [];
 
-  // 1. post_categories: [{ categories: { name } }]  (Supabase join หรือ API)
-  if (post.post_categories?.length > 0) {
-    for (const pc of post.post_categories) {
-      if (pc?.categories?.name) tags.push(pc.categories.name);
-      else if (typeof pc?.categories === 'string') tags.push(pc.categories);
-      else if (pc?.category_name) tags.push(pc.category_name);
+  // 1. Array of names: ['ต้ม', 'แกง']
+  if (Array.isArray(post.categories)) {
+    for (const c of post.categories) {
+      if (typeof c === 'string') tags.push(c);
+      else if (c?.name) tags.push(c.name);
     }
     if (tags.length > 0) return tags;
   }
 
-  // 2. categories: [{ name }]  (API direct)
-  if (post.categories?.length > 0) {
-    for (const c of post.categories) {
+  // 2. Supabase nested relation: post_categories: [{ categories: { name: 'ต้ม' } }]
+  if (Array.isArray(post.post_categories)) {
+    for (const pc of post.post_categories) {
+      const c = pc.categories;
       if (c?.name) tags.push(c.name);
       else if (typeof c === 'string') tags.push(c);
     }
@@ -57,7 +58,7 @@ export function mapPostToPopup(post: any): PopupPostData {
       ? { uri: post.image_url }
       : DEFAULT_IMAGE,
     userId: post.user_id || 'unknown',
-    avatarUrl: profile?.avatar_url || undefined,
+    avatarUrl: normalizeAvatarUrl(profile?.avatar_url),
     displayName: profile?.display_name || undefined,
     username: profile?.username || undefined,
     title: post.food_name || 'ไม่มีชื่อเมนู',

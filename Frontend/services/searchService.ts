@@ -26,7 +26,7 @@ export async function searchPosts(query: string): Promise<PopupPostData[]> {
   try {
     const { data: posts, error } = await supabase
       .from('posts')
-      .select('*, post_categories(categories(id, name))')
+      .select('*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))')
       .ilike('food_name', `%${query}%`)
       .order('created_at', { ascending: false });
 

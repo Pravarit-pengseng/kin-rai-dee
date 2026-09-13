@@ -22,6 +22,19 @@ class PostUpdate(BaseModel):
     image_url: Optional[str] = None
     category_ids: Optional[List[int]] = None
 
+from app.core.config import SUPABASE_URL
+
+def normalize_avatar_url(url: Optional[str]) -> Optional[str]:
+    """Ensure Supabase storage avatar URLs point to the current SUPABASE_URL."""
+    if not url:
+        return None
+    marker = "/storage/v1/object/public/avatars/"
+    if marker in url:
+        idx = url.find(marker)
+        path = url[idx:]
+        return f"{SUPABASE_URL.rstrip('/')}{path}"
+    return url
+
 def attach_profiles_to_posts(posts: List[dict]) -> List[dict]:
     """Helper to attach user profiles to posts safely."""
     if not posts or not supabase:
@@ -39,6 +52,8 @@ def attach_profiles_to_posts(posts: List[dict]) -> List[dict]:
                 .execute()
             )
             if prof_resp.data:
+                for prof in prof_resp.data:
+                    prof["avatar_url"] = normalize_avatar_url(prof.get("avatar_url"))
                 profiles_map = {prof["id"]: prof for prof in prof_resp.data}
         except Exception as e:
             print("Failed to fetch profiles for posts:", e)

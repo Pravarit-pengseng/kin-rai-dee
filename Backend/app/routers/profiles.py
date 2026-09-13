@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from app.db import supabase
 from app.core.security import get_current_user
-from app.routers.posts import attach_profiles_to_posts
+from app.routers.posts import attach_profiles_to_posts, normalize_avatar_url
 
 router = APIRouter(prefix="/api/profiles", tags=["Profiles"])
 
@@ -27,7 +27,10 @@ def get_my_profile(user: dict = Depends(get_current_user)):
     )
     if not response.data:
         raise HTTPException(status_code=404, detail="Profile not found")
-    return {"success": True, "data": response.data}
+    profile = response.data
+    if isinstance(profile, dict):
+        profile["avatar_url"] = normalize_avatar_url(profile.get("avatar_url"))
+    return {"success": True, "data": profile}
 
 
 @router.patch("/me")
@@ -46,7 +49,10 @@ def update_my_profile(
         .eq("id", user["id"])
         .execute()
     )
-    return {"success": True, "data": response.data}
+    data = response.data[0] if (response.data and isinstance(response.data, list)) else response.data
+    if isinstance(data, dict):
+        data["avatar_url"] = normalize_avatar_url(data.get("avatar_url"))
+    return {"success": True, "data": data}
 
 
 @router.post("/me/avatar")
@@ -91,6 +97,7 @@ async def upload_avatar(
         .execute()
     )
 
+    avatar_url = normalize_avatar_url(avatar_url)
     return {"success": True, "avatar_url": avatar_url, "data": response.data}
 
 
@@ -107,7 +114,10 @@ def get_user_profile(user_id: str):
             .single()
             .execute()
         )
-        return response.data
+        profile = response.data
+        if isinstance(profile, dict):
+            profile["avatar_url"] = normalize_avatar_url(profile.get("avatar_url"))
+        return profile
     except Exception:
         raise HTTPException(status_code=404, detail="Profile not found")
 

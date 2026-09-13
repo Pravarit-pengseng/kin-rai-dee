@@ -61,12 +61,16 @@ export default function EditProfile() {
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 1,
+        quality: 0.5,
+        base64: true,
       });
 
-    if (!result.canceled) {
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      const base64Img = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : undefined;
       setProfileImage({
-        uri: result.assets[0].uri,
+        uri: asset.uri,
+        base64: base64Img,
       });
     }
   };
@@ -75,9 +79,11 @@ export default function EditProfile() {
     setIsSubmitting(true);
 
     try {
-      // อัปโหลดรูปภาพ avatar ถ้ามีการเลือกรูปใหม่ (uri ไม่ใช่ local asset)
+      // อัปโหลดรูปภาพ avatar ถ้ามีการเลือกรูปใหม่ (ใช้ base64 เหมือนรูปโพส เพื่อให้แสดงผลได้ตลอด)
       let avatarUrl: string | undefined = undefined;
-      if (profileImage?.uri && profileImage.uri.startsWith('file')) {
+      if (profileImage?.base64) {
+        avatarUrl = profileImage.base64;
+      } else if (profileImage?.uri && profileImage.uri.startsWith('file')) {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
         
@@ -118,13 +124,14 @@ export default function EditProfile() {
       }
 
       // navigate กลับ profile พร้อม params อัปเดต
+      const finalAvatarUrl = result?.avatar_url || avatarUrl || params.avatarUrl || '';
       router.replace({
         pathname: "/(tabs)/profile",
         params: {
-          name: result.display_name || profileData.name || '',
-          username: result.username || profileData.username || '',
-          bio: result.bio || '',  // ส่ง string ว่างแทน null
-          avatarUrl: result.avatar_url || avatarUrl || params.avatarUrl || '',
+          name: result?.display_name || profileData.name || '',
+          username: result?.username || profileData.username || '',
+          bio: result?.bio || '',  // ส่ง string ว่างแทน null
+          avatarUrl: finalAvatarUrl,
         },
       });
     } catch (e) {

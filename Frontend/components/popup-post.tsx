@@ -75,6 +75,11 @@ export default function PopupPost({
   const pathname = usePathname();
   const { isLoggedIn } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+
+  React.useEffect(() => {
+    setAvatarError(false);
+  }, [post?.avatarUrl]);
 
   if (!post) {
     return null;
@@ -170,12 +175,13 @@ export default function PopupPost({
         <Pressable style={styles.userProfileLink} onPress={handleUserClick}>
           {/* Avatar */}
           <View style={styles.avatarContainer}>
-            {post.avatarUrl ? (
+            {post.avatarUrl && !avatarError ? (
               <Image
                 source={{ uri: post.avatarUrl }}
                 style={styles.avatar}
                 contentFit="cover"
                 transition={200}
+                onError={() => setAvatarError(true)}
               />
             ) : (
               <Image

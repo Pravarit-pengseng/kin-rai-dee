@@ -30,9 +30,14 @@ export default function OtherProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId?: string }>();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [avatarError, setAvatarError] = useState(false);
   const [posts, setPosts] = useState<any[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(true);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [profile?.avatar_url]);
 
   const [selectedPost, setSelectedPost] =
     useState<any | null>(null);
@@ -143,13 +148,14 @@ export default function OtherProfileScreen() {
                 <View style={styles.avatarInner}>
                   <Image
                     source={
-                      profile?.avatar_url
+                      profile?.avatar_url && !avatarError
                         ? { uri: profile.avatar_url }
                         : DEFAULT_AVATAR
                     }
                     style={styles.avatar}
-                    contentFit="contain"
+                    contentFit="cover"
                     transition={200}
+                    onError={() => setAvatarError(true)}
                   />
                 </View>
               </View>

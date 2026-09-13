@@ -123,10 +123,29 @@ export default function ProfileScreen() {
   const [activeTab, setActiveTab] =
     useState<"posts" | "saved">("posts");
 
-  // โหลดโพสต์ของตัวเองและโพสต์ที่บันทึกไว้
+  useEffect(() => {
+    if (params.name !== undefined) setProfileName(params.name || undefined);
+    if (params.username !== undefined) setProfileUsername(params.username || undefined);
+    if (params.bio !== undefined) setProfileBio(params.bio || undefined);
+    if (params.avatarUrl !== undefined) setProfileAvatarUrl(params.avatarUrl || undefined);
+  }, [params.name, params.username, params.bio, params.avatarUrl]);
+
+  // โหลดโพสต์ของตัวเองและโพสต์ที่บันทึกไว้ รวมถึง profile เมื่อโฟกัสหน้าจอ
   useFocusEffect(
     useCallback(() => {
       if (!isLoggedIn || !user?.id) return;
+
+      // โหลด profile จริงจาก DB เพื่อให้ข้อมูลและรูปโปรไฟล์ตรงกับฐานข้อมูลเสมอ
+      getMyProfile().then((profile) => {
+        if (profile) {
+          setProfileName(profile.display_name ?? undefined);
+          setProfileUsername(profile.username ?? undefined);
+          setProfileBio(profile.bio ?? undefined);
+          setProfileAvatarUrl(profile.avatar_url ?? undefined);
+        }
+      }).catch((err) => {
+        console.warn("Fetch my profile on focus error:", err);
+      });
 
       // โหลดโพสต์ตัวเอง ผ่าน API
       getUserPosts(user.id).then((apiPosts) => {
@@ -342,7 +361,7 @@ export default function ProfileScreen() {
           name={profileName || params.name || undefined}
           username={profileUsername || params.username || undefined}
           bio={(profileBio || params.bio) || undefined}
-          avatarUrl={params.avatarUrl ?? profileAvatarUrl}
+          avatarUrl={profileAvatarUrl || params.avatarUrl || undefined}
           onEditProfile={handleEditProfile}
           onCreatePost={handleCreatePost}
         />

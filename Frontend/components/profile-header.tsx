@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Pressable,
@@ -28,16 +28,23 @@ export default function ProfileHeader({
   onEditProfile,
   onCreatePost,
 }: ProfileHeaderProps) {
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [avatarUrl]);
+
   return (
     <View style={styles.profileSection}>
         {/* Avatar */}
         <View style={styles.avatarOuter}>
           <View style={styles.avatarInner}>
             <Image
-              source={avatarUrl ? { uri: avatarUrl } : require("../assets/images/ProfilePicture.png")}
+              source={avatarUrl && !avatarError ? { uri: avatarUrl } : require("../assets/images/ProfilePicture.png")}
               style={styles.avatar}
-              contentFit="contain"
+              contentFit="cover"
               transition={200}
+              onError={() => setAvatarError(true)}
             />
           </View>
         </View>

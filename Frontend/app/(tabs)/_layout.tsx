@@ -1,10 +1,12 @@
 import { Tabs, useRouter, usePathname } from 'expo-router';
 import React from 'react';
 import LiquidMenu from '@/components/liquid-menu';
+import { useAuth } from '@/context/AuthContext';
 
 export default function TabLayout() {
   const router = useRouter();
   const pathname = usePathname();
+  const { isLoggedIn } = useAuth();
 
   // Determine active tab based on current pathname
   let activeTab = 'home';
@@ -16,7 +18,16 @@ export default function TabLayout() {
     if (id === 'home') router.push('/');
     else if (id === 'random') router.push('/(tabs)/random-food');
     else if (id === 'ingredients') router.push('/(tabs)/random-ingredient');
-    else if (id === 'profile') router.push('/(tabs)/profile');
+    else if (id === 'profile') {
+      if (!isLoggedIn) {
+        router.push({
+          pathname: '/(auth)/login',
+          params: { returnTo: '/(tabs)/profile', from: pathname || '/' },
+        });
+      } else {
+        router.push('/(tabs)/profile');
+      }
+    }
   };
 
   return (

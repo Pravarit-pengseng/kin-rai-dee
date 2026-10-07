@@ -22,6 +22,7 @@ import DeletePopup from "@/components/DeletePopup";
 import LogoutPopup from "@/components/LogoutPopup";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { useAuth } from "@/context/AuthContext";
 
 type Post = {
   id: string;
@@ -134,6 +135,7 @@ const allPosts: Post[] = [
 ];
 
 export default function MyPost() {
+  const { isLoggedIn, logout } = useAuth();
   const {
     postId,
     ownerId,
@@ -330,7 +332,13 @@ export default function MyPost() {
     if (id === "home") router.replace("/");
     else if (id === "random") router.replace("/(tabs)/random-food");
     else if (id === "ingredients") router.replace("/(tabs)/random-ingredient");
-    else if (id === "profile") router.replace("/(tabs)/profile");
+    else if (id === "profile") {
+      if (!isLoggedIn) {
+        router.push({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/profile' } });
+      } else {
+        router.replace("/(tabs)/profile");
+      }
+    }
   };
 
   return (
@@ -410,8 +418,9 @@ export default function MyPost() {
         <LogoutPopup
           visible={logoutPopupVisible}
           onCancel={() => setLogoutPopupVisible(false)}
-          onConfirm={() => {
+          onConfirm={async () => {
             setLogoutPopupVisible(false);
+            await logout();
             router.replace("/");
           }}
         />

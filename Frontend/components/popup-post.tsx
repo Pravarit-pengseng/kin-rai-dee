@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Modal,
   View,
@@ -8,18 +8,66 @@ import {
   ImageSourcePropType,
   Linking,
   Alert,
+  TextInput,
+  ScrollView,
+  Platform,
+  Keyboard,
+  Animated,
+  TouchableOpacity,
+  LayoutAnimation,
 } from "react-native";
 
 import {
   X,
   Bookmark,
   AlignLeft,
+  MessageCircle,
 } from "lucide-react-native";
 import { useRouter, usePathname } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 
 import PostDropdown from "./post-dropdown";
 import { ThemedText } from "@/components/themed-text";
+
+export type CommentItem = {
+  id: string;
+  username: string;
+  text: string;
+  avatarBg?: string;
+  avatarIcon?: string;
+  isCurrentUser?: boolean;
+};
+
+const DEFAULT_COMMENTS: CommentItem[] = [
+  {
+    id: "1",
+    username: "raan.aroy",
+    text: "น่ากินมากกก ไข่ดาวกรอบสะใจสุดๆ 😍🍳",
+    avatarBg: "#FEEBD9",
+    avatarIcon: "🍜",
+  },
+  {
+    id: "2",
+    username: "pun_foodie",
+    text: "พิกัดร้านนี้อยู่แถวไหนคะ เผื่อแวะตามไปกินบ้าง 😋",
+    avatarBg: "#FFE6EC",
+    avatarIcon: "👩🏻‍🍳",
+  },
+  {
+    id: "3",
+    username: "chao.krapow",
+    text: "กะเพราแท้ไม่ใส่ถั่วฝักยาวคือที่สุด! รสชาติน้ำปลาพริกดีงามมากครับ 👍🔥",
+    avatarBg: "#DDF8EB",
+    avatarIcon: "🌶️",
+  },
+  {
+    id: "4",
+    username: "zuck_food",
+    text: "แวะตามรอยแล้วครับ อร่อยสมคำร่ำลือ 10/10 ✨",
+    avatarBg: "#DDF0FF",
+    avatarIcon: "🍽️",
+  },
+];
 
 export type PopupPostData = {
   id: string;
@@ -52,7 +100,7 @@ export type PopupPostProps = {
   onRequestDelete?: (postId: string) => void;
 
   inline?: boolean;
-  
+
   onUserPress?: (userId: string) => void;
 };
 
@@ -122,10 +170,113 @@ export default function PopupPost({
   const timeAgo = post.timeAgo || "2 ชม. ที่แล้ว";
   const displayUserName = post.userId === "mookmhee" ? "มุกรอบอ้วรนิดนิด" : "มุกหมีชอบกิน";
 
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isTruncated, setIsTruncated] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<CommentItem[]>(DEFAULT_COMMENTS);
+  const [commentText, setCommentText] = useState("");
+  const commentsScrollRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const slideAnim = useRef(new Animated.Value(600)).current;
+
+  // Listen to keyboard height to lift input above keyboard
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      if (Platform.OS === "ios") {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      }
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      if (Platform.OS === "ios") {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      }
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // Animate sheet sliding up when comments open
+  useEffect(() => {
+    if (showComments) {
+      slideAnim.setValue(600);
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        damping: 24,
+        mass: 0.8,
+        stiffness: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showComments, slideAnim]);
+
+  useEffect(() => {
+    setIsExpanded(false);
+    setIsTruncated(false);
+  }, [post.id, description]);
+
+  const handleTextLayout = (e: any) => {
+    const lines = e.nativeEvent?.lines;
+    if (Array.isArray(lines)) {
+      setIsTruncated(lines.length > 2);
+    }
+  };
+
+  const handleOpenComments = () => {
+    setShowMenu(false);
+    setShowComments(true);
+  };
+
+  const handleCloseComments = () => {
+    Keyboard.dismiss();
+    Animated.timing(slideAnim, {
+      toValue: 600,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowComments(false);
+    });
+  };
+
+  const isPostingRef = useRef(false);
+
+  const handleAddComment = () => {
+    const trimmed = commentText.trim();
+    if (!trimmed) return;
+    if (isPostingRef.current) return;
+
+    isPostingRef.current = true;
+    setTimeout(() => {
+      isPostingRef.current = false;
+    }, 500);
+
+    const newComment: CommentItem = {
+      id: Date.now().toString(),
+      username: displayUserName,
+      text: trimmed,
+      isCurrentUser: true,
+    };
+
+    setComments((prev) => [...prev, newComment]);
+    setCommentText("");
+    Keyboard.dismiss();
+
+    setTimeout(() => {
+      commentsScrollRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  };
+
   const handleContentPress = () => {
     setShowMenu(false);
   };
-  
+
   const handleUserClick = () => {
     setShowMenu(false);
     if (post.userId) {
@@ -255,9 +406,44 @@ export default function PopupPost({
           {title}
         </ThemedText>
 
-        <ThemedText style={styles.description}>
-          {description}
-        </ThemedText>
+        <View style={styles.descriptionContainer}>
+          {/* วัดจำนวนบรรทัดจริง */}
+          <ThemedText
+            style={[styles.description, styles.hiddenMeasureText]}
+            onTextLayout={handleTextLayout}
+            pointerEvents="none"
+          >
+            {description}
+          </ThemedText>
+
+          <Pressable
+            onPress={() => isTruncated && !isExpanded && setIsExpanded(true)}
+            disabled={!isTruncated || isExpanded}
+          >
+            <ThemedText
+              style={styles.description}
+              numberOfLines={isExpanded ? undefined : 2}
+              ellipsizeMode="tail"
+            >
+              {description}
+            </ThemedText>
+          </Pressable>
+
+          {isTruncated && !isExpanded && (
+            <Pressable
+              onPress={() => setIsExpanded(true)}
+              style={({ pressed }) => [
+                styles.readMoreButton,
+                pressed && styles.buttonPressed,
+              ]}
+              hitSlop={8}
+            >
+              <ThemedText style={styles.readMoreText}>
+                ดูเพิ่มเติม
+              </ThemedText>
+            </Pressable>
+          )}
+        </View>
 
         {location && (
           <Pressable
@@ -292,6 +478,21 @@ export default function PopupPost({
 
         <View style={styles.footer}>
           <Pressable
+            onPress={handleOpenComments}
+            style={({ pressed }) => [
+              styles.commentButton,
+              pressed && styles.buttonPressed,
+            ]}
+            hitSlop={8}
+          >
+            <MessageCircle
+              size={22}
+              color="#57423E"
+              strokeWidth={1.8}
+            />
+          </Pressable>
+
+          <Pressable
             onPress={handleBookmarkPress}
             style={({ pressed }) => [
               styles.bookmarkButton,
@@ -315,9 +516,151 @@ export default function PopupPost({
     </View>
   );
 
+  const commentSheetContent = (
+    <Animated.View
+      style={[
+        styles.commentSheet,
+        {
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+      onStartShouldSetResponder={() => true}
+    >
+      {/* Drag handle */}
+      <View style={styles.dragHandle} />
+
+      {/* Title */}
+      <ThemedText style={styles.sheetTitle}>ความคิดเห็น</ThemedText>
+
+      {/* Divider */}
+      <View style={styles.sheetDivider} />
+
+      {/* Comments list */}
+      <ScrollView
+        ref={commentsScrollRef}
+        style={styles.commentsList}
+        contentContainerStyle={styles.commentsListContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
+        {comments.map((item) => (
+          <View key={item.id} style={styles.commentRow}>
+            {item.isCurrentUser ? (
+              <View style={styles.commentUserAvatarContainer}>
+                <Image
+                  source={require("../assets/images/ProfilePicture.png")}
+                  style={styles.commentAvatarImage}
+                  resizeMode="cover"
+                />
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.commentAvatarBadge,
+                  { backgroundColor: item.avatarBg || "#FEEBD9" },
+                ]}
+              >
+                <ThemedText style={styles.commentAvatarEmoji}>
+                  {item.avatarIcon || "🍜"}
+                </ThemedText>
+              </View>
+            )}
+
+            <View style={styles.commentTextContainer}>
+              <ThemedText style={styles.commentUsername}>
+                {item.username}
+              </ThemedText>
+              <ThemedText style={styles.commentText}>
+                {item.text}
+              </ThemedText>
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+
+      {/* Bottom comment input row */}
+      <View
+        style={[
+          styles.commentInputContainer,
+          {
+            paddingBottom:
+              keyboardHeight > 0
+                ? keyboardHeight + (Platform.OS === "ios" ? 10 : 6)
+                : Platform.OS === "ios"
+                ? 34
+                : 14,
+          },
+        ]}
+      >
+        <View style={styles.inputAvatarContainer}>
+          <Image
+            source={require("../assets/images/ProfilePicture.png")}
+            style={styles.inputAvatarImage}
+            resizeMode="cover"
+          />
+        </View>
+
+        <View style={styles.inputPill}>
+          <TextInput
+            value={commentText}
+            onChangeText={setCommentText}
+            placeholder="แสดงความคิดเห็น..."
+            placeholderTextColor="#9E9693"
+            style={styles.commentTextInput}
+            returnKeyType="send"
+            onSubmitEditing={handleAddComment}
+          />
+
+          <TouchableOpacity
+            onPress={handleAddComment}
+            onPressIn={handleAddComment}
+            disabled={!commentText.trim()}
+            activeOpacity={0.7}
+            style={[
+              styles.postCommentButton,
+              !commentText.trim() && { opacity: 0.4 },
+            ]}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+          >
+            <ThemedText style={styles.postCommentText}>
+              โพสต์
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Animated.View>
+  );
+
   // Inline mode
   if (inline) {
-    return card;
+    return (
+      <>
+        {card}
+
+        <Modal
+          transparent
+          visible={showComments}
+          animationType="fade"
+          statusBarTranslucent
+          presentationStyle="overFullScreen"
+          onRequestClose={handleCloseComments}
+        >
+          <ScrollView
+            style={styles.commentModalOverlay}
+            contentContainerStyle={styles.commentModalOverlayContent}
+            keyboardShouldPersistTaps="always"
+            bounces={false}
+          >
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={handleCloseComments}
+            />
+            {commentSheetContent}
+          </ScrollView>
+        </Modal>
+      </>
+    );
   }
 
   // Modal mode
@@ -326,21 +669,43 @@ export default function PopupPost({
       transparent
       visible={visible}
       animationType="fade"
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
       onRequestClose={handleClose}
     >
-      <View style={styles.backdrop}>
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={handleClose}
-        />
+      <View style={styles.modalRoot}>
+        <View style={styles.backdrop}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleClose}
+          />
+          {card}
+        </View>
 
-        {card}
+        {showComments && (
+          <ScrollView
+            style={styles.commentModalOverlayAbsolute}
+            contentContainerStyle={styles.commentModalOverlayContent}
+            keyboardShouldPersistTaps="always"
+            bounces={false}
+          >
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={handleCloseComments}
+            />
+            {commentSheetContent}
+          </ScrollView>
+        )}
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  modalRoot: {
+    flex: 1,
+  },
+
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.4)",
@@ -453,11 +818,35 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
 
+  descriptionContainer: {
+    marginBottom: 8,
+  },
+
   description: {
     fontSize: 15,
     color: "#57423E",
     lineHeight: 24,
-    marginBottom: 8,
+  },
+
+  hiddenMeasureText: {
+    position: "absolute",
+    opacity: 0,
+    left: 0,
+    right: 0,
+    top: 0,
+    zIndex: -1,
+  },
+
+  readMoreButton: {
+    marginTop: 4,
+    alignSelf: "flex-start",
+  },
+
+  readMoreText: {
+    fontSize: 14,
+    fontFamily: "NotoSansThai_600SemiBold",
+    fontWeight: "600",
+    color: "#8B5A2B",
   },
 
   locationContainer: {
@@ -508,7 +897,13 @@ const styles = StyleSheet.create({
   },
 
   footer: {
-    alignItems: "flex-end",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  commentButton: {
+    padding: 4,
   },
 
   bookmarkButton: {
@@ -518,5 +913,191 @@ const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.8,
     transform: [{ translateY: 2 }],
+  },
+
+  commentModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+  },
+
+  commentModalOverlayContent: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+
+  commentModalOverlayAbsolute: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    zIndex: 1000,
+    elevation: 1000,
+  },
+
+  commentSheet: {
+    width: "100%",
+    height: 520,
+    maxHeight: "75%",
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    paddingTop: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 25,
+  },
+
+  dragHandle: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D9D9D9",
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+
+  sheetTitle: {
+    fontSize: 16,
+    fontFamily: "NotoSansThai_700Bold",
+    fontWeight: "700",
+    color: "#241917",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+
+  sheetDivider: {
+    height: 1,
+    backgroundColor: "#F0ECE9",
+    width: "100%",
+  },
+
+  commentsList: {
+    flex: 1,
+  },
+
+  commentsListContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+
+  commentRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+
+  commentAvatarBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    marginTop: 2,
+  },
+
+  commentAvatarEmoji: {
+    fontSize: 19,
+  },
+
+  commentUserAvatarContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: "#FFF1B8",
+    backgroundColor: "#FFF8E5",
+    overflow: "hidden",
+    marginRight: 12,
+    marginTop: 2,
+  },
+
+  commentAvatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+
+  commentTextContainer: {
+    flex: 1,
+    justifyContent: "center",
+  },
+
+  commentUsername: {
+    fontSize: 14,
+    fontFamily: "NotoSansThai_700Bold",
+    fontWeight: "700",
+    color: "#241917",
+    marginBottom: 2,
+  },
+
+  commentText: {
+    fontSize: 13.5,
+    fontFamily: "NotoSansThai_400Regular",
+    color: "#4B3500",
+    lineHeight: 20,
+  },
+
+  commentInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#F0ECE9",
+    backgroundColor: "#FFFFFF",
+  },
+
+  inputAvatarContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1.5,
+    borderColor: "#FFF1B8",
+    backgroundColor: "#FFF8E5",
+    overflow: "hidden",
+    marginRight: 10,
+  },
+
+  inputAvatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+
+  inputPill: {
+    flex: 1,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#F5F2F0",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: 16,
+    paddingRight: 12,
+  },
+
+  commentTextInput: {
+    flex: 1,
+    fontSize: 13.5,
+    fontFamily: "NotoSansThai_400Regular",
+    color: "#241917",
+    paddingVertical: 0,
+  },
+
+  postCommentButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+
+  postCommentText: {
+    fontSize: 14,
+    fontFamily: "NotoSansThai_700Bold",
+    fontWeight: "700",
+    color: "#8A3E2D",
   },
 });

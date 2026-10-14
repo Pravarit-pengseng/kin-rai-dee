@@ -44,3 +44,21 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Python compiled cache & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Python test & coverage cache
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/

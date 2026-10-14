@@ -1,5 +1,5 @@
-import * as React from 'react';
-import { Text, StyleSheet, Pressable, View, StyleProp, ViewStyle } from 'react-native';
+import React from 'react';
+import { Text, StyleSheet, Pressable, View } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 
 export interface RandomButtonProps {
@@ -15,8 +15,6 @@ export interface RandomButtonProps {
   borderWidth?: number;
   borderBottomWidth?: number;
   paddingVertical?: number;
-  height?: number;
-  style?: StyleProp<ViewStyle>;
 }
 
 export function RandomButton({
@@ -32,8 +30,6 @@ export function RandomButton({
   borderWidth,
   borderBottomWidth,
   paddingVertical,
-  height,
-  style,
 }: RandomButtonProps) {
   const isRerandom = variant === 'rerandom';
 
@@ -55,13 +51,11 @@ export function RandomButton({
         styles.button,
         { backgroundColor: finalBgColor },
         paddingVertical !== undefined && { paddingVertical },
-        height !== undefined && { height },
         finalBorderWidth !== undefined && { borderWidth: finalBorderWidth },
         finalBorderColor !== undefined && { borderColor: finalBorderColor },
         finalBorderBottomWidth !== undefined && { borderBottomWidth: finalBorderBottomWidth },
         finalBorderBottomColor !== undefined && { borderBottomColor: finalBorderBottomColor },
         pressed && styles.buttonPressed,
-        style,
       ]}
     >
       <View style={styles.content}>

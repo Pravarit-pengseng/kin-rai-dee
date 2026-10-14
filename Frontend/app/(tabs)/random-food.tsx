@@ -217,11 +217,13 @@ export default function RandomFoodScreen() {
                 onPress={handleRandomize}
                 title="สุ่มอาหาร"
                 iconName="dice"
+                paddingVertical={12}
               />
             ) : (
               <RandomButton
                 onPress={handleRandomize}
                 variant="rerandom"
+                paddingVertical={12}
               />
             )}
           </View>

@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Session } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
 export type UserProfile = {
   id: string;
@@ -11,38 +13,70 @@ export type UserProfile = {
 interface AuthContextType {
   isLoggedIn: boolean;
   user: UserProfile | null;
-  login: (userData?: Partial<UserProfile>) => Promise<void>;
+  session: Session | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<{ error: string | null }>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Initial state: false (not logged in)
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const login = async (userData?: Partial<UserProfile>) => {
-    setIsLoggedIn(true);
-    setUser({
-      id: userData?.id || 'me',
-      email: userData?.email || 'user@example.com',
-      displayName: userData?.displayName || 'User',
-      username: userData?.username || 'user',
-      bio: userData?.bio || '',
+  // แปลง Supabase user → UserProfile
+  function mapUser(supabaseUser: Session['user'] | null): UserProfile | null {
+    if (!supabaseUser) return null;
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email ?? '',
+      displayName: supabaseUser.user_metadata?.display_name,
+      username: supabaseUser.user_metadata?.username,
+      bio: supabaseUser.user_metadata?.bio,
+    };
+  }
+
+  useEffect(() => {
+    // ดึง session ปัจจุบันตอน mount
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(mapUser(currentSession?.user ?? null));
+      setLoading(false);
     });
+
+    // ฟัง auth state เปลี่ยนแปลง (login / logout / token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setUser(mapUser(newSession?.user ?? null));
+      setLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const login = async (email: string, password: string): Promise<{ error: string | null }> => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      return { error: error.message };
+    }
+    return { error: null };
   };
 
   const logout = async () => {
-    setIsLoggedIn(false);
-    setUser(null);
+    await supabase.auth.signOut();
   };
 
   return (
     <AuthContext.Provider
       value={{
-        isLoggedIn,
+        isLoggedIn: !!session,
         user,
+        session,
+        loading,
         login,
         logout,
       }}

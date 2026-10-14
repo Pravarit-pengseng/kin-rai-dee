@@ -1,146 +1,201 @@
-import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, TextInput, Pressable, ScrollView } from 'react-native';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { View, StyleSheet, TextInput, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import PostGrid from '@/components/post-grid';
 import PopupPost, { PopupPostData } from '@/components/popup-post';
+import PostSkeleton from '@/components/PostSkeleton';
 import { ThemedText } from '@/components/themed-text';
+import DeletePopup from '@/components/DeletePopup';
+import { searchPosts, fetchSearchHistory, addSearchHistory, deleteSearchHistoryItem, clearAllSearchHistory } from '@/services/searchService';
+import { getSavedPosts, bookmarkPost, unbookmarkPost, deletePost } from '@/services/postService';
+import { setCachedPostList } from '@/services/postCache';
+import { useAuth } from '@/context/AuthContext';
+import { FOOD_CATEGORIES, INGREDIENT_CATEGORIES } from '@/constants/categories';
 
-const CURRENT_USER_ID = "me";
-const OTHER_USER_ID = "mookmhee";
+const isFoodCategory = (query: string): boolean => {
+  const clean = query.trim().replace(/^#/, '').toLowerCase();
+  return (
+    FOOD_CATEGORIES.some((c) => c.label.toLowerCase() === clean) ||
+    INGREDIENT_CATEGORIES.some((c) => c.label.toLowerCase() === clean)
+  );
+};
 
-// Generate mock posts for the grid
-const MOCK_POSTS: PopupPostData[] = [
-  {
-    id: "1",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-    title: "กะเพราไข่ดาว",
-    description: "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า ใครยังไม่รู้จะกินอะไร แนะนำเมนูที่อร่อยไม่เคยเปลี่ยน!",
-    location: "https://www.wongnai.com/listings/phat-ka-phrao",
-    tag: "อาหารจานเดียว",
-    timeAgo: "2 ชม. ที่แล้ว",
-  },
-  {
-    id: "2",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-    title: "กะเพราหมูสับ",
-    description: "กะเพราหมูสับไข่ดาว อร่อยเหมือนเดิม",
-    tag: "อาหารจานเดียว",
-    timeAgo: "4 ชม. ที่แล้ว",
-  },
-  {
-    id: "3",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-    title: "ข้าวผัดกุ้ง",
-    description: "ข้าวผัดกุ้งร้อนๆ มาแล้วครับทุกคน อร่อยมาก!",
-    tag: "อาหารจานเดียว",
-    timeAgo: "5 ชม. ที่แล้ว",
-  },
-  {
-    id: "4",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-    title: "ผัดพริกแกงหมูกรอบ",
-    description: "หมูกรอบชิ้นใหญ่เต็มคำ รสชาติจัดจ้าน",
-    tag: "อาหารไทย",
-    timeAgo: "1 วันที่แล้ว",
-  }
-];
 
-// Fill up to 12 items to make a nice grid
-for (let i = 5; i <= 15; i++) {
-  MOCK_POSTS.push({
-    ...MOCK_POSTS[(i % 4)],
-    id: String(i),
-  });
-}
 
 export default function SearchScreen() {
-  const [inputValue, setInputValue] = useState(''); // Separate from submitted text
+  const { user } = useAuth();
+  const [inputValue, setInputValue] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [recentSearches, setRecentSearches] = useState(['หมูกรอบเจ้าดัง', 'คาเฟ่แมว นิมมาน', 'ข้าวซอยเนื้อ']);
-
-  // Feed view mode
-  const [showFeed, setShowFeed] = useState(false);
-
-  // Popup modal state
+  const [loading, setLoading] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<{ id?: string | number; query: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<PopupPostData[]>([]);
   const [popupPost, setPopupPost] = useState<PopupPostData | null>(null);
-
-  // Bookmarked posts
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+  const [deletePostId, setDeletePostId] = useState<string | null>(null);
+  const [deletePopupVisible, setDeletePopupVisible] = useState(false);
 
-  // Reset state when screen is focused
-  useFocusEffect(
-    useCallback(() => {
+  const { from } = useLocalSearchParams<{ from?: string }>();
+
+  const lastFromRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (from !== undefined && from !== lastFromRef.current) {
+      lastFromRef.current = from;
       setInputValue('');
       setIsSearching(false);
-      setShowFeed(false);
-      setPopupPost(null);
-    }, [])
+      setSearchResults([]);
+    }
+  }, [from]);
+
+  const loadHistory = useCallback(async () => {
+    const history = await fetchSearchHistory();
+    if (history && history.length > 0) {
+      const seen = new Set<string>();
+      const uniqueHistory: { id?: string | number; query: string }[] = [];
+
+      for (const item of history) {
+        if (!item?.query) continue;
+        const queryText = item.query.trim();
+        const clean = queryText.replace(/^#/, '').toLowerCase();
+
+        // 1. Skip if it's from foodcat / ingredientcat
+        if (isFoodCategory(clean)) continue;
+
+        // 2. Skip duplicates (show only once)
+        if (seen.has(clean)) continue;
+        seen.add(clean);
+
+        uniqueHistory.push({ id: item.id, query: queryText });
+      }
+
+      setRecentSearches(uniqueHistory);
+    } else {
+      setRecentSearches([]);
+    }
+    
+    if (user?.id) {
+      const saved = await getSavedPosts();
+      if (saved && saved.length > 0) {
+        setBookmarkedIds(saved.map((s) => s.id));
+      } else {
+        setBookmarkedIds([]);
+      }
+    } else {
+      setBookmarkedIds([]);
+    }
+  }, [user?.id]);
+
+  // Keep search state when returning from a post; only refresh history and bookmarks
+  useFocusEffect(
+    useCallback(() => {
+      loadHistory();
+    }, [loadHistory])
   );
 
-  const handleSearchSubmit = () => {
-    const text = inputValue.trim();
-    if (text !== '') {
-      setIsSearching(true);
-      setShowFeed(false); // Default to grid when search submitted
-      setRecentSearches(prev => {
-        const newRecent = [text, ...prev.filter(item => item !== text)];
-        return newRecent.slice(0, 10);
-      });
-    } else {
+  const performSearch = async (text: string, saveHistory = true) => {
+    const queryStr = text.trim();
+    if (queryStr === '') {
       setIsSearching(false);
-      setShowFeed(false);
+      setSearchResults([]);
+      return;
     }
+
+    setIsSearching(true);
+    setLoading(true);
+
+    const isCategory = isFoodCategory(queryStr);
+    if (saveHistory && !isCategory) {
+      await addSearchHistory(queryStr);
+      loadHistory();
+    }
+
+    const results = await searchPosts(queryStr);
+    setSearchResults(results || []);
+
+    setLoading(false);
   };
 
-  const handleClearHistory = (index: number) => {
+  const handleSearchSubmit = () => {
+    performSearch(inputValue, true);
+  };
+
+  const handleClearHistory = async (index: number) => {
+    const item = recentSearches[index];
+    if (item.id) {
+      await deleteSearchHistoryItem(item.id);
+    }
     setRecentSearches(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleClearAllHistory = () => {
+  const handleClearAllHistory = async () => {
+    await clearAllSearchHistory();
     setRecentSearches([]);
   };
 
   const handleTrendPress = (text: string) => {
     setInputValue(text);
-    setIsSearching(true);
-    setShowFeed(false);
-    setRecentSearches(prev => {
-      const newRecent = [text, ...prev.filter(item => item !== text)];
-      return newRecent.slice(0, 10);
-    });
+    performSearch(text, false);
   };
 
   const handleHistoryPress = (text: string) => {
     setInputValue(text);
-    setIsSearching(true);
-    setShowFeed(false);
-    setRecentSearches(prev => {
-      const newRecent = [text, ...prev.filter(item => item !== text)];
-      return newRecent.slice(0, 10);
-    });
+    performSearch(text, false);
   };
 
   const handlePostPress = (post: PopupPostData) => {
-    // Show full feed of posts, scrolling to this one (or just show all for now)
-    setShowFeed(true);
+    setCachedPostList(searchResults);
+    router.push({
+      pathname: "/OtherPost",
+      params: {
+        postId: post.id,
+        post: JSON.stringify(post),
+      },
+    });
   };
 
   const handlePostLongPress = (post: PopupPostData) => {
     setPopupPost(post);
   };
 
-  const handleToggleBookmark = (postId: string) => {
+  const handleToggleBookmark = async (postId: string) => {
+    const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
     setBookmarkedIds((prev) =>
-      prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId]
+      isCurrentlyBookmarked ? prev.filter((id) => id !== postId) : [...prev, postId]
     );
+    
+    if (user?.id) {
+      if (isCurrentlyBookmarked) {
+        await unbookmarkPost(postId);
+      } else {
+        await bookmarkPost(postId);
+      }
+    }
+  };
+
+  const handleRequestDelete = (postId: string) => {
+    setDeletePostId(postId);
+    setPopupPost(null);
+    setDeletePopupVisible(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletePostId) return;
+    const idToDelete = deletePostId;
+    
+    setSearchResults((prev) => prev.filter((p) => p.id !== idToDelete));
+    setBookmarkedIds((prev) => prev.filter((id) => id !== idToDelete));
+    setDeletePostId(null);
+    setDeletePopupVisible(false);
+    
+    await deletePost(idToDelete);
+  };
+
+  const handleCancelDelete = () => {
+    setDeletePostId(null);
+    setDeletePopupVisible(false);
   };
 
   return (
@@ -150,13 +205,16 @@ export default function SearchScreen() {
         title="ค้นหาสิ่งที่สนใจ"
         leftIcon="back"
         onLeftPress={() => {
-          if (showFeed) {
-            setShowFeed(false);
-          } else if (isSearching) {
+          if (isSearching) {
             setIsSearching(false);
             setInputValue('');
+            setSearchResults([]);
           } else {
-            router.back();
+            if (from) {
+              router.push(decodeURIComponent(from) as any);
+            } else {
+              router.push('/');
+            }
           }
         }}
         rightIcon="none"
@@ -175,6 +233,18 @@ export default function SearchScreen() {
             onSubmitEditing={handleSearchSubmit}
             returnKeyType="search"
           />
+          {inputValue.length > 0 && (
+            <Pressable
+              onPress={() => {
+                setInputValue('');
+                setIsSearching(false);
+                setSearchResults([]);
+              }}
+              hitSlop={8}
+            >
+              <Feather name="x" size={18} color="#A0938F" style={{ marginRight: 4 }} />
+            </Pressable>
+          )}
         </View>
 
         {!isSearching ? (
@@ -203,10 +273,10 @@ export default function SearchScreen() {
               </View>
 
               {recentSearches.map((item, index) => (
-                <View key={`${item}-${index}`} style={styles.historyItem}>
-                  <Pressable style={styles.historyItemContent} onPress={() => handleHistoryPress(item)}>
+                <View key={`${item.query}-${index}`} style={styles.historyItem}>
+                  <Pressable style={styles.historyItemContent} onPress={() => handleHistoryPress(item.query)}>
                     <MaterialCommunityIcons name="history" size={20} color="#C4B5A5" style={styles.historyIcon} />
-                    <ThemedText style={styles.historyText}>{item}</ThemedText>
+                    <ThemedText style={styles.historyText}>{item.query}</ThemedText>
                   </Pressable>
                   <Pressable onPress={() => handleClearHistory(index)} hitSlop={8}>
                     <Feather name="x" size={18} color="#C4B5A5" />
@@ -215,58 +285,52 @@ export default function SearchScreen() {
               ))}
             </View>
           </>
-        ) : showFeed ? (
-          /* Feed View Mode */
-          <View style={styles.feedContainer}>
-            {MOCK_POSTS.map((post) => (
-              <View key={post.id} style={styles.postWrapper}>
-                <PopupPost
-                  visible={true}
-                  post={post}
-                  onClose={() => { }}
-                  inline
-                  isOwnPost={post.userId === CURRENT_USER_ID}
-                  isBookmarked={bookmarkedIds.includes(post.id)}
-                  onBookmark={handleToggleBookmark}
-                  onUserPress={(userId) => {
-                    if (userId === CURRENT_USER_ID) {
-                      router.push("/(tabs)/profile");
-                    } else {
-                      router.push("/OtherProfile");
-                    }
-                  }}
-                />
-              </View>
-            ))}
-          </View>
+        ) : loading ? (
+          <PostSkeleton count={2} />
         ) : (
           /* Grid View Mode */
           <View style={styles.gridContainer}>
-            <PostGrid
-              posts={MOCK_POSTS}
-              onPressPost={handlePostPress}
-              onLongPressPost={handlePostLongPress}
-            />
+            {searchResults.length > 0 ? (
+              <PostGrid
+                posts={searchResults}
+                onPressPost={handlePostPress}
+                onLongPressPost={handlePostLongPress}
+              />
+            ) : (
+              <View style={styles.emptyContainer}>
+                <ThemedText style={styles.emptyText}>ไม่พบผลการค้นหา</ThemedText>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
 
-      {/* Popup Post Modal (triggered by long press in grid) */}
+      {/* Popup Post Modal */}
       <PopupPost
         visible={popupPost !== null}
         post={popupPost}
         onClose={() => setPopupPost(null)}
-        isOwnPost={popupPost?.userId === CURRENT_USER_ID}
+        isOwnPost={!!user && popupPost?.userId === user.id}
         isBookmarked={popupPost ? bookmarkedIds.includes(popupPost.id) : false}
         onBookmark={handleToggleBookmark}
-        onUserPress={(userId) => {
+        onRequestDelete={handleRequestDelete}
+        onUserPress={(postUserId) => {
           setPopupPost(null);
-          if (userId === CURRENT_USER_ID) {
+          if (user && postUserId === user.id) {
             router.push("/(tabs)/profile");
           } else {
-            router.push("/OtherProfile");
+            router.push({
+              pathname: "/OtherProfile",
+              params: { userId: postUserId },
+            });
           }
         }}
+      />
+
+      <DeletePopup
+        visible={deletePopupVisible}
+        onCancel={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
       />
     </SafeAreaView>
   );
@@ -378,6 +442,10 @@ const styles = StyleSheet.create({
     fontFamily: 'NotoSansThai_400Regular',
     color: '#57423E',
   },
+  loadingContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
   gridContainer: {
     flex: 1,
   },
@@ -386,5 +454,15 @@ const styles = StyleSheet.create({
   },
   postWrapper: {
     marginBottom: 16,
+  },
+  emptyContainer: {
+    paddingVertical: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    fontFamily: 'NotoSansThai_400Regular',
+    color: '#8A7B75',
   },
 });

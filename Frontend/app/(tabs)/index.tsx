@@ -1,71 +1,85 @@
-import React, { useState } from "react";
-import { View, ScrollView, StyleSheet, Pressable } from "react-native";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { router } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SquarePen } from "lucide-react-native";
 
 import { Header } from "@/components/Header";
-import PopupPost from "@/components/popup-post";
+import PopupPost, { PopupPostData } from "@/components/popup-post";
+import PostSkeleton from "@/components/PostSkeleton";
 import DeletePopup from "@/components/DeletePopup";
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/context/AuthContext";
+import { fetchFeedPosts, bookmarkPost, unbookmarkPost, deletePost, getSavedPosts } from "@/services/postService";
 
-// Mock data
-const CURRENT_USER_ID = "me";
-const OTHER_USER_ID = "mookmhee";
 
-const initialPosts = [
-  {
-    id: "1",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-    title: "กะเพราไข่ดาว",
-    description: "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า ใครยังไม่รู้จะกินอะไร แนะนำเมนูที่อร่อยไม่เคยเปลี่ยน!",
-    location: "https://www.wongnai.com/listings/phat-ka-phrao",
-    tag: "อาหารจานเดียว",
-    timeAgo: "2 ชม. ที่แล้ว",
-  },
-  {
-    id: "2",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-    title: "กะเพราหมูสับ",
-    description: "กะเพราหมูสับไข่ดาว อร่อยเหมือนเดิม",
-    tag: "อาหารจานเดียว",
-    timeAgo: "4 ชม. ที่แล้ว",
-  },
-  {
-    id: "3",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-    title: "ข้าวผัดกุ้ง",
-    description: "ข้าวผัดกุ้งร้อนๆ มาแล้วครับทุกคน อร่อยมาก!",
-    tag: "อาหารจานเดียว",
-    timeAgo: "5 ชม. ที่แล้ว",
-  },
-  {
-    id: "4",
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-    title: "ผัดพริกแกงหมูกรอบ",
-    description: "หมูกรอบชิ้นใหญ่เต็มคำ รสชาติจัดจ้าน",
-    tag: "อาหารไทย",
-    timeAgo: "1 วันที่แล้ว",
-  }
-];
 
 export default function HomeScreen() {
-  const { isLoggedIn } = useAuth();
-  const [posts, setPosts] = useState(initialPosts);
+  const { isLoggedIn, user } = useAuth();
+  const [posts, setPosts] = useState<PopupPostData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
-  const handleToggleBookmark = (postId: string) => {
+  const scrollRef = useRef<ScrollView>(null);
+  const params = useLocalSearchParams<{ refresh?: string }>();
+
+  useEffect(() => {
+    if (params.refresh) {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      loadFeed();
+    }
+  }, [params.refresh]);
+
+  const loadFeed = useCallback(async () => {
+    setLoading(true);
+    const fetched = await fetchFeedPosts();
+    if (fetched && fetched.length > 0) {
+      setPosts(fetched);
+    }
+
+    if (isLoggedIn) {
+      const saved = await getSavedPosts();
+      if (saved && saved.length > 0) {
+        setBookmarkedIds(saved.map((s) => s.id));
+      } else {
+        setBookmarkedIds([]);
+      }
+    } else {
+      setBookmarkedIds([]);
+    }
+    setLoading(false);
+  }, [isLoggedIn]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadFeed();
+    setRefreshing(false);
+  }, [loadFeed]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFeed();
+    }, [loadFeed])
+  );
+
+  const handleToggleBookmark = async (postId: string) => {
+    const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
+    // Optimistic update
     setBookmarkedIds((prev) =>
-      prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId]
+      isCurrentlyBookmarked ? prev.filter((id) => id !== postId) : [...prev, postId]
     );
+    // API call (เฉพาะเมื่อ login แล้ว)
+    if (isLoggedIn) {
+      if (isCurrentlyBookmarked) {
+        await unbookmarkPost(postId);
+      } else {
+        await bookmarkPost(postId);
+      }
+    }
   };
 
   const handleEditPost = (post: any) => {
@@ -87,15 +101,16 @@ export default function HomeScreen() {
     router.push("/AddPost");
   };
 
-  const handleUserPress = (userId: string) => {
-    if (userId === CURRENT_USER_ID) {
-      if (!isLoggedIn) {
-        router.push({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/profile', from: '/' } });
-      } else {
-        router.push("/(tabs)/profile");
-      }
+  const handleUserPress = (postUserId: string) => {
+    if (user && postUserId === user.id) {
+      router.push("/(tabs)/profile");
+    } else if (!isLoggedIn && !postUserId) {
+      router.push({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/profile', from: '/' } });
     } else {
-      router.push("/OtherProfile");
+      router.push({
+        pathname: "/OtherProfile",
+        params: { userId: postUserId },
+      });
     }
   };
 
@@ -106,15 +121,31 @@ export default function HomeScreen() {
         title="KIN RAI DEE"
         leftIcon="none"
         rightIcon="search"
-        onSearchPress={() => router.push('/(tabs)/search')}
+        onSearchPress={() => router.push('/(tabs)/search?from=/')}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#DCA64E"]}
+            tintColor="#DCA64E"
+          />
+        }
+      >
         {/* Title Section */}
         <View style={styles.titleContainer}>
           <ThemedText style={styles.pageTitle}>วันนี้กินอะไรกันดี?</ThemedText>
           <MaterialCommunityIcons name="silverware-fork-knife" size={26} color="#DCA64E" />
         </View>
+
+        {!refreshing && loading && (
+          <PostSkeleton count={3} />
+        )}
 
         {/* Posts */}
         {posts.map((post) => (
@@ -124,7 +155,7 @@ export default function HomeScreen() {
               post={post}
               onClose={() => { }}
               inline
-              isOwnPost={post.userId === CURRENT_USER_ID}
+              isOwnPost={!!user && post.userId === user.id}
               isBookmarked={bookmarkedIds.includes(post.id)}
               onBookmark={handleToggleBookmark}
               onEdit={handleEditPost}
@@ -147,10 +178,12 @@ export default function HomeScreen() {
       <DeletePopup
         visible={deletePostId !== null}
         onCancel={() => setDeletePostId(null)}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (deletePostId) {
-            setPosts((prev) => prev.filter((p) => p.id !== deletePostId));
+            const idToDelete = deletePostId;
+            setPosts((prev) => prev.filter((p) => p.id !== idToDelete));
             setDeletePostId(null);
+            await deletePost(idToDelete);
           }
         }}
       />

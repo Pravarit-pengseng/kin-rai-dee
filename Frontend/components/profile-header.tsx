@@ -1,10 +1,10 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
-  Image,
   Pressable,
   StyleSheet,
 } from "react-native";
+import { Image } from "expo-image";
 import {
   Pencil,
   SquarePen,
@@ -15,49 +15,61 @@ export type ProfileHeaderProps = {
   name?: string;
   username?: string;
   bio?: string;
+  avatarUrl?: string;
   onEditProfile: () => void;
   onCreatePost: () => void;
 };
 
 export default function ProfileHeader({
-  name = "มุกหมีชอบกิน",
-  username = "@mookmhee",
-  bio = "กินเก่ง ทำอาหารนิดหน่อย 🍳✨",
+  name,
+  username,
+  bio,
+  avatarUrl,
   onEditProfile,
   onCreatePost,
 }: ProfileHeaderProps) {
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [avatarUrl]);
+
   return (
     <View style={styles.profileSection}>
         {/* Avatar */}
         <View style={styles.avatarOuter}>
           <View style={styles.avatarInner}>
             <Image
-              source={require("../assets/images/ProfilePicture.png")}
+              source={avatarUrl && !avatarError ? { uri: avatarUrl } : require("../assets/images/ProfilePicture.png")}
               style={styles.avatar}
-              resizeMode="contain"
+              contentFit="cover"
+              transition={200}
+              onError={() => setAvatarError(true)}
             />
           </View>
         </View>
 
         {/* Name */}
         <ThemedText style={styles.name}>
-          {name}
+          {name || (username ? username.replace(/^@/, '') : 'ผู้ใช้งาน')}
         </ThemedText>
 
         {/* Username */}
         <ThemedText style={styles.username}>
-          {username}
+          {username ? `@${username.replace(/^@/, '')}` : ''}
         </ThemedText>
 
         {/* Bio */}
-        <View style={styles.bio}>
-          <ThemedText
-            style={styles.bioText}
-            numberOfLines={1}
-          >
-            {bio}
-          </ThemedText>
-        </View>
+        {bio ? (
+          <View style={styles.bio}>
+            <ThemedText
+              style={styles.bioText}
+              numberOfLines={1}
+            >
+              {bio}
+            </ThemedText>
+          </View>
+        ) : null}
 
         {/* Profile Buttons */}
         <View style={styles.actionRow}>

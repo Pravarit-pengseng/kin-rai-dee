@@ -69,22 +69,25 @@ export default function LoginScreen() {
     setIsLoading(true);
 
     try {
-      await login({ email: formattedEmail });
+      const { error } = await login(formattedEmail, password);
+      if (error) {
+        // Map Supabase error messages to user-facing messages
+        if (error.toLowerCase().includes('invalid') || error.toLowerCase().includes('credentials')) {
+          setGeneralError(AUTH_ERROR_MESSAGES.INVALID_CREDENTIALS);
+        } else if (error.toLowerCase().includes('too many')) {
+          setGeneralError(AUTH_ERROR_MESSAGES.TOO_MANY_ATTEMPTS);
+        } else {
+          setGeneralError(AUTH_ERROR_MESSAGES.SYSTEM_ERROR);
+        }
+        return;
+      }
       if (returnTo) {
         router.replace(returnTo as any);
       } else {
         router.replace('/(tabs)');
       }
     } catch (err: any) {
-      if (err?.code === 'INVALID_CREDENTIALS') {
-        setGeneralError(AUTH_ERROR_MESSAGES.INVALID_CREDENTIALS);
-      } else if (err?.code === 'TOO_MANY_ATTEMPTS') {
-        setGeneralError(AUTH_ERROR_MESSAGES.TOO_MANY_ATTEMPTS);
-      } else if (err?.code === 'NETWORK_ERROR' || !navigator.onLine) {
-        setGeneralError(AUTH_ERROR_MESSAGES.NO_INTERNET);
-      } else {
-        setGeneralError(AUTH_ERROR_MESSAGES.SYSTEM_ERROR);
-      }
+      setGeneralError(AUTH_ERROR_MESSAGES.SYSTEM_ERROR);
     } finally {
       setIsLoading(false);
     }

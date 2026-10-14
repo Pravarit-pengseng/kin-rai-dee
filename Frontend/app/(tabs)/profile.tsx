@@ -4,15 +4,19 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
+  Alert,
+  RefreshControl,
 } from "react-native";
 import {
   router,
   useLocalSearchParams,
+  useFocusEffect,
 } from "expo-router";
+import { useCallback, useRef } from "react";
 
 import PostGrid, { Post } from "@/components/post-grid";
 
-import PopupPost from "@/components/popup-post";
+import PopupPost, { PopupPostData } from "@/components/popup-post";
 import DeletePostPopup from "@/components/DeletePopup";
 import LogoutPopup from "@/components/LogoutPopup";
 import ProfileHeader from "@/components/profile-header";
@@ -21,40 +25,95 @@ import { ThemedText } from "@/components/themed-text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/context/AuthContext";
+import { getMyProfile, getUserPosts } from "@/services/profileService";
+import { getSavedPosts, deletePost, mapPostToPopup, bookmarkPost, unbookmarkPost } from "@/services/postService";
+import { PostGridSkeleton } from "@/components/PostSkeleton";
+import { setCachedPostList } from "@/services/postCache";
 
-const CURRENT_USER_ID = "me";
 
-const allPosts: Post[] = Array.from(
-  { length: 9 },
-  (_, index) => ({
-    id: String(index + 1),
-    image: require("../../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  }),
-);
 
 export default function ProfileScreen() {
-  const { isLoggedIn, logout } = useAuth();
+  const { isLoggedIn, logout, user } = useAuth();
   const params = useLocalSearchParams<{
     name?: string;
     username?: string;
     bio?: string;
+    avatarUrl?: string;
     post?: string;
     mode?: string;
+    refresh?: string;
   }>();
+
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (params.refresh) {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      onRefresh();
+    }
+  }, [params.refresh]);
+
+  // Profile data จาก API
+  const [profileName, setProfileName] = useState<string | undefined>(undefined);
+  const [profileUsername, setProfileUsername] = useState<string | undefined>(undefined);
+  const [profileBio, setProfileBio] = useState<string | undefined>(undefined);
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (!isLoggedIn) {
       router.replace({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/profile', from: '/' } });
+      return;
     }
+    // โหลด profile จริงจาก DB
+    getMyProfile().then((profile) => {
+      if (profile) {
+        setProfileName(profile.display_name ?? undefined);
+        // username จาก DB ไม่มี @ นำหน้า ให้เก็บตรงๆ
+        setProfileUsername(profile.username ?? undefined);
+        setProfileBio(profile.bio ?? undefined);
+        setProfileAvatarUrl(profile.avatar_url ?? undefined);
+      }
+    });
   }, [isLoggedIn]);
 
-  const [posts, setPosts] = useState<Post[]>(allPosts);
+  const [posts, setPosts] = useState<PopupPostData[]>([]);
+  const [savedPosts, setSavedPosts] = useState<PopupPostData[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingSaved, setLoadingSaved] = useState(true);
   const [selectedPost, setSelectedPost] =
-    useState<Post | null>(null);
+    useState<PopupPostData | null>(null);
   const [popupVisible, setPopupVisible] = useState(false);
   const [deletePopupVisible, setDeletePopupVisible] =
     useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (user?.id) {
+      try {
+        const [profileData, apiPosts, saved] = await Promise.all([
+          getMyProfile(),
+          getUserPosts(user.id),
+          getSavedPosts()
+        ]);
+        if (profileData) {
+          setProfileName(profileData.display_name ?? undefined);
+          setProfileUsername(profileData.username ?? undefined);
+          setProfileBio(profileData.bio ?? undefined);
+          setProfileAvatarUrl(profileData.avatar_url ?? undefined);
+        }
+        setPosts((apiPosts || []).map(mapPostToPopup));
+        setSavedPosts(Array.isArray(saved) ? saved : []);
+        setLoadingPosts(false);
+        setLoadingSaved(false);
+      } catch (e) {
+        console.warn("Refresh profile error:", e);
+        setLoadingPosts(false);
+        setLoadingSaved(false);
+      }
+    }
+    setRefreshing(false);
+  }, [user?.id]);
   const [logoutPopupVisible, setLogoutPopupVisible] =
     useState(false);
   const [deletePostId, setDeletePostId] =
@@ -65,6 +124,55 @@ export default function ProfileScreen() {
     useState<"posts" | "saved">("posts");
 
   useEffect(() => {
+    if (params.name !== undefined) setProfileName(params.name || undefined);
+    if (params.username !== undefined) setProfileUsername(params.username || undefined);
+    if (params.bio !== undefined) setProfileBio(params.bio || undefined);
+    if (params.avatarUrl !== undefined) setProfileAvatarUrl(params.avatarUrl || undefined);
+  }, [params.name, params.username, params.bio, params.avatarUrl]);
+
+  // โหลดโพสต์ของตัวเองและโพสต์ที่บันทึกไว้ รวมถึง profile เมื่อโฟกัสหน้าจอ
+  useFocusEffect(
+    useCallback(() => {
+      if (!isLoggedIn || !user?.id) return;
+
+      // โหลด profile จริงจาก DB เพื่อให้ข้อมูลและรูปโปรไฟล์ตรงกับฐานข้อมูลเสมอ
+      getMyProfile().then((profile) => {
+        if (profile) {
+          setProfileName(profile.display_name ?? undefined);
+          setProfileUsername(profile.username ?? undefined);
+          setProfileBio(profile.bio ?? undefined);
+          setProfileAvatarUrl(profile.avatar_url ?? undefined);
+        }
+      }).catch((err) => {
+        console.warn("Fetch my profile on focus error:", err);
+      });
+
+      // โหลดโพสต์ตัวเอง ผ่าน API
+      getUserPosts(user.id).then((apiPosts) => {
+        const safePosts = Array.isArray(apiPosts) ? apiPosts : [];
+        setPosts(safePosts.map(mapPostToPopup));
+        setLoadingPosts(false);
+      }).catch(() => {
+        setLoadingPosts(false);
+      });
+
+      // โหลดโพสต์ที่บันทึกไว้
+      getSavedPosts().then((saved) => {
+        const safeSaved = Array.isArray(saved) ? saved : [];
+        setSavedPosts(safeSaved);
+        if (safeSaved.length > 0) {
+          setBookmarkedIds(safeSaved.map((s) => s.id));
+        } else {
+          setBookmarkedIds([]);
+        }
+        setLoadingSaved(false);
+      }).catch(() => {
+        setLoadingSaved(false);
+      });
+    }, [isLoggedIn, user?.id])
+  );
+  // รับโพสต์ใหม่จาก AddPost/EditPost ผ่าน navigation params
+  useEffect(() => {
     if (!params.post) return;
 
     try {
@@ -72,7 +180,7 @@ export default function ProfileScreen() {
         Array.isArray(params.post)
           ? params.post[0]
           : params.post,
-      ) as Post;
+      ) as PopupPostData;
 
       if (!post.id || !post.image) return;
 
@@ -98,17 +206,31 @@ export default function ProfileScreen() {
     }
   }, [params.post, params.mode]);
 
-  const handleLongPress = (post: Post) => {
-    setSelectedPost(post);
+  const handleLongPress = (post: PopupPostData) => {
+    const updatedPost = {
+      ...post,
+      displayName: post.userId === user?.id ? (params.name || profileName || post.displayName) : post.displayName,
+      username: post.userId === user?.id ? (params.username || profileUsername || post.username) : post.username,
+    };
+    setSelectedPost(updatedPost);
     setPopupVisible(true);
   };
 
-  const handleToggleBookmark = (postId: string) => {
+  const handleToggleBookmark = async (postId: string) => {
+    const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
     setBookmarkedIds((prev) =>
-      prev.includes(postId)
+      isCurrentlyBookmarked
         ? prev.filter((id) => id !== postId)
         : [...prev, postId],
     );
+    
+    if (user?.id) {
+      if (isCurrentlyBookmarked) {
+        await unbookmarkPost(postId);
+      } else {
+        await bookmarkPost(postId);
+      }
+    }
   };
 
   const handleRequestDelete = (postId: string) => {
@@ -118,31 +240,55 @@ export default function ProfileScreen() {
     setDeletePopupVisible(true);
   };
 
-  const handleEditPost = (post: Post) => {
+  const handleEditPost = (post: PopupPostData) => {
     setSelectedPost(null);
     setPopupVisible(false);
 
     router.push({
       pathname: "/EditPost",
       params: {
+        postId: post.id,
         post: JSON.stringify(post),
       },
     });
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deletePostId) return;
 
+    const idToDelete = deletePostId;
+
+    // Optimistic UI: ลบออกจาก list ก่อน
     setPosts((prev) =>
-      prev.filter((post) => post.id !== deletePostId),
+      prev.filter((post) => post.id !== idToDelete),
+    );
+    
+    // ลบออกจาก savedPosts ด้วย
+    setSavedPosts((prev) =>
+      prev.filter((post) => post.id !== idToDelete),
     );
 
     setBookmarkedIds((prev) =>
-      prev.filter((id) => id !== deletePostId),
+      prev.filter((id) => id !== idToDelete),
     );
 
     setDeletePostId(null);
     setDeletePopupVisible(false);
+
+    // เรียก API ลบโพสต์จริง
+    await deletePost(idToDelete);
+
+    // Reload posts จาก API เสมอ เพื่อ sync กับ DB
+    if (user?.id) {
+      getUserPosts(user.id).then((apiPosts) => {
+        setPosts((apiPosts || []).map(mapPostToPopup));
+      });
+      // Update saved posts just in case we deleted our own post that was also saved
+      getSavedPosts().then((saved) => {
+        const safeSaved = Array.isArray(saved) ? saved : [];
+        setSavedPosts(safeSaved);
+      });
+    }
   };
 
   const handleCancelDelete = () => {
@@ -154,9 +300,10 @@ export default function ProfileScreen() {
     router.push({
       pathname: "/EditProfile",
       params: {
-        name: params.name,
-        username: params.username,
-        bio: params.bio,
+        name: params.name ?? profileName,
+        username: params.username ?? profileUsername,
+        bio: params.bio ?? profileBio,
+        avatarUrl: params.avatarUrl ?? profileAvatarUrl,
       },
     });
   };
@@ -169,23 +316,23 @@ export default function ProfileScreen() {
     router.push("/AddPost");
   };
 
-  const handleOpenPost = (post: Post) => {
+  const handleOpenPost = (post: PopupPostData) => {
+    const allPosts = activeTab === "saved" ? savedPosts : posts;
+    setCachedPostList(allPosts);
     router.push({
       pathname: "/MyPost",
       params: {
         postId: post.id,
-        ownerId: post.userId ?? CURRENT_USER_ID,
+        ownerId: activeTab === "saved" ? undefined : (post.userId ?? user?.id),
+        mode: activeTab === "saved" ? "saved" : "feed",
         post: JSON.stringify(post),
       },
     });
   };
 
-  const savedPosts = posts.filter((post) =>
-    bookmarkedIds.includes(post.id),
-  );
+  const savedPostsDisplay = activeTab === "saved" ? savedPosts : [];
 
-  const displayPosts =
-    activeTab === "posts" ? posts : savedPosts;
+  const displayPosts = activeTab === "posts" ? posts : savedPostsDisplay;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -195,16 +342,26 @@ export default function ProfileScreen() {
         leftIcon={isLoggedIn ? "logout" : "none"}
         onLeftPress={() => setLogoutPopupVisible(true)}
         rightIcon="search"
-        onSearchPress={() => router.push('/(tabs)/search')}
+        onSearchPress={() => router.push('/(tabs)/search?from=/(tabs)/profile')}
       />
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={["#DCA64E"]}
+            tintColor="#DCA64E"
+          />
+        }
       >
         <ProfileHeader
-          name={params.name}
-          username={params.username}
-          bio={params.bio}
+          name={profileName || params.name || undefined}
+          username={profileUsername || params.username || undefined}
+          bio={(profileBio || params.bio) || undefined}
+          avatarUrl={profileAvatarUrl || params.avatarUrl || undefined}
           onEditProfile={handleEditProfile}
           onCreatePost={handleCreatePost}
         />
@@ -243,7 +400,9 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {displayPosts.length > 0 ? (
+        {(activeTab === "posts" ? loadingPosts : loadingSaved) ? (
+          <PostGridSkeleton count={6} />
+        ) : displayPosts.length > 0 ? (
           <PostGrid
             posts={displayPosts}
             onPressPost={handleOpenPost}
@@ -268,7 +427,7 @@ export default function ProfileScreen() {
           setSelectedPost(null);
         }}
         isOwnPost={
-          selectedPost?.userId === CURRENT_USER_ID
+          selectedPost?.userId === user?.id
         }
         isBookmarked={
           selectedPost

@@ -2,247 +2,235 @@ import React, {
   useEffect,
   useRef,
   useState,
+  useCallback,
 } from "react";
 import {
   View,
   ScrollView,
   StyleSheet,
-  ImageSourcePropType,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
 import {
-  router,
   Stack,
+  router,
   useLocalSearchParams,
 } from "expo-router";
+
 import { Header } from "@/components/Header";
-import PopupPost from "@/components/popup-post";
+import PopupPost, { PopupPostData } from "@/components/popup-post";
+import PostSkeleton from "@/components/PostSkeleton";
 import LiquidMenu from "@/components/liquid-menu";
+import DeletePopup from "@/components/DeletePopup";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { useAuth } from "@/context/AuthContext";
+import { getUserPosts } from "@/services/profileService";
+import {
+  bookmarkPost,
+  unbookmarkPost,
+  getSavedPosts,
+  mapPostToPopup,
+  deletePost,
+  getPostDetail,
+} from "@/services/postService";
+import { getCachedPostList } from "@/services/postCache";
 
-type Post = {
-  id: string;
-  image: ImageSourcePropType;
-  title?: string;
-  description?: string;
-  tag?: string;
-  location?: string;
-  timeAgo?: string;
-  userId?: string;
-};
-
-const CURRENT_USER_ID = "me";
-const OTHER_USER_ID = "mookmhee";
-
-const allPosts: Post[] = [
-  // My Posts
-  {
-    id: "1",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "2",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "3",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "4",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "5",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "6",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "7",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "8",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-  {
-    id: "9",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-  },
-
-  // Other User Posts
-  {
-    id: "10",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "11",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "12",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "13",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "14",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "15",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "16",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "17",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-  {
-    id: "18",
-    image: require("../assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-  },
-];
-
-export default function PostScreen() {
+export default function OtherPostScreen() {
+  const { isLoggedIn, user } = useAuth();
   const {
     postId,
     ownerId,
+    post: postParam,
   } = useLocalSearchParams<{
     postId?: string;
     ownerId?: string;
+    post?: string;
   }>();
 
-  const scrollRef =
-    useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+  const [deletePostId, setDeletePostId] = useState<string | null>(null);
+  const [deletePopupVisible, setDeletePopupVisible] = useState(false);
 
-  const [bookmarkedIds, setBookmarkedIds] =
-    useState<string[]>([]);
+  // Initialize posts from memory cache or param
+  const [posts, setPosts] = useState<PopupPostData[]>(() => {
+    const cached = getCachedPostList();
+    if (cached && cached.length > 0) return cached;
+    if (postParam) {
+      try {
+        const single = JSON.parse(postParam as string);
+        if (single?.id) return [single];
+      } catch { /* ignore */ }
+    }
+    return [];
+  });
 
-  const [ready, setReady] =
-    useState(false);
+  const [loading, setLoading] = useState(() => posts.length === 0);
 
-  /*
-   * Get the owner of the selected post.
-   */
-  const currentOwnerId =
-    ownerId ?? CURRENT_USER_ID;
+  const targetIndex = posts.findIndex((post) => post.id === postId);
+  const [ready, setReady] = useState(() => targetIndex <= 0);
+  const hasScrolledRef = useRef(targetIndex <= 0);
 
-  /*
-   * Get all posts belonging to
-   * the selected owner.
-   */
-  const ownerPosts = allPosts.filter(
-    (post) =>
-      post.userId === currentOwnerId
+  // Reset on postId change
+  useEffect(() => {
+    const idx = posts.findIndex((p) => p.id === postId);
+    if (idx > 0) {
+      hasScrolledRef.current = false;
+      setReady(false);
+    } else {
+      hasScrolledRef.current = true;
+      setReady(true);
+    }
+  }, [postId]);
+
+  // Fallback timer so screen never stays stuck on skeleton
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setReady(true);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [postId]);
+
+  // Load from API if needed or sync bookmarks
+  useEffect(() => {
+    if (ownerId) {
+      if (posts.length === 0) setLoading(true);
+      getUserPosts(ownerId)
+        .then((apiPosts) => {
+          if (apiPosts && apiPosts.length > 0) {
+            setPosts(apiPosts.map(mapPostToPopup));
+          }
+          if (user?.id) {
+            getSavedPosts()
+              .then((saved) => {
+                if (saved && saved.length > 0) {
+                  setBookmarkedIds(saved.map((s) => s.id));
+                }
+              })
+              .catch(() => {});
+          }
+          setLoading(false);
+        })
+        .catch(() => {
+          setLoading(false);
+        });
+    } else if (postId && posts.length === 0) {
+      setLoading(true);
+      getPostDetail(postId)
+        .then((detail) => {
+          if (detail) {
+            setPosts([detail]);
+          }
+          setLoading(false);
+        })
+        .catch(() => {
+          setLoading(false);
+        });
+
+      if (user?.id) {
+        getSavedPosts()
+          .then((saved) => {
+            if (saved && saved.length > 0) {
+              setBookmarkedIds(saved.map((s) => s.id));
+            }
+          })
+          .catch(() => {});
+      }
+    } else {
+      if (user?.id) {
+        getSavedPosts()
+          .then((saved) => {
+            if (saved && saved.length > 0) {
+              setBookmarkedIds(saved.map((s) => s.id));
+            }
+          })
+          .catch(() => {});
+      }
+      setLoading(false);
+    }
+  }, [ownerId, postId, user?.id]);
+
+  // Handle post measurement and scroll directly to target post
+  const handlePostLayout = useCallback(
+    (id: string, y: number) => {
+      if (id === postId && !hasScrolledRef.current) {
+        hasScrolledRef.current = true;
+        scrollRef.current?.scrollTo({ y, animated: false });
+        requestAnimationFrame(() => {
+          setReady(true);
+        });
+      }
+    },
+    [postId]
   );
 
-  /*
-   * Find the selected post.
-   */
-  const selectedIndex =
-    ownerPosts.findIndex(
-      (post) =>
-        post.id === postId
-    );
-
-  /*
-   * Start from the selected post.
-   */
-  const startIndex =
-    selectedIndex >= 0
-      ? selectedIndex
-      : 0;
-
-  /*
-   * Scroll to the selected post
-   * after the content is rendered.
-   */
-  useEffect(() => {
-    if (!ready) {
-      return;
-    }
-
-    if (startIndex === 0) {
-      return;
-    }
-
-    const cardHeight = 520;
-
-    const timer = setTimeout(() => {
-      scrollRef.current?.scrollTo({
-        y: startIndex * cardHeight,
-        animated: false,
-      });
-    }, 100);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [ready, startIndex]);
-
-  /*
-   * Toggle bookmark.
-   */
-  const handleToggleBookmark = (
-    postId: string
-  ) => {
+  // Bookmark toggle
+  const handleToggleBookmark = async (id: string) => {
+    const isCurrentlyBookmarked = bookmarkedIds.includes(id);
     setBookmarkedIds((prev) =>
-      prev.includes(postId)
-        ? prev.filter(
-          (id) =>
-            id !== postId
-        )
-        : [...prev, postId]
+      isCurrentlyBookmarked ? prev.filter((b) => b !== id) : [...prev, id]
     );
+    if (isCurrentlyBookmarked) await unbookmarkPost(id);
+    else await bookmarkPost(id);
   };
 
-  /*
-   * Bottom menu navigation.
-   */
-  const handleMenuChange = (
-    id: string
-  ) => {
+  // Edit post
+  const handleEditPost = (post: PopupPostData) => {
+    router.push({
+      pathname: "/EditPost",
+      params: { postId: post.id, post: JSON.stringify(post) },
+    });
+  };
+
+  // Delete post
+  const handleRequestDelete = (id: string) => {
+    setDeletePostId(id);
+    setDeletePopupVisible(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletePostId) return;
+    const id = deletePostId;
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+    setBookmarkedIds((prev) => prev.filter((b) => b !== id));
+    setDeletePostId(null);
+    setDeletePopupVisible(false);
+    await deletePost(id);
+  };
+
+  const handleCancelDelete = () => {
+    setDeletePostId(null);
+    setDeletePopupVisible(false);
+  };
+
+  // User press -> View profile
+  const handleUserPress = (postUserId: string) => {
+    if (user && postUserId === user.id) {
+      router.push("/(tabs)/profile");
+    } else {
+      router.push({
+        pathname: "/OtherProfile",
+        params: { userId: postUserId },
+      });
+    }
+  };
+
+  // Bottom menu navigation
+  const handleMenuChange = (id: string) => {
     if (id === "home") router.replace("/");
     else if (id === "random") router.replace("/(tabs)/random-food");
     else if (id === "ingredients") router.replace("/(tabs)/random-ingredient");
-    else if (id === "profile") router.replace("/(tabs)/profile");
+    else if (id === "profile") {
+      if (!isLoggedIn) {
+        router.push({ pathname: "/(auth)/login", params: { returnTo: "/(tabs)/profile" } });
+      } else {
+        router.replace("/(tabs)/profile");
+      }
+    }
   };
 
   return (
     <>
-      {/* Hide Expo Router system header */}
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false, animation: "none" }} />
       <SafeAreaView style={styles.container}>
         <StatusBar style="dark" />
         <Header
@@ -250,47 +238,73 @@ export default function PostScreen() {
           leftIcon="back"
           onLeftPress={() => router.back()}
           rightIcon="search"
-          onSearchPress={() => router.push("/(tabs)/search")}
+          onSearchPress={() =>
+            router.push(
+              `/(tabs)/search?from=${encodeURIComponent(
+                `/OtherPost?postId=${postId}&ownerId=${ownerId || ""}`
+              )}`
+            )
+          }
         />
 
-        <ScrollView
-          ref={scrollRef}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={
-            styles.scrollContent
-          }
-          onContentSizeChange={() =>
-            setReady(true)
-          }
-        >
-          {ownerPosts.map((post) => (
-            <View
-              key={post.id}
-              style={styles.postWrapper}
-            >
-              <PopupPost
-                visible={true}
-                post={post}
-                onClose={() => { }}
-                inline
-                isOwnPost={
-                  post.userId ===
-                  CURRENT_USER_ID
-                }
-                isBookmarked={bookmarkedIds.includes(
-                  post.id
-                )}
-                onBookmark={
-                  handleToggleBookmark
-                }
-              />
-            </View>
-          ))}
-        </ScrollView>
+        {loading ? (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            scrollEnabled={false}
+          >
+            <PostSkeleton count={2} />
+          </ScrollView>
+        ) : (
+          <View style={styles.mainWrapper}>
+            {!ready && (
+              <View style={styles.skeletonOverlay}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.scrollContent}
+                  scrollEnabled={false}
+                >
+                  <PostSkeleton count={1} />
+                </ScrollView>
+              </View>
+            )}
 
-        <LiquidMenu
-          active="home"
-          onChange={handleMenuChange}
+            <ScrollView
+              ref={scrollRef}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
+              style={!ready ? styles.hidden : styles.visible}
+            >
+              {posts.map((post) => (
+                <View
+                  key={post.id}
+                  style={styles.postWrapper}
+                  onLayout={(e) => handlePostLayout(post.id, e.nativeEvent.layout.y)}
+                >
+                  <PopupPost
+                    visible={true}
+                    post={post}
+                    onClose={() => {}}
+                    inline
+                    isOwnPost={post.userId === user?.id}
+                    isBookmarked={bookmarkedIds.includes(post.id)}
+                    onBookmark={handleToggleBookmark}
+                    onEdit={handleEditPost}
+                    onRequestDelete={handleRequestDelete}
+                    onUserPress={handleUserPress}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <LiquidMenu active="home" onChange={handleMenuChange} />
+
+        <DeletePopup
+          visible={deletePopupVisible}
+          onCancel={handleCancelDelete}
+          onConfirm={handleConfirmDelete}
         />
       </SafeAreaView>
     </>
@@ -302,15 +316,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFF8F6",
   },
-
+  mainWrapper: {
+    flex: 1,
+  },
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 110,
   },
-
   postWrapper: {
     width: "100%",
     marginBottom: 16,
+  },
+  skeletonOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+    backgroundColor: "#FFF8F6",
+  },
+  hidden: {
+    opacity: 0,
+  },
+  visible: {
+    opacity: 1,
   },
 });

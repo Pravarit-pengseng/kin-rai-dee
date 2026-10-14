@@ -6,6 +6,7 @@ export interface RandomButtonProps {
   onPress: () => void;
   title?: string;
   variant?: 'primary' | 'rerandom';
+  disabled?: boolean;
   backgroundColor?: string;
   textColor?: string;
   iconColor?: string;
@@ -20,6 +21,7 @@ export function RandomButton({
   onPress,
   variant = 'primary',
   title,
+  disabled,
   backgroundColor,
   textColor,
   iconColor,
@@ -45,6 +47,7 @@ export function RandomButton({
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: finalBgColor },
@@ -52,7 +55,8 @@ export function RandomButton({
         finalBorderColor !== undefined && { borderColor: finalBorderColor },
         finalBorderBottomWidth !== undefined && { borderBottomWidth: finalBorderBottomWidth },
         finalBorderBottomColor !== undefined && { borderBottomColor: finalBorderBottomColor },
-        pressed && styles.buttonPressed,
+        pressed && !disabled && styles.buttonPressed,
+        disabled && styles.buttonDisabled,
       ]}
     >
       <View style={styles.content}>
@@ -80,6 +84,9 @@ const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.8,
     transform: [{ translateY: 2 }],
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   content: {
     flexDirection: 'row',

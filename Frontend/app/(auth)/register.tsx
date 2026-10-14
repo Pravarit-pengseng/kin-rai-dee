@@ -15,6 +15,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { AuthInput } from '@/components/auth/AuthInput';
 import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import {
   validateDisplayName,
@@ -27,7 +28,7 @@ import {
 export default function RegisterScreen() {
   const router = useRouter();
   const { returnTo, from } = useLocalSearchParams<{ returnTo?: string; from?: string }>();
-  const { login } = useAuth();
+  const { login } = useAuth();  // ใช้สำหรับ auto-login หลัง signup สำเร็จ
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -139,30 +140,46 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Clear any previous errors
     setErrors({});
     setIsLoading(true);
 
     try {
-      await login({ displayName, email: formattedEmail });
+      // สมัครบัญชีผ่าน Supabase Auth
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: formattedEmail,
+        password,
+        options: {
+          data: {
+            display_name: displayName,
+          },
+        },
+      });
+
+      if (signUpError) {
+        if (signUpError.message.toLowerCase().includes('already registered') ||
+            signUpError.message.toLowerCase().includes('already been registered')) {
+          setErrors((prev) => ({ ...prev, email: 'อีเมลนี้ถูกใช้สมัครบัญชีแล้ว' }));
+        } else {
+          setGeneralError('ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง');
+        }
+        return;
+      }
+
+      // Auto-login หลัง signup สำเร็จ
+      const { error: loginError } = await login(formattedEmail, password);
+      if (loginError) {
+        // signup สำเร็จแต่ login ไม่ได้ → ให้ไป login ใหม่เอง
+        router.replace({ pathname: '/(auth)/login', params: { returnTo, from } });
+        return;
+      }
+
       if (returnTo) {
         router.replace(returnTo as any);
       } else {
         router.replace('/(tabs)');
       }
     } catch (err: any) {
-      // Error handling mapped from backend responses
-      if (err?.code === 'DUPLICATE_DISPLAY_NAME') {
-        setErrors((prev) => ({ ...prev, displayName: 'ชื่อที่แสดงนี้มีผู้ใช้แล้ว กรุณาใช้ชื่ออื่น' }));
-      } else if (err?.code === 'DUPLICATE_EMAIL') {
-        setErrors((prev) => ({ ...prev, email: 'อีเมลนี้ถูกใช้สมัครบัญชีแล้ว' }));
-      } else if (err?.code === 'USERNAME_GENERATION_FAILED') {
-        setGeneralError('ไม่สามารถสมัครบัญชีได้ กรุณาลองใหม่อีกครั้ง');
-      } else if (err?.code === 'NETWORK_ERROR' || !navigator.onLine) {
-        setGeneralError('ไม่สามารถเชื่อมต่อได้ กรุณาตรวจสอบอินเทอร์เน็ต');
-      } else {
-        setGeneralError('ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง');
-      }
+      setGeneralError('ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsLoading(false);
     }

@@ -38,6 +38,8 @@ type InputFieldProps = {
   placeholder: string;
   icon: React.ReactNode;
   onChangeText: (text: string) => void;
+  multiline?: boolean;
+  maxLength?: number;
 };
 
 function InputField({
@@ -46,6 +48,8 @@ function InputField({
   placeholder,
   icon,
   onChangeText,
+  multiline = false,
+  maxLength = 45,
 }: InputFieldProps) {
   return (
     <View style={styles.field}>
@@ -55,24 +59,27 @@ function InputField({
         </ThemedText>
 
         <ThemedText style={styles.counter}>
-          ({value.length}/45)
+          ({value.length}/{maxLength})
         </ThemedText>
       </View>
 
-      <View style={styles.inputWrapper}>
-        {icon}
+      <View style={[styles.inputWrapper, multiline && styles.multilineWrapper]}>
+        <View style={multiline ? styles.multilineIcon : undefined}>
+          {icon}
+        </View>
 
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor="#A9A09D"
-          style={styles.input}
+          style={[styles.input, multiline && styles.multilineInput]}
           autoCapitalize="none"
-          multiline={false}
-          numberOfLines={1}
-          maxLength={45}
-          returnKeyType="done"
+          multiline={multiline}
+          numberOfLines={multiline ? 3 : 1}
+          maxLength={maxLength}
+          returnKeyType={multiline ? "default" : "done"}
+          textAlignVertical={multiline ? "top" : "center"}
         />
       </View>
     </View>
@@ -166,6 +173,8 @@ export default function PostForm({
             strokeWidth={1.7}
           />
         }
+        multiline={true}
+        maxLength={200}
       />
 
       {/* Restaurant */}
@@ -314,6 +323,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#241917",
     fontFamily: "NotoSansThai_400Regular",
+  },
+
+  multilineWrapper: {
+    height: undefined,
+    minHeight: 76,
+    alignItems: "flex-start",
+    paddingVertical: 10,
+  },
+
+  multilineIcon: {
+    marginTop: 2,
+  },
+
+  multilineInput: {
+    height: undefined,
+    minHeight: 56,
+    paddingVertical: 0,
   },
 
   dropdown: {

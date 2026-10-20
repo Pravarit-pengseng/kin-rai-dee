@@ -1,38 +1,126 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, StyleSheet, TextInput, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
+
 import { Header } from '@/components/Header';
 import PostGrid from '@/components/post-grid';
 import PopupPost, { PopupPostData } from '@/components/popup-post';
-import PostSkeleton from '@/components/PostSkeleton';
-import { ThemedText } from '@/components/themed-text';
-import DeletePopup from '@/components/DeletePopup';
-import { searchPosts, fetchSearchHistory, addSearchHistory, deleteSearchHistoryItem, clearAllSearchHistory } from '@/services/searchService';
-import { getSavedPosts, bookmarkPost, unbookmarkPost, deletePost } from '@/services/postService';
-import { setCachedPostList } from '@/services/postCache';
-import { useAuth } from '@/context/AuthContext';
-import { FOOD_CATEGORIES, INGREDIENT_CATEGORIES } from '@/constants/categories';
+import { RestaurantCard, Restaurant } from '@/components/restuarant-card';
+import { SearchTabFilter, SearchTabType } from '@/components/search-tab-filter';
+import { SearchHistory } from '@/components/search-history';
 
-const isFoodCategory = (query: string): boolean => {
-  const clean = query.trim().replace(/^#/, '').toLowerCase();
-  return (
-    FOOD_CATEGORIES.some((c) => c.label.toLowerCase() === clean) ||
-    INGREDIENT_CATEGORIES.some((c) => c.label.toLowerCase() === clean)
-  );
-};
+const CURRENT_USER_ID = "me";
+const OTHER_USER_ID = "mookmhee";
 
+// Mock posts for search results
+const MOCK_POSTS: PopupPostData[] = [
+  {
+    id: "1",
+    image: require("@/assets/images/StirFriedHolyBasil.png"),
+    userId: CURRENT_USER_ID,
+    title: "กะเพราไข่ดาว",
+    description: "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า ใครยังไม่รู้จะกินอะไร แนะนำเมนูที่อร่อยไม่เคยเปลี่ยน!",
+    location: "https://www.wongnai.com/listings/phat-ka-phrao",
+    tag: "อาหารจานเดียว",
+    timeAgo: "2 ชม. ที่แล้ว",
+  },
+  {
+    id: "2",
+    image: require("@/assets/images/StirFriedHolyBasil.png"),
+    userId: OTHER_USER_ID,
+    title: "กะเพราหมูสับ",
+    description: "กะเพราหมูสับไข่ดาว อร่อยเหมือนเดิม",
+    tag: "อาหารจานเดียว",
+    timeAgo: "4 ชม. ที่แล้ว",
+  },
+  {
+    id: "3",
+    image: require("@/assets/images/StirFriedHolyBasil.png"),
+    userId: OTHER_USER_ID,
+    title: "ข้าวผัดกุ้ง",
+    description: "ข้าวผัดกุ้งร้อนๆ มาแล้วครับทุกคน อร่อยมาก!",
+    tag: "อาหารจานเดียว",
+    timeAgo: "5 ชม. ที่แล้ว",
+  },
+  {
+    id: "4",
+    image: require("@/assets/images/StirFriedHolyBasil.png"),
+    userId: CURRENT_USER_ID,
+    title: "ผัดพริกแกงหมูกรอบ",
+    description: "หมูกรอบชิ้นใหญ่เต็มคำ รสชาติจัดจ้าน",
+    tag: "อาหารไทย",
+    timeAgo: "1 วันที่แล้ว",
+  },
+];
 
+// Fill up to 15 items for the grid
+for (let i = 5; i <= 15; i++) {
+  MOCK_POSTS.push({
+    ...MOCK_POSTS[i % 4],
+    id: String(i),
+  });
+}
+
+// Mock restaurants for search results
+const SEARCH_RESTAURANTS: Restaurant[] = [
+  {
+    id: '1',
+    name: 'กะเพราตาแป๊ะ',
+    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
+    description: 'กะเพราพริกแห้งโบราณรสเข้มข้น\nไม่ใส่ถั่วฝักยาว ไข่เป็ดกรอบลาวา',
+    openTime: 'เปิดตั้งแต่ 10.00 น. - 20.00 น.',
+    address: 'คลองหลวง ปทุมธานี',
+    distance: '800 ม.',
+    rating: 4.8,
+  },
+  {
+    id: '2',
+    name: 'ครัวป้าณี กะเพรากะทะเหล็ก',
+    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
+    description: 'สูตรโบราณผัดแห้งหอมกลิ่นคั่วกระทะเหล็ก\nใช้หมูสับอนามัยคัดเป็นอย่างดี',
+    openTime: 'เปิดตั้งแต่ 12.00 น. - 19.00 น.',
+    address: 'รังสิต ปทุมธานี',
+    distance: '1.3 กม.',
+    rating: 4.6,
+  },
+  {
+    id: '3',
+    name: 'กะเพราแซ่บสะท้าน',
+    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591',
+    description: 'รสชาติจัดจ้าน เผ็ดร้อนถึงใจ\nพร้อมไข่ดาวเยิ้มๆ และน้ำซุปร้อนๆ',
+    openTime: 'เปิดตั้งแต่ 11.00 น. - 22.00 น.',
+    address: 'รังสิต ปทุมธานี',
+    distance: '1.5 กม.',
+    rating: 4.7,
+  },
+  {
+    id: '4',
+    name: 'ครัวบ้านเรา',
+    image: 'https://images.unsplash.com/photo-1552566626-52f8b828add9',
+    description: 'อาหารตามสั่งรสเด็ด วัตถุดิบสดใหม่\nเมนูแนะนำ ข้าวผัดปู กะเพราทะเล',
+    openTime: 'เปิดตั้งแต่ 09.00 น. - 21.00 น.',
+    address: 'คลองหลวง ปทุมธานี',
+    distance: '2.1 กม.',
+    rating: 4.5,
+  },
+];
 
 export default function SearchScreen() {
   const { user } = useAuth();
   const [inputValue, setInputValue] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<{ id?: string | number; query: string }[]>([]);
-  const [searchResults, setSearchResults] = useState<PopupPostData[]>([]);
+  const [recentSearches, setRecentSearches] = useState([
+    'หมูกรอบเจ้าดัง',
+    'คาเฟ่แมว นิมมาน',
+    'ข้าวซอยเนื้อ',
+  ]);
+  const [searchTab, setSearchTab] = useState<SearchTabType>('posts');
+
+  // Feed view mode & Popup post modal state
+  const [showFeed, setShowFeed] = useState(false);
   const [popupPost, setPopupPost] = useState<PopupPostData | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
@@ -46,43 +134,22 @@ export default function SearchScreen() {
       lastFromRef.current = from;
       setInputValue('');
       setIsSearching(false);
-      setSearchResults([]);
-    }
-  }, [from]);
+      setShowFeed(false);
+      setPopupPost(null);
+      setSearchTab('posts');
+    }, [])
+  );
 
-  const loadHistory = useCallback(async () => {
-    const history = await fetchSearchHistory();
-    if (history && history.length > 0) {
-      const seen = new Set<string>();
-      const uniqueHistory: { id?: string | number; query: string }[] = [];
-
-      for (const item of history) {
-        if (!item?.query) continue;
-        const queryText = item.query.trim();
-        const clean = queryText.replace(/^#/, '').toLowerCase();
-
-        // 1. Skip if it's from foodcat / ingredientcat
-        if (isFoodCategory(clean)) continue;
-
-        // 2. Skip duplicates (show only once)
-        if (seen.has(clean)) continue;
-        seen.add(clean);
-
-        uniqueHistory.push({ id: item.id, query: queryText });
-      }
-
-      setRecentSearches(uniqueHistory);
-    } else {
-      setRecentSearches([]);
-    }
-    
-    if (user?.id) {
-      const saved = await getSavedPosts();
-      if (saved && saved.length > 0) {
-        setBookmarkedIds(saved.map((s) => s.id));
-      } else {
-        setBookmarkedIds([]);
-      }
+  const handleSearch = (text: string) => {
+    const trimmed = text.trim();
+    if (trimmed !== '') {
+      setInputValue(trimmed);
+      setIsSearching(true);
+      setShowFeed(false);
+      setRecentSearches((prev) => [
+        trimmed,
+        ...prev.filter((item) => item !== trimmed),
+      ].slice(0, 10));
     } else {
       setBookmarkedIds([]);
     }
@@ -122,12 +189,8 @@ export default function SearchScreen() {
     performSearch(inputValue, true);
   };
 
-  const handleClearHistory = async (index: number) => {
-    const item = recentSearches[index];
-    if (item.id) {
-      await deleteSearchHistoryItem(item.id);
-    }
-    setRecentSearches(prev => prev.filter((_, i) => i !== index));
+  const handleClearHistory = (index: number) => {
+    setRecentSearches((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleClearAllHistory = async () => {
@@ -135,67 +198,13 @@ export default function SearchScreen() {
     setRecentSearches([]);
   };
 
-  const handleTrendPress = (text: string) => {
-    setInputValue(text);
-    performSearch(text, false);
-  };
-
-  const handleHistoryPress = (text: string) => {
-    setInputValue(text);
-    performSearch(text, false);
-  };
-
-  const handlePostPress = (post: PopupPostData) => {
-    setCachedPostList(searchResults);
-    router.push({
-      pathname: "/OtherPost",
-      params: {
-        postId: post.id,
-        post: JSON.stringify(post),
-      },
-    });
-  };
-
-  const handlePostLongPress = (post: PopupPostData) => {
-    setPopupPost(post);
-  };
-
   const handleToggleBookmark = async (postId: string) => {
     const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
     setBookmarkedIds((prev) =>
-      isCurrentlyBookmarked ? prev.filter((id) => id !== postId) : [...prev, postId]
+      prev.includes(postId)
+        ? prev.filter((id) => id !== postId)
+        : [...prev, postId]
     );
-    
-    if (user?.id) {
-      if (isCurrentlyBookmarked) {
-        await unbookmarkPost(postId);
-      } else {
-        await bookmarkPost(postId);
-      }
-    }
-  };
-
-  const handleRequestDelete = (postId: string) => {
-    setDeletePostId(postId);
-    setPopupPost(null);
-    setDeletePopupVisible(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!deletePostId) return;
-    const idToDelete = deletePostId;
-    
-    setSearchResults((prev) => prev.filter((p) => p.id !== idToDelete));
-    setBookmarkedIds((prev) => prev.filter((id) => id !== idToDelete));
-    setDeletePostId(null);
-    setDeletePopupVisible(false);
-    
-    await deletePost(idToDelete);
-  };
-
-  const handleCancelDelete = () => {
-    setDeletePostId(null);
-    setDeletePopupVisible(false);
   };
 
   return (
@@ -208,7 +217,7 @@ export default function SearchScreen() {
           if (isSearching) {
             setIsSearching(false);
             setInputValue('');
-            setSearchResults([]);
+            setSearchTab('posts');
           } else {
             if (from) {
               router.push(decodeURIComponent(from) as any);
@@ -220,17 +229,25 @@ export default function SearchScreen() {
         rightIcon="none"
       />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <Feather name="search" size={20} color="#6B4F48" style={styles.searchIcon} />
+          <Feather
+            name="search"
+            size={20}
+            color="#6B4F48"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="ค้นหาเมนูหรือเพื่อน..."
             placeholderTextColor="#A0938F"
             value={inputValue}
             onChangeText={setInputValue}
-            onSubmitEditing={handleSearchSubmit}
+            onSubmitEditing={() => handleSearch(inputValue)}
             returnKeyType="search"
           />
           {inputValue.length > 0 && (
@@ -247,60 +264,69 @@ export default function SearchScreen() {
           )}
         </View>
 
+        {/* Tab Filter (shown when searching) */}
+        {isSearching && (
+          <SearchTabFilter
+            activeTab={searchTab}
+            onTabChange={setSearchTab}
+          />
+        )}
+
         {!isSearching ? (
-          /* Initial View (History & Trending) */
-          <>
-            <View style={styles.trendSection}>
-              <View style={styles.trendHeader}>
-                <ThemedText style={styles.trendTitle}>🔥 เมนูฮิตติดกระแส</ThemedText>
-              </View>
-              <View style={styles.trendTags}>
-                <Pressable onPress={() => handleTrendPress('อาหารจานเดียว')} style={[styles.pill, styles.pillGreen]}>
-                  <ThemedText style={styles.pillTextGreen}>#อาหารจานเดียว</ThemedText>
-                </Pressable>
-                <Pressable onPress={() => handleTrendPress('ของหวาน')} style={[styles.pill, styles.pillBrown]}>
-                  <ThemedText style={styles.pillTextBrown}>#ของหวาน</ThemedText>
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.historySection}>
-              <View style={styles.historyHeader}>
-                <ThemedText style={styles.historyTitle}>ล่าสุด</ThemedText>
-                <Pressable onPress={handleClearAllHistory}>
-                  <ThemedText style={styles.clearAllText}>ลบทิ้งทั้งหมด</ThemedText>
-                </Pressable>
-              </View>
-
-              {recentSearches.map((item, index) => (
-                <View key={`${item.query}-${index}`} style={styles.historyItem}>
-                  <Pressable style={styles.historyItemContent} onPress={() => handleHistoryPress(item.query)}>
-                    <MaterialCommunityIcons name="history" size={20} color="#C4B5A5" style={styles.historyIcon} />
-                    <ThemedText style={styles.historyText}>{item.query}</ThemedText>
-                  </Pressable>
-                  <Pressable onPress={() => handleClearHistory(index)} hitSlop={8}>
-                    <Feather name="x" size={18} color="#C4B5A5" />
-                  </Pressable>
+          /* Initial View (Trending & History) */
+          <SearchHistory
+            recentSearches={recentSearches}
+            onSelectSearch={handleSearch}
+            onClearHistoryItem={handleClearHistory}
+            onClearAllHistory={handleClearAllHistory}
+          />
+        ) : searchTab === 'posts' ? (
+          showFeed ? (
+            /* Feed View Mode */
+            <View style={styles.feedContainer}>
+              {MOCK_POSTS.map((post) => (
+                <View key={post.id} style={styles.postWrapper}>
+                  <PopupPost
+                    visible={true}
+                    post={post}
+                    onClose={() => {}}
+                    inline
+                    isOwnPost={post.userId === CURRENT_USER_ID}
+                    isBookmarked={bookmarkedIds.includes(post.id)}
+                    onBookmark={handleToggleBookmark}
+                    onUserPress={(userId) => {
+                      if (userId === CURRENT_USER_ID) {
+                        router.push('/(tabs)/profile');
+                      } else {
+                        router.push('/OtherProfile');
+                      }
+                    }}
+                  />
                 </View>
               ))}
             </View>
-          </>
-        ) : loading ? (
-          <PostSkeleton count={2} />
-        ) : (
-          /* Grid View Mode */
-          <View style={styles.gridContainer}>
-            {searchResults.length > 0 ? (
+          ) : (
+            /* Grid View Mode */
+            <View style={styles.gridContainer}>
               <PostGrid
-                posts={searchResults}
-                onPressPost={handlePostPress}
-                onLongPressPost={handlePostLongPress}
+                posts={MOCK_POSTS}
+                onPressPost={() => setShowFeed(true)}
+                onLongPressPost={(post) => setPopupPost(post)}
               />
-            ) : (
-              <View style={styles.emptyContainer}>
-                <ThemedText style={styles.emptyText}>ไม่พบผลการค้นหา</ThemedText>
-              </View>
-            )}
+            </View>
+          )
+        ) : (
+          /* Restaurant List View Mode */
+          <View style={styles.restaurantListContainer}>
+            {SEARCH_RESTAURANTS.map((restaurant) => (
+              <RestaurantCard
+                key={restaurant.id}
+                restaurant={restaurant}
+                onPress={() => {
+                  console.log('Selected restaurant:', restaurant.name);
+                }}
+              />
+            ))}
           </View>
         )}
       </ScrollView>
@@ -316,13 +342,10 @@ export default function SearchScreen() {
         onRequestDelete={handleRequestDelete}
         onUserPress={(postUserId) => {
           setPopupPost(null);
-          if (user && postUserId === user.id) {
-            router.push("/(tabs)/profile");
+          if (userId === CURRENT_USER_ID) {
+            router.push('/(tabs)/profile');
           } else {
-            router.push({
-              pathname: "/OtherProfile",
-              params: { userId: postUserId },
-            });
+            router.push('/OtherProfile');
           }
         }}
       />
@@ -337,15 +360,20 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#FFF8F6" },
-  scrollContent: { paddingBottom: 110 },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFF8ED',
+  },
+  scrollContent: {
+    paddingBottom: 50,
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     marginHorizontal: 16,
     marginTop: 16,
-    marginBottom: 24,
+    marginBottom: 20,
     height: 48,
     borderRadius: 24,
     borderWidth: 1,
@@ -361,86 +389,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#4B3500',
     height: '100%',
-  },
-  trendSection: {
-    paddingHorizontal: 16,
-    marginBottom: 32,
-  },
-  trendHeader: {
-    marginBottom: 12,
-  },
-  trendTitle: {
-    fontSize: 18,
-    fontFamily: 'NotoSansThai_700Bold',
-    fontWeight: '800',
-    color: '#4B3500',
-  },
-  trendTags: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  pill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  pillGreen: {
-    backgroundColor: '#A4EFCB',
-  },
-  pillTextGreen: {
-    fontSize: 14,
-    fontFamily: 'NotoSansThai_700Bold',
-    color: '#236F52',
-  },
-  pillBrown: {
-    backgroundColor: '#D1A354',
-  },
-  pillTextBrown: {
-    fontSize: 14,
-    fontFamily: 'NotoSansThai_700Bold',
-    color: '#4B3500',
-  },
-  historySection: {
-    paddingHorizontal: 16,
-  },
-  historyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  historyTitle: {
-    fontSize: 18,
-    fontFamily: 'NotoSansThai_700Bold',
-    fontWeight: '800',
-    color: '#4B3500',
-  },
-  clearAllText: {
-    fontSize: 13,
-    fontFamily: 'NotoSansThai_700Bold',
-    color: '#B63A26',
-  },
-  historyItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderColor: '#E8DCD7',
-    borderStyle: 'dashed',
-  },
-  historyItemContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  historyIcon: {
-    marginRight: 12,
-  },
-  historyText: {
-    fontSize: 15,
-    fontFamily: 'NotoSansThai_400Regular',
-    color: '#57423E',
   },
   loadingContainer: {
     paddingVertical: 40,
@@ -464,5 +412,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'NotoSansThai_400Regular',
     color: '#8A7B75',
+  },
+  restaurantListContainer: {
+    paddingHorizontal: 16,
   },
 });

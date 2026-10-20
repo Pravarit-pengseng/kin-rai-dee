@@ -217,7 +217,7 @@ export async function getUserPosts(
         const { data: posts, error } = await supabase
             .from('posts')
             .select(
-                '*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))',
+                '*, post_categories(categories(id, name))',
             )
             .eq('user_id', userId)
             .order('created_at', {

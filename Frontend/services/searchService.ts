@@ -1,7 +1,7 @@
 import { fetchApi } from './api';
 import { supabase } from '@/lib/supabase';
 import { PopupPostData } from '@/components/popup-post';
-import { resolveCategoryNames, mapPostToPopup } from './postService';
+import { resolveCategoryNames, mapPostToPopup, attachProfilesToPosts } from './postService';
 
 export interface SearchHistoryItem {
   id: number | string;
@@ -26,12 +26,13 @@ export async function searchPosts(query: string): Promise<PopupPostData[]> {
   try {
     const { data: posts, error } = await supabase
       .from('posts')
-      .select('*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))')
+      .select('*, post_categories(categories(id, name))')
       .ilike('food_name', `%${query}%`)
       .order('created_at', { ascending: false });
 
     if (!error && posts && posts.length > 0) {
-      return posts.map(mapPostToPopup);
+      const populated = await attachProfilesToPosts(posts);
+      return populated.map(mapPostToPopup);
     }
   } catch (e) {
     console.warn('Supabase search posts fallback error:', e);

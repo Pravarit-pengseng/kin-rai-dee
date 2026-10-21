@@ -1,3 +1,5 @@
+import re
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
@@ -19,22 +21,24 @@ class SearchHistoryCreate(BaseModel):
 @router.get("")
 def search_posts(
     q: str = Query("", description="Search term"),
+    limit: int = Query(20, ge=1, le=100, description="Max items to return"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
 ):
-    """Search posts by food_name or description."""
+    """Search posts by food_name or description with partial match and pagination."""
     if not supabase:
         return []
 
     try:
         search_term = q.strip()
 
-        # Empty search → latest posts
+        # Empty search → latest posts with pagination
         if not search_term:
             response = (
                 supabase
                 .table("posts")
                 .select("*, post_categories(categories(id, name))")
                 .order("created_at", desc=True)
-                .limit(20)
+                .range(offset, offset + limit - 1)
                 .execute()
             )
 
@@ -42,12 +46,17 @@ def search_posts(
 
             return attach_profiles_to_posts(posts)
 
-        # Search users
-        user_resp = supabase.table("profiles").select("id").or_(f"username.ilike.%{search_term}%,display_name.ilike.%{search_term}%").execute()
+        # Sanitize term for PostgREST .or_() filter
+        safe_term = re.sub(r'[,()"]', '', search_term).strip()
+        if not safe_term:
+            return []
+
+        # Search users by display_name or username
+        user_resp = supabase.table("profiles").select("id").or_(f"username.ilike.%{safe_term}%,display_name.ilike.%{safe_term}%").execute()
         user_ids = [u["id"] for u in user_resp.data] if user_resp.data else []
 
         # Search categories
-        cat_resp = supabase.table("categories").select("id").ilike("name", f"%{search_term}%").execute()
+        cat_resp = supabase.table("categories").select("id").ilike("name", f"%{safe_term}%").execute()
         cat_ids = [c["id"] for c in cat_resp.data] if cat_resp.data else []
         
         cat_post_ids = []
@@ -56,8 +65,8 @@ def search_posts(
             cat_post_ids = [pc["post_id"] for pc in post_cats_resp.data] if post_cats_resp.data else []
 
         or_conds = [
-            f"food_name.ilike.%{search_term}%",
-            f"description.ilike.%{search_term}%"
+            f"food_name.ilike.%{safe_term}%",
+            f"description.ilike.%{safe_term}%"
         ]
         if user_ids:
             user_id_list = ",".join(user_ids)
@@ -75,6 +84,7 @@ def search_posts(
             .select("*, post_categories(categories(id, name))")
             .or_(or_query)
             .order("created_at", desc=True)
+            .range(offset, offset + limit - 1)
             .execute()
         )
 

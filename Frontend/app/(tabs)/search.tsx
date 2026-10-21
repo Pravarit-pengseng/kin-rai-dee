@@ -1,12 +1,9 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
   TextInput,
   ScrollView,
-  ActivityIndicator,
-  Pressable,
-  Text,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -20,9 +17,7 @@ import PopupPost, { PopupPostData } from '@/components/popup-post';
 import { RestaurantCard, Restaurant } from '@/components/restuarant-card';
 import { SearchTabFilter, SearchTabType } from '@/components/search-tab-filter';
 import { SearchHistory } from '@/components/search-history';
-import DeletePopup from '@/components/DeletePopup';
 import { useAuth } from '@/context/AuthContext';
-import { FOOD_CATEGORIES } from '@/constants/categories';
 import {
   searchPosts,
   fetchSearchHistory,
@@ -34,136 +29,29 @@ import {
   bookmarkPost,
   unbookmarkPost,
   getSavedPosts,
-  deletePost,
 } from '@/services/postService';
 import { searchRestaurants } from '@/services/restaurantService';
-
-const CURRENT_USER_ID = "me";
-const OTHER_USER_ID = "mookmhee";
-
-// Mock posts for search results fallback
-const MOCK_POSTS: PopupPostData[] = [
-  {
-    id: "1",
-    image: require("@/assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-    title: "กะเพราไข่ดาว",
-    description: "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า ใครยังไม่รู้จะกินอะไร แนะนำเมนูที่อร่อยไม่เคยเปลี่ยน!",
-    location: "https://www.wongnai.com/listings/phat-ka-phrao",
-    tags: ["อาหารจานเดียว"],
-    timeAgo: "2 ชม. ที่แล้ว",
-  },
-  {
-    id: "2",
-    image: require("@/assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-    title: "กะเพราหมูสับ",
-    description: "กะเพราหมูสับไข่ดาว อร่อยเหมือนเดิม",
-    tags: ["อาหารจานเดียว"],
-    timeAgo: "4 ชม. ที่แล้ว",
-  },
-  {
-    id: "3",
-    image: require("@/assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-    title: "ข้าวผัดกุ้ง",
-    description: "ข้าวผัดกุ้งร้อนๆ มาแล้วครับทุกคน อร่อยมาก!",
-    tags: ["อาหารจานเดียว"],
-    timeAgo: "5 ชม. ที่แล้ว",
-  },
-  {
-    id: "4",
-    image: require("@/assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-    title: "ผัดพริกแกงหมูกรอบ",
-    description: "หมูกรอบชิ้นใหญ่เต็มคำ รสชาติจัดจ้าน",
-    tags: ["อาหารไทย"],
-    timeAgo: "1 วันที่แล้ว",
-  },
-];
-
-for (let i = 5; i <= 15; i++) {
-  MOCK_POSTS.push({
-    ...MOCK_POSTS[i % 4],
-    id: String(i),
-  });
-}
-
-// Mock restaurants for search results
-const SEARCH_RESTAURANTS: Restaurant[] = [
-  {
-    id: '1',
-    name: 'กะเพราตาแป๊ะ',
-    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
-    description: 'กะเพราพริกแห้งโบราณรสเข้มข้น\nไม่ใส่ถั่วฝักยาว ไข่เป็ดกรอบลาวา',
-    openTime: 'เปิดตั้งแต่ 10.00 น. - 20.00 น.',
-    address: 'คลองหลวง ปทุมธานี',
-    distance: '800 ม.',
-    rating: 4.8,
-  },
-  {
-    id: '2',
-    name: 'ครัวป้าณี กะเพรากะทะเหล็ก',
-    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
-    description: 'สูตรโบราณผัดแห้งหอมกลิ่นคั่วกระทะเหล็ก\nใช้หมูสับอนามัยคัดเป็นอย่างดี',
-    openTime: 'เปิดตั้งแต่ 12.00 น. - 19.00 น.',
-    address: 'รังสิต ปทุมธานี',
-    distance: '1.3 กม.',
-    rating: 4.6,
-  },
-  {
-    id: '3',
-    name: 'กะเพราแซ่บสะท้าน',
-    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591',
-    description: 'รสชาติจัดจ้าน เผ็ดร้อนถึงใจ\nพร้อมไข่ดาวเยิ้มๆ และน้ำซุปร้อนๆ',
-    openTime: 'เปิดตั้งแต่ 11.00 น. - 22.00 น.',
-    address: 'รังสิต ปทุมธานี',
-    distance: '1.5 กม.',
-    rating: 4.7,
-  },
-  {
-    id: '4',
-    name: 'ครัวบ้านเรา',
-    image: 'https://images.unsplash.com/photo-1552566626-52f8b828add9',
-    description: 'อาหารตามสั่งรสเด็ด วัตถุดิบสดใหม่\nเมนูแนะนำ ข้าวผัดปู กะเพราทะเล',
-    openTime: 'เปิดตั้งแต่ 09.00 น. - 21.00 น.',
-    address: 'คลองหลวง ปทุมธานี',
-    distance: '2.1 กม.',
-    rating: 4.5,
-  },
-];
-
-const isFoodCategory = (query: string): boolean => {
-  return FOOD_CATEGORIES.some(
-    (c) => c.label.toLowerCase() === query.trim().toLowerCase()
-  );
-};
 
 export default function SearchScreen() {
   const { user, isLoggedIn } = useAuth();
   const [inputValue, setInputValue] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [searchTab, setSearchTab] = useState<SearchTabType>('posts');
+
+  // Real Results (no mock data)
   const [searchResults, setSearchResults] = useState<PopupPostData[]>([]);
   const [restaurantResults, setRestaurantResults] = useState<Restaurant[]>([]);
-  const [restaurantLoading, setRestaurantLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [recentSearches, setRecentSearches] = useState<string[]>([
-    'หมูกรอบเจ้าดัง',
-    'คาเฟ่แมว นิมมาน',
-    'ข้าวซอยเนื้อ',
-  ]);
-  const [searchTab, setSearchTab] = useState<SearchTabType>('posts');
 
   // Feed view mode & Popup post modal state
   const [showFeed, setShowFeed] = useState(false);
   const [popupPost, setPopupPost] = useState<PopupPostData | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
-  const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
   const { from } = useLocalSearchParams<{ from?: string }>();
-  const lastFromRef = useRef<string | undefined>(undefined);
 
+  // Fetch user location for nearby restaurants
   useEffect(() => {
     (async () => {
       try {
@@ -178,12 +66,13 @@ export default function SearchScreen() {
           });
         }
       } catch (e) {
-        console.log('Location detection in search error:', e);
+        // location optional
       }
     })();
   }, []);
 
-  const loadHistory = useCallback(async () => {
+  // Load history & bookmarks
+  const loadUserData = useCallback(async () => {
     if (isLoggedIn) {
       const historyItems = await fetchSearchHistory();
       if (historyItems && historyItems.length > 0) {
@@ -199,89 +88,64 @@ export default function SearchScreen() {
         setBookmarkedIds([]);
       }
     } else {
-      setRecentSearches([
-        'หมูกรอบเจ้าดัง',
-        'คาเฟ่แมว นิมมาน',
-        'ข้าวซอยเนื้อ',
-      ]);
+      setRecentSearches([]);
       setBookmarkedIds([]);
     }
   }, [isLoggedIn]);
 
-  useEffect(() => {
-    if (from !== undefined && from !== lastFromRef.current) {
-      lastFromRef.current = from;
+  // Reset state when screen is focused
+  useFocusEffect(
+    useCallback(() => {
       setInputValue('');
       setIsSearching(false);
       setShowFeed(false);
       setPopupPost(null);
       setSearchResults([]);
+      setRestaurantResults([]);
       setSearchTab('posts');
-    }
-  }, [from]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadHistory();
-    }, [loadHistory])
+      loadUserData();
+    }, [loadUserData])
   );
 
-  const performSearch = async (text: string, saveHistory = true) => {
-    const queryStr = text.trim();
-    if (queryStr === '') {
+  const handleSearch = async (text: string) => {
+    const trimmed = text.trim();
+    if (trimmed !== '') {
+      setInputValue(trimmed);
+      setIsSearching(true);
+      setShowFeed(false);
+      setRecentSearches((prev) => [
+        trimmed,
+        ...prev.filter((item) => item !== trimmed),
+      ].slice(0, 10));
+
+      // Save history to backend if logged in
+      if (isLoggedIn) {
+        addSearchHistory(trimmed).catch(() => {});
+      }
+
+      // Query posts & restaurants from real backend APIs
+      const lat = userLocation?.latitude || 14.0734;
+      const lng = userLocation?.longitude || 100.6033;
+
+      try {
+        const [apiPosts, apiRestaurants] = await Promise.all([
+          searchPosts(trimmed),
+          searchRestaurants(trimmed, lat, lng),
+        ]);
+
+        setSearchResults(apiPosts || []);
+        setRestaurantResults(apiRestaurants || []);
+      } catch (e) {
+        console.warn('Search error:', e);
+        setSearchResults([]);
+        setRestaurantResults([]);
+      }
+    } else {
       setIsSearching(false);
+      setShowFeed(false);
       setSearchResults([]);
       setRestaurantResults([]);
-      return;
     }
-
-    setInputValue(queryStr);
-    setIsSearching(true);
-    setLoading(true);
-    setRestaurantLoading(true);
-
-    const isCategory = isFoodCategory(queryStr);
-    if (saveHistory && !isCategory) {
-      if (isLoggedIn) {
-        await addSearchHistory(queryStr);
-        loadHistory();
-      } else {
-        setRecentSearches((prev) => [
-          queryStr,
-          ...prev.filter((item) => item !== queryStr),
-        ].slice(0, 10));
-      }
-    }
-
-    const lat = userLocation?.latitude || 14.0734;
-    const lng = userLocation?.longitude || 100.6033;
-
-    // Search both posts and restaurants concurrently
-    const [results, restResults] = await Promise.all([
-      searchPosts(queryStr),
-      searchRestaurants(queryStr, lat, lng),
-    ]);
-
-    if (results && results.length > 0) {
-      setSearchResults(results);
-    } else {
-      // Fallback filter on local MOCK_POSTS
-      const fallback = MOCK_POSTS.filter(
-        (p) =>
-          p.title?.toLowerCase().includes(queryStr.toLowerCase()) ||
-          p.description?.toLowerCase().includes(queryStr.toLowerCase()) ||
-          (p.tags && p.tags.some((t) => t.toLowerCase().includes(queryStr.toLowerCase())))
-      );
-      setSearchResults(fallback);
-    }
-    setLoading(false);
-
-    setRestaurantResults(restResults || []);
-    setRestaurantLoading(false);
-  };
-
-  const handleSearchSubmit = () => {
-    performSearch(inputValue, true);
   };
 
   const handleClearHistory = async (index: number) => {
@@ -289,8 +153,6 @@ export default function SearchScreen() {
       const historyItems = await fetchSearchHistory();
       if (historyItems && historyItems[index]) {
         await deleteSearchHistoryItem(historyItems[index].id);
-        loadHistory();
-        return;
       }
     }
     setRecentSearches((prev) => prev.filter((_, i) => i !== index));
@@ -318,40 +180,6 @@ export default function SearchScreen() {
     }
   };
 
-  const handleRequestDelete = (postId: string) => {
-    setDeletePostId(postId);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (deletePostId) {
-      const idToDelete = deletePostId;
-      setSearchResults((prev) => prev.filter((p) => p.id !== idToDelete));
-      setDeletePostId(null);
-      setPopupPost(null);
-      await deletePost(idToDelete);
-    }
-  };
-
-  const handleCancelDelete = () => {
-    setDeletePostId(null);
-  };
-
-  const handleEditPost = (post: any) => {
-    router.push({
-      pathname: "/EditPost",
-      params: { postId: post.id, post: JSON.stringify(post) },
-    });
-  };
-
-  const filteredRestaurants = inputValue.trim()
-    ? SEARCH_RESTAURANTS.filter(
-      (r) =>
-        r.name.toLowerCase().includes(inputValue.toLowerCase()) ||
-        (r.description && r.description.toLowerCase().includes(inputValue.toLowerCase())) ||
-        (r.address && r.address.toLowerCase().includes(inputValue.toLowerCase()))
-    )
-    : SEARCH_RESTAURANTS;
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
@@ -365,6 +193,7 @@ export default function SearchScreen() {
             setIsSearching(false);
             setInputValue('');
             setSearchResults([]);
+            setRestaurantResults([]);
             setSearchTab('posts');
           } else {
             if (from) {
@@ -395,22 +224,9 @@ export default function SearchScreen() {
             placeholderTextColor="#A0938F"
             value={inputValue}
             onChangeText={setInputValue}
-            onSubmitEditing={handleSearchSubmit}
+            onSubmitEditing={() => handleSearch(inputValue)}
             returnKeyType="search"
           />
-          {inputValue.length > 0 && (
-            <Pressable
-              onPress={() => {
-                setInputValue('');
-                setIsSearching(false);
-                setSearchResults([]);
-                setRestaurantResults([]);
-              }}
-              hitSlop={8}
-            >
-              <Feather name="x" size={18} color="#A0938F" style={{ marginRight: 4 }} />
-            </Pressable>
-          )}
         </View>
 
         {/* Tab Filter (shown when searching) */}
@@ -425,20 +241,12 @@ export default function SearchScreen() {
           /* Initial View (Trending & History) */
           <SearchHistory
             recentSearches={recentSearches}
-            onSelectSearch={(text) => performSearch(text, false)}
+            onSelectSearch={handleSearch}
             onClearHistoryItem={handleClearHistory}
             onClearAllHistory={handleClearAllHistory}
           />
         ) : searchTab === 'posts' ? (
-          loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#DCA64E" />
-            </View>
-          ) : searchResults.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>ไม่พบผลลัพธ์สำหรับ "{inputValue}"</Text>
-            </View>
-          ) : showFeed ? (
+          showFeed ? (
             /* Feed View Mode */
             <View style={styles.feedContainer}>
               {searchResults.map((post) => (
@@ -446,13 +254,11 @@ export default function SearchScreen() {
                   <PopupPost
                     visible={true}
                     post={post}
-                    onClose={() => { }}
+                    onClose={() => {}}
                     inline
                     isOwnPost={!!user && post.userId === user.id}
                     isBookmarked={bookmarkedIds.includes(post.id)}
                     onBookmark={handleToggleBookmark}
-                    onEdit={handleEditPost}
-                    onRequestDelete={handleRequestDelete}
                     onUserPress={(userId) => {
                       if (user && userId === user.id) {
                         router.push('/(tabs)/profile');
@@ -480,26 +286,15 @@ export default function SearchScreen() {
         ) : (
           /* Restaurant List View Mode */
           <View style={styles.restaurantListContainer}>
-            {restaurantLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#DCA64E" />
-                <Text style={styles.emptyText}>กำลังค้นหาร้านอาหาร...</Text>
-              </View>
-            ) : restaurantResults.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>ไม่พบร้านอาหารสำหรับ "{inputValue}"</Text>
-              </View>
-            ) : (
-              restaurantResults.map((restaurant) => (
-                <RestaurantCard
-                  key={restaurant.id}
-                  restaurant={restaurant}
-                  onPress={() => {
-                    console.log('Selected restaurant:', restaurant.name);
-                  }}
-                />
-              ))
-            )}
+            {restaurantResults.map((restaurant) => (
+              <RestaurantCard
+                key={restaurant.id}
+                restaurant={restaurant}
+                onPress={() => {
+                  console.log('Selected restaurant:', restaurant.name);
+                }}
+              />
+            ))}
           </View>
         )}
       </ScrollView>
@@ -512,8 +307,6 @@ export default function SearchScreen() {
         isOwnPost={!!user && popupPost?.userId === user.id}
         isBookmarked={popupPost ? bookmarkedIds.includes(popupPost.id) : false}
         onBookmark={handleToggleBookmark}
-        onEdit={handleEditPost}
-        onRequestDelete={handleRequestDelete}
         onUserPress={(userId) => {
           setPopupPost(null);
           if (user && userId === user.id) {
@@ -525,12 +318,6 @@ export default function SearchScreen() {
             });
           }
         }}
-      />
-
-      <DeletePopup
-        visible={deletePostId !== null}
-        onCancel={handleCancelDelete}
-        onConfirm={handleConfirmDelete}
       />
     </SafeAreaView>
   );
@@ -567,10 +354,6 @@ const styles = StyleSheet.create({
     color: '#4B3500',
     height: '100%',
   },
-  loadingContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
   gridContainer: {
     flex: 1,
   },
@@ -579,16 +362,6 @@ const styles = StyleSheet.create({
   },
   postWrapper: {
     marginBottom: 16,
-  },
-  emptyContainer: {
-    paddingVertical: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    fontFamily: 'NotoSansThai_400Regular',
-    color: '#8A7B75',
   },
   restaurantListContainer: {
     paddingHorizontal: 16,

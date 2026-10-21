@@ -559,3 +559,106 @@ def test_clear_search_history(auth_headers):
     body = response.json()
 
     assert body["success"] is True
+
+
+# =========================================================
+# Comments
+# =========================================================
+
+def test_comment_requires_auth():
+    response = client.post(
+        "/api/posts/1/comments",
+        json={"content": "Test comment without auth"},
+    )
+    assert response.status_code in (401, 403)
+
+
+def test_get_comments_for_nonexistent_post():
+    response = client.get("/api/posts/999999999/comments")
+    assert response.status_code == 404
+
+
+def test_comment_lifecycle_with_auth(auth_headers):
+    # Fetch a post to comment on
+    posts_resp = client.get("/api/posts/feed?limit=1")
+    assert posts_resp.status_code == 200
+    feed = posts_resp.json()
+    if not feed:
+        pytest.skip("No posts available to test comments on")
+
+    post_id = feed[0]["id"]
+
+    # Create comment
+    create_resp = client.post(
+        f"/api/posts/{post_id}/comments",
+        headers=auth_headers,
+        json={"content": "อร่อยมากกก ทดสอบคอมเมนต์"},
+    )
+    assert create_resp.status_code == 200, create_resp.text
+    create_body = create_resp.json()
+    assert create_body["success"] is True
+    comment = create_body["data"]
+    comment_id = comment["id"]
+    assert comment["content"] == "อร่อยมากกก ทดสอบคอมเมนต์"
+
+    # Get comments
+    get_resp = client.get(f"/api/posts/{post_id}/comments")
+    assert get_resp.status_code == 200
+    get_body = get_resp.json()
+    assert get_body["success"] is True
+    assert any(c["id"] == comment_id for c in get_body["data"])
+
+    # Update comment
+    update_resp = client.patch(
+        f"/api/posts/{post_id}/comments/{comment_id}",
+        headers=auth_headers,
+        json={"content": "แก้ไขคอมเมนต์แล้ว"},
+    )
+    assert update_resp.status_code == 200
+    update_body = update_resp.json()
+    assert update_body["success"] is True
+
+    # Delete comment
+    del_resp = client.delete(
+        f"/api/posts/{post_id}/comments/{comment_id}",
+        headers=auth_headers,
+    )
+    assert del_resp.status_code == 200
+    del_body = del_resp.json()
+    assert del_body["success"] is True
+
+
+# =========================================================
+# Search with Pagination & Partial Match
+# =========================================================
+
+def test_search_posts_with_pagination():
+    response = client.get("/api/search?q=ไก่&limit=5&offset=0")
+    assert response.status_code == 200
+    body = response.json()
+    assert isinstance(body, list)
+    assert len(body) <= 5
+
+
+# =========================================================
+# Restaurants (Google Places & Mock Fallback)
+# =========================================================
+
+def test_nearby_restaurants():
+    response = client.get("/api/restaurants/nearby?keyword=กะเพรา&lat=14.0734&lng=100.6033")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    if data:
+        assert "name" in data[0]
+        assert "distance" in data[0]
+
+
+def test_search_restaurants():
+    response = client.get("/api/restaurants/search?query=ส้มตำ&lat=14.0734&lng=100.6033")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    if data:
+        assert "name" in data[0]
+        assert "mapUrl" in data[0]

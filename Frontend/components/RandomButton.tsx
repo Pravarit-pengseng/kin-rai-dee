@@ -15,6 +15,7 @@ export interface RandomButtonProps {
   borderBottomColor?: string;
   borderWidth?: number;
   borderBottomWidth?: number;
+  paddingVertical?: number;
 }
 
 export function RandomButton({
@@ -30,6 +31,7 @@ export function RandomButton({
   borderBottomColor,
   borderWidth,
   borderBottomWidth,
+  paddingVertical,
 }: RandomButtonProps) {
   const isRerandom = variant === 'rerandom';
 
@@ -51,6 +53,7 @@ export function RandomButton({
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: finalBgColor },
+        paddingVertical !== undefined && { paddingVertical },
         finalBorderWidth !== undefined && { borderWidth: finalBorderWidth },
         finalBorderColor !== undefined && { borderColor: finalBorderColor },
         finalBorderBottomWidth !== undefined && { borderBottomWidth: finalBorderBottomWidth },

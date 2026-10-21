@@ -71,6 +71,30 @@ export function mapPostToPopup(post: any): PopupPostData {
   };
 }
 
+export async function attachProfilesToPosts(posts: any[]): Promise<any[]> {
+  if (!posts || posts.length === 0) return [];
+  const userIds = [...new Set(posts.map((p) => p.user_id).filter(Boolean))];
+  if (userIds.length === 0) return posts;
+
+  try {
+    const { data: profs } = await supabase
+      .from('profiles')
+      .select('id, username, display_name, avatar_url')
+      .in('id', userIds);
+
+    if (profs && profs.length > 0) {
+      const map = Object.fromEntries(profs.map((pr) => [pr.id, pr]));
+      return posts.map((p) => ({
+        ...p,
+        profiles: map[p.user_id] || p.profiles || null,
+      }));
+    }
+  } catch (err) {
+    console.warn('attachProfilesToPosts error:', err);
+  }
+  return posts;
+}
+
 /**
  * GET Feed Posts
  * Public
@@ -91,14 +115,13 @@ export async function fetchFeedPosts(
   try {
     const { data: supaData } = await supabase
       .from('posts')
-      .select(
-        '*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))',
-      )
+      .select('*, post_categories(categories(id, name))')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (supaData && supaData.length > 0) {
-      return supaData.map(mapPostToPopup);
+      const populated = await attachProfilesToPosts(supaData);
+      return populated.map(mapPostToPopup);
     }
   } catch (e) {
     console.warn(
@@ -129,14 +152,13 @@ export async function getPostDetail(
   try {
     const { data: supaData } = await supabase
       .from('posts')
-      .select(
-        '*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))',
-      )
+      .select('*, post_categories(categories(id, name))')
       .eq('id', postId)
       .maybeSingle();
 
     if (supaData) {
-      return mapPostToPopup(supaData);
+      const [populated] = await attachProfilesToPosts([supaData]);
+      return mapPostToPopup(populated);
     }
   } catch (e) {
     console.warn(
@@ -491,17 +513,15 @@ export async function getSavedPosts(): Promise<PopupPostData[]> {
     const { data: savedData } = await supabase
       .from('saved_posts')
       .select(
-        'post_id, created_at, posts(*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name)))',
+        'post_id, created_at, posts(*, post_categories(categories(id, name)))',
       )
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (savedData) {
-      return savedData
-        .filter((item: any) => item.posts)
-        .map((item: any) =>
-          mapPostToPopup(item.posts),
-        );
+      const rawPosts = savedData.filter((item: any) => item.posts).map((item: any) => item.posts);
+      const populated = await attachProfilesToPosts(rawPosts);
+      return populated.map(mapPostToPopup);
     }
   } catch (e) {
     console.warn(

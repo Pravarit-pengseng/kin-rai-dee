@@ -25,9 +25,19 @@ import {
 } from "lucide-react-native";
 import { useRouter, usePathname } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
+import { getPostComments, addPostComment } from "@/services/postService";
+import { getMyProfile } from "@/services/profileService";
 
 import PostDropdown from "./post-dropdown";
 import { ThemedText } from "@/components/themed-text";
+
+function formatBreakableText(text?: string): string {
+  if (!text) return "";
+  const graphemeRegex = /[\u0E00-\u0E7F][\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]*|[^\u0E00-\u0E7F]/g;
+  const clusters = text.match(graphemeRegex);
+  if (!clusters) return text;
+  return clusters.join("\u200B");
+}
 
 export type CommentItem = {
   id: string;
@@ -35,39 +45,9 @@ export type CommentItem = {
   text: string;
   avatarBg?: string;
   avatarIcon?: string;
+  avatarUrl?: string;
   isCurrentUser?: boolean;
 };
-
-const DEFAULT_COMMENTS: CommentItem[] = [
-  {
-    id: "1",
-    username: "raan.aroy",
-    text: "น่ากินมากกก ไข่ดาวกรอบสะใจสุดๆ 😍🍳",
-    avatarBg: "#FEEBD9",
-    avatarIcon: "🍜",
-  },
-  {
-    id: "2",
-    username: "pun_foodie",
-    text: "พิกัดร้านนี้อยู่แถวไหนคะ เผื่อแวะตามไปกินบ้าง 😋",
-    avatarBg: "#FFE6EC",
-    avatarIcon: "👩🏻‍🍳",
-  },
-  {
-    id: "3",
-    username: "chao.krapow",
-    text: "กะเพราแท้ไม่ใส่ถั่วฝักยาวคือที่สุด! รสชาติน้ำปลาพริกดีงามมากครับ 👍🔥",
-    avatarBg: "#DDF8EB",
-    avatarIcon: "🌶️",
-  },
-  {
-    id: "4",
-    username: "zuck_food",
-    text: "แวะตามรอยแล้วครับ อร่อยสมคำร่ำลือ 10/10 ✨",
-    avatarBg: "#DDF0FF",
-    avatarIcon: "🍽️",
-  },
-];
 
 export type PopupPostData = {
   id: string;
@@ -121,7 +101,7 @@ export default function PopupPost({
 }: PopupPostProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
 
@@ -166,10 +146,23 @@ export default function PopupPost({
     onClose();
   };
 
+  const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(user?.avatarUrl);
+
+  useEffect(() => {
+    if (user?.avatarUrl) {
+      setCurrentUserAvatar(user.avatarUrl);
+    } else if (isLoggedIn) {
+      getMyProfile().then((p) => {
+        if (p?.avatar_url) setCurrentUserAvatar(p.avatar_url);
+      });
+    }
+  }, [user?.avatarUrl, isLoggedIn]);
+
   const title = post.title || "กะเพราไข่ดาว";
   const description =
     post.description ||
     "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า";
+  const breakableDescription = formatBreakableText(description);
   const tags = post.tags && post.tags.length > 0 ? post.tags.map(t => t.replace(/^#+/, "")) : ["อาหารทั่วไป"];
   const location = post.location || "";
   const timeAgo = post.timeAgo || "เมื่อเร็วๆ นี้";
@@ -178,7 +171,7 @@ export default function PopupPost({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
   const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<CommentItem[]>(DEFAULT_COMMENTS);
+  const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentText, setCommentText] = useState("");
   const commentsScrollRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -250,32 +243,67 @@ export default function PopupPost({
     });
   };
 
+  // Load real comments from backend when comments modal opens
+  useEffect(() => {
+    if (showComments && post?.id) {
+      getPostComments(post.id).then((apiComments) => {
+        if (apiComments && apiComments.length > 0) {
+          setComments(
+            apiComments.map((c) => ({
+              id: String(c.id),
+              username: c.username || c.profiles?.display_name || c.profiles?.username || 'ผู้ใช้งาน',
+              text: c.content || c.text || '',
+              avatarUrl: c.profiles?.avatar_url,
+              isCurrentUser: Boolean(user?.id && String(c.user_id) === String(user.id)),
+            }))
+          );
+        }
+      });
+    }
+  }, [showComments, post?.id, user?.id]);
+
   const isPostingRef = useRef(false);
 
-  const handleAddComment = () => {
+  const handleAddComment = async () => {
     const trimmed = commentText.trim();
     if (!trimmed) return;
     if (isPostingRef.current) return;
 
+    if (!isLoggedIn) {
+      handleCloseComments();
+      onClose();
+      router.push({
+        pathname: '/(auth)/login',
+        params: { returnTo: pathname || '/', from: pathname || '/' },
+      });
+      return;
+    }
+
     isPostingRef.current = true;
-    setTimeout(() => {
-      isPostingRef.current = false;
-    }, 500);
+    try {
+      const created = await addPostComment(post.id, trimmed);
+      const newComment: CommentItem = {
+        id: created?.id ? String(created.id) : Date.now().toString(),
+        username: created?.username || created?.profiles?.display_name || user?.displayName || user?.username || displayUserName,
+        text: created?.content || trimmed,
+        avatarUrl: created?.profiles?.avatar_url || currentUserAvatar,
+        isCurrentUser: true,
+      };
 
-    const newComment: CommentItem = {
-      id: Date.now().toString(),
-      username: displayUserName,
-      text: trimmed,
-      isCurrentUser: true,
-    };
+      setComments((prev) => [...prev, newComment]);
+      setCommentText("");
+      Keyboard.dismiss();
 
-    setComments((prev) => [...prev, newComment]);
-    setCommentText("");
-    Keyboard.dismiss();
-
-    setTimeout(() => {
-      commentsScrollRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+      setTimeout(() => {
+        commentsScrollRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (e) {
+      console.warn("Failed to add comment:", e);
+    } finally {
+      setTimeout(() => {
+        isPostingRef.current = false;
+      }, 300);
+    }
   };
 
   const handleContentPress = () => {
@@ -430,7 +458,7 @@ export default function PopupPost({
             onTextLayout={handleTextLayout}
             pointerEvents="none"
           >
-            {description}
+            {breakableDescription}
           </ThemedText>
 
           <Pressable
@@ -442,7 +470,7 @@ export default function PopupPost({
               numberOfLines={isExpanded ? undefined : 2}
               ellipsizeMode="tail"
             >
-              {description}
+              {breakableDescription}
             </ThemedText>
           </Pressable>
 
@@ -563,39 +591,39 @@ export default function PopupPost({
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        {comments.map((item) => (
-          <View key={item.id} style={styles.commentRow}>
-            {item.isCurrentUser ? (
+        {comments.length === 0 ? (
+          <View style={styles.emptyCommentsContainer}>
+            <ThemedText style={styles.emptyCommentsText}>
+              ยังไม่มีความคิดเห็น เป็นคนแรกที่แสดงความคิดเห็น!
+            </ThemedText>
+          </View>
+        ) : (
+          comments.map((item, index) => (
+            <View key={`comment-${item.id}-${index}`} style={styles.commentRow}>
               <View style={styles.commentUserAvatarContainer}>
                 <Image
-                  source={require("../assets/images/ProfilePicture.png")}
+                  source={
+                    item.avatarUrl
+                      ? { uri: item.avatarUrl }
+                      : require("../assets/images/ProfilePicture.png")
+                  }
                   style={styles.commentAvatarImage}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  transition={200}
                 />
               </View>
-            ) : (
-              <View
-                style={[
-                  styles.commentAvatarBadge,
-                  { backgroundColor: item.avatarBg || "#FEEBD9" },
-                ]}
-              >
-                <ThemedText style={styles.commentAvatarEmoji}>
-                  {item.avatarIcon || "🍜"}
+
+              <View style={styles.commentTextContainer}>
+                <ThemedText style={styles.commentUsername}>
+                  {item.username}
+                </ThemedText>
+                <ThemedText style={styles.commentText}>
+                  {item.text}
                 </ThemedText>
               </View>
-            )}
-
-            <View style={styles.commentTextContainer}>
-              <ThemedText style={styles.commentUsername}>
-                {item.username}
-              </ThemedText>
-              <ThemedText style={styles.commentText}>
-                {item.text}
-              </ThemedText>
             </View>
-          </View>
-        ))}
+          ))
+        )}
       </ScrollView>
 
       {/* Bottom comment input row */}
@@ -614,9 +642,14 @@ export default function PopupPost({
       >
         <View style={styles.inputAvatarContainer}>
           <Image
-            source={require("../assets/images/ProfilePicture.png")}
+            source={
+              currentUserAvatar
+                ? { uri: currentUserAvatar }
+                : require("../assets/images/ProfilePicture.png")
+            }
             style={styles.inputAvatarImage}
-            resizeMode="cover"
+            contentFit="cover"
+            transition={200}
           />
         </View>
 
@@ -1010,6 +1043,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     marginBottom: 16,
+  },
+
+  emptyCommentsContainer: {
+    paddingVertical: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  emptyCommentsText: {
+    fontSize: 14,
+    fontFamily: "NotoSansThai_400Regular",
+    color: "#8C7B75",
+    textAlign: "center",
   },
 
   commentAvatarBadge: {

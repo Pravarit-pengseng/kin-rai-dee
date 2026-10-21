@@ -532,3 +532,79 @@ export async function getSavedPosts(): Promise<PopupPostData[]> {
 
   return [];
 }
+
+// ── Comment Services ─────────────────────────────────────────────────────────
+
+export interface CommentData {
+  id: string | number;
+  post_id: number;
+  user_id: string;
+  content: string;
+  created_at?: string;
+  updated_at?: string;
+  profiles?: {
+    id: string;
+    username: string;
+    display_name?: string;
+    avatar_url?: string;
+  };
+  username?: string;
+  text?: string;
+}
+
+export async function getPostComments(postId: string | number): Promise<CommentData[]> {
+  try {
+    const resp = await fetchApi<{ success: boolean; data: CommentData[] } | CommentData[]>(
+      `/api/posts/${postId}/comments`
+    );
+    if (Array.isArray(resp)) return resp;
+    if (resp && typeof resp === 'object' && 'data' in resp && Array.isArray((resp as any).data)) {
+      return (resp as any).data;
+    }
+  } catch (error) {
+    console.warn(`Error fetching comments for post ${postId}:`, error);
+  }
+  return [];
+}
+
+export async function addPostComment(
+  postId: string | number,
+  content: string
+): Promise<CommentData | null> {
+  const resp = await fetchApi<{ success: boolean; data: CommentData }>(
+    `/api/posts/${postId}/comments`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }
+  );
+  return resp?.data || null;
+}
+
+export async function updatePostComment(
+  postId: string | number,
+  commentId: string | number,
+  content: string
+): Promise<boolean> {
+  const resp = await fetchApi<{ success: boolean }>(
+    `/api/posts/${postId}/comments/${commentId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ content }),
+    }
+  );
+  return resp?.success ?? false;
+}
+
+export async function deletePostComment(
+  postId: string | number,
+  commentId: string | number
+): Promise<boolean> {
+  const resp = await fetchApi<{ success: boolean }>(
+    `/api/posts/${postId}/comments/${commentId}`,
+    {
+      method: 'DELETE',
+    }
+  );
+  return resp?.success ?? false;
+}

@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api/posts", tags=["Posts & Bookmarks"])
 
 class PostCreate(BaseModel):
     food_name: str
-    description: Optional[str] = None
+    description: Optional[str] = Field(None, max_length=2000)
     restaurant_url: Optional[str] = None
     image_url: Optional[str] = None
     category_ids: List[int] = Field(default_factory=list)
@@ -17,10 +17,18 @@ class PostCreate(BaseModel):
 
 class PostUpdate(BaseModel):
     food_name: Optional[str] = None
-    description: Optional[str] = None
+    description: Optional[str] = Field(None, max_length=2000)
     restaurant_url: Optional[str] = None
     image_url: Optional[str] = None
     category_ids: Optional[List[int]] = None
+
+
+class CommentCreate(BaseModel):
+    content: str = Field(..., min_length=1, max_length=1000)
+
+
+class CommentUpdate(BaseModel):
+    content: str = Field(..., min_length=1, max_length=1000)
 
 from app.core.config import SUPABASE_URL
 
@@ -71,6 +79,47 @@ def attach_profiles_to_posts(posts: List[dict]) -> List[dict]:
         )
 
     return posts
+
+
+def attach_profiles_to_comments(comments: List[dict]) -> List[dict]:
+    """Helper to attach user profiles and friendly fields to comments."""
+    if not comments or not supabase:
+        return comments
+
+    user_ids = list(set([c["user_id"] for c in comments if c.get("user_id")]))
+    profiles_map = {}
+
+    if user_ids:
+        try:
+            prof_resp = (
+                supabase.table("profiles")
+                .select("id, username, display_name, avatar_url")
+                .in_("id", user_ids)
+                .execute()
+            )
+            if prof_resp.data:
+                for prof in prof_resp.data:
+                    prof["avatar_url"] = normalize_avatar_url(prof.get("avatar_url"))
+                profiles_map = {prof["id"]: prof for prof in prof_resp.data}
+        except Exception as e:
+            print("Failed to fetch profiles for comments:", e)
+
+    for comment in comments:
+        uid = comment.get("user_id")
+        prof = profiles_map.get(
+            uid,
+            {
+                "id": uid,
+                "username": "user",
+                "display_name": "User",
+                "avatar_url": None,
+            },
+        )
+        comment["profiles"] = prof
+        comment["username"] = prof.get("display_name") or prof.get("username") or "ผู้ใช้งาน"
+        comment["text"] = comment.get("content", "")
+
+    return comments
 
 
 @router.get("/feed")
@@ -417,5 +466,160 @@ def unsave_post(post_id: int, user: dict = Depends(get_current_user)):
             "user_id", user["id"]
         ).execute()
         return {"success": True, "status": "unsaved", "post_id": post_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Comment endpoints ───────────────────────────────────────────────────────
+
+@router.get("/{post_id}/comments")
+def get_post_comments(post_id: int):
+    """Fetch comments for a post ordered by created_at ascending."""
+    if not supabase:
+        return {"success": True, "data": []}
+
+    try:
+        # Check whether post exists
+        post_check = supabase.table("posts").select("id").eq("id", post_id).execute()
+        if not getattr(post_check, "data", None):
+            raise HTTPException(status_code=404, detail="Post not found")
+
+        resp = (
+            supabase.table("comments")
+            .select("*")
+            .eq("post_id", post_id)
+            .order("created_at", desc=False)
+            .execute()
+        )
+        comments = resp.data or []
+        return {"success": True, "data": attach_profiles_to_comments(comments)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{post_id}/comments")
+def create_comment(
+    post_id: int,
+    payload: CommentCreate,
+    user: dict = Depends(get_current_user),
+):
+    """Add a new comment to a post (auth required)."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database connection uninitialized")
+
+    content = payload.content.strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Comment content cannot be empty")
+
+    try:
+        # Check post existence
+        post_check = supabase.table("posts").select("id").eq("id", post_id).execute()
+        if not getattr(post_check, "data", None):
+            raise HTTPException(status_code=404, detail="Post not found")
+
+        insert_data = {
+            "post_id": post_id,
+            "user_id": user["id"],
+            "content": content,
+        }
+        res = supabase.table("comments").insert(insert_data).execute()
+        if not res.data:
+            raise HTTPException(status_code=400, detail="Failed to create comment")
+
+        attached = attach_profiles_to_comments([res.data[0]])[0]
+        return {"success": True, "data": attached}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/{post_id}/comments/{comment_id}")
+def update_comment(
+    post_id: int,
+    comment_id: int,
+    payload: CommentUpdate,
+    user: dict = Depends(get_current_user),
+):
+    """Update a comment (auth required, author only)."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database connection uninitialized")
+
+    content = payload.content.strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Comment content cannot be empty")
+
+    try:
+        # Check comment ownership
+        comment_check = (
+            supabase.table("comments")
+            .select("id, user_id, post_id")
+            .eq("id", comment_id)
+            .eq("post_id", post_id)
+            .execute()
+        )
+        if not getattr(comment_check, "data", None):
+            raise HTTPException(status_code=404, detail="Comment not found")
+
+        comment = comment_check.data[0]
+        if str(comment["user_id"]) != str(user["id"]):
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized to edit this comment",
+            )
+
+        res = (
+            supabase.table("comments")
+            .update({"content": content})
+            .eq("id", comment_id)
+            .execute()
+        )
+        attached = attach_profiles_to_comments([res.data[0]])[0] if res.data else None
+        return {
+            "success": True,
+            "message": "Comment updated successfully",
+            "data": attached,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{post_id}/comments/{comment_id}")
+def delete_comment(
+    post_id: int,
+    comment_id: int,
+    user: dict = Depends(get_current_user),
+):
+    """Delete a comment (auth required, author only)."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database connection uninitialized")
+
+    try:
+        # Check comment ownership
+        comment_check = (
+            supabase.table("comments")
+            .select("id, user_id, post_id")
+            .eq("id", comment_id)
+            .eq("post_id", post_id)
+            .execute()
+        )
+        if not getattr(comment_check, "data", None):
+            raise HTTPException(status_code=404, detail="Comment not found")
+
+        comment = comment_check.data[0]
+        if str(comment["user_id"]) != str(user["id"]):
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized to delete this comment",
+            )
+
+        supabase.table("comments").delete().eq("id", comment_id).execute()
+        return {"success": True, "message": "Comment deleted successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -6,7 +6,9 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
@@ -132,8 +134,17 @@ export default function RandomFoodScreen() {
   };
 
   const handleRestaurantPress = (restaurant: Restaurant) => {
-    console.log('Selected restaurant:', restaurant.name);
+    const query = encodeURIComponent(
+      restaurant.name + (restaurant.address ? ' ' + restaurant.address : '')
+    );
+    const url =
+      restaurant.mapUrl ||
+      `https://www.google.com/maps/search/?api=1&query=${query}`;
+    Linking.openURL(url).catch((err) =>
+      console.log('Error opening Google Maps:', err)
+    );
   };
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -224,14 +235,24 @@ export default function RandomFoodScreen() {
           )}
 
           {/* Restaurant List */}
-          {!locationLoading && !restaurantLoading &&
-            restaurants.slice(0, 3).map((restaurant) => (
+          {!locationLoading && !restaurantLoading && restaurants.length > 0 &&
+            restaurants.slice(0, 5).map((restaurant) => (
               <RestaurantCard
                 key={restaurant.id}
                 restaurant={restaurant}
                 onPress={() => handleRestaurantPress(restaurant)}
               />
             ))}
+
+          {/* Empty State */}
+          {!locationLoading && !restaurantLoading && restaurants.length === 0 && (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                ไม่พบข้อมูลร้านอาหารในบริเวณนี้
+              </Text>
+            </View>
+          )}
+
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -348,4 +369,18 @@ const styles = StyleSheet.create({
     fontFamily: 'NotoSansThai_400Regular',
     color: '#8A7772',
   },
-});
+  emptyContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyText: {
+    fontSize: 13,
+    fontFamily: 'NotoSansThai_400Regular',
+    color: '#8A7772',
+  },
+});

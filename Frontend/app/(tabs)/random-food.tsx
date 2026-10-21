@@ -60,8 +60,6 @@ export default function RandomFoodScreen() {
 
       if (status !== 'granted') {
         console.log('Location permission not granted, using default coordinates');
-        setLocationLoading(false);
-        loadRestaurants(14.0734, 100.6033);
         return;
       }
 
@@ -74,13 +72,9 @@ export default function RandomFoodScreen() {
 
       if (currentLocation) {
         setLocation(currentLocation);
-        loadRestaurants(currentLocation.coords.latitude, currentLocation.coords.longitude);
-      } else {
-        loadRestaurants(14.0734, 100.6033);
       }
     } catch (error) {
       console.log('Location error:', error);
-      loadRestaurants(14.0734, 100.6033);
     } finally {
       setLocationLoading(false);
     }
@@ -106,8 +100,11 @@ export default function RandomFoodScreen() {
 
     if (pool.length === 0) return;
 
-    setHasRandomized(true);
     setIsRandomizing(true);
+    if (hasRandomized) {
+      setRestaurants([]);
+      setRestaurantLoading(true);
+    }
 
     let count = 0;
     const maxCount = 15;
@@ -123,6 +120,7 @@ export default function RandomFoodScreen() {
       if (count >= maxCount) {
         clearInterval(intervalId);
         setIsRandomizing(false);
+        setHasRandomized(true);
         // Load nearby restaurants selling this randomized food
         loadRestaurants(
           location?.coords.latitude,
@@ -170,7 +168,7 @@ export default function RandomFoodScreen() {
 
         {/* Random Food Result */}
         <View style={styles.resultCard}>
-          {!hasRandomized || !randomFood ? (
+          {(!hasRandomized && !isRandomizing) || !randomFood ? (
             <Image
               source={require('@/assets/images/kinraidee-logo.png')}
               style={styles.logoImage}
@@ -208,52 +206,54 @@ export default function RandomFoodScreen() {
         </View>
 
         {/* Nearby Restaurants */}
-        <View style={styles.restaurantSection}>
-          {/* Section Title */}
-          <View style={styles.restaurantTitleRow}>
-            <Text style={styles.restaurantTitle}>ร้านอาหารใกล้ฉัน</Text>
-            <Text style={styles.restaurantSubtitle}></Text>
+        {hasRandomized && (
+          <View style={styles.restaurantSection}>
+            {/* Section Title */}
+            <View style={styles.restaurantTitleRow}>
+              <Text style={styles.restaurantTitle}>ร้านอาหารใกล้ฉัน</Text>
+              <Text style={styles.restaurantSubtitle}></Text>
+            </View>
+
+            {/* Loading Location or Restaurants */}
+            {(locationLoading || restaurantLoading) && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#DCA64E" />
+                <Text style={styles.loadingText}>
+                  {locationLoading ? 'กำลังค้นหาตำแหน่ง...' : 'กำลังค้นหาร้านอาหารใกล้เคียง...'}
+                </Text>
+              </View>
+            )}
+
+            {/* Location Permission Denied */}
+            {!locationLoading && !location && (
+              <View style={styles.locationWarning}>
+                <Text style={styles.locationWarningText}>
+                  ไม่สามารถเข้าถึงตำแหน่งของคุณได้ (แสดงข้อมูลร้านอาหารแนะนำ)
+                </Text>
+              </View>
+            )}
+
+            {/* Restaurant List */}
+            {!locationLoading && !restaurantLoading && restaurants.length > 0 &&
+              restaurants.slice(0, 5).map((restaurant) => (
+                <RestaurantCard
+                  key={restaurant.id}
+                  restaurant={restaurant}
+                  onPress={() => handleRestaurantPress(restaurant)}
+                />
+              ))}
+
+            {/* Empty State */}
+            {!locationLoading && !restaurantLoading && restaurants.length === 0 && (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>
+                  ไม่พบข้อมูลร้านอาหารในบริเวณนี้
+                </Text>
+              </View>
+            )}
+
           </View>
-
-          {/* Loading Location or Restaurants */}
-          {(locationLoading || restaurantLoading) && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#DCA64E" />
-              <Text style={styles.loadingText}>
-                {locationLoading ? 'กำลังค้นหาตำแหน่ง...' : 'กำลังค้นหาร้านอาหารใกล้เคียง...'}
-              </Text>
-            </View>
-          )}
-
-          {/* Location Permission Denied */}
-          {!locationLoading && !location && (
-            <View style={styles.locationWarning}>
-              <Text style={styles.locationWarningText}>
-                ไม่สามารถเข้าถึงตำแหน่งของคุณได้ (แสดงข้อมูลร้านอาหารแนะนำ)
-              </Text>
-            </View>
-          )}
-
-          {/* Restaurant List */}
-          {!locationLoading && !restaurantLoading && restaurants.length > 0 &&
-            restaurants.slice(0, 5).map((restaurant) => (
-              <RestaurantCard
-                key={restaurant.id}
-                restaurant={restaurant}
-                onPress={() => handleRestaurantPress(restaurant)}
-              />
-            ))}
-
-          {/* Empty State */}
-          {!locationLoading && !restaurantLoading && restaurants.length === 0 && (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                ไม่พบข้อมูลร้านอาหารในบริเวณนี้
-              </Text>
-            </View>
-          )}
-
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

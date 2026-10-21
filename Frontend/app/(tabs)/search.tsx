@@ -4,7 +4,9 @@ import {
   StyleSheet,
   TextInput,
   ScrollView,
+  Linking,
 } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -298,7 +300,15 @@ export default function SearchScreen() {
                 key={restaurant.id}
                 restaurant={restaurant}
                 onPress={() => {
-                  console.log('Selected restaurant:', restaurant.name);
+                  const query = encodeURIComponent(
+                    restaurant.name + (restaurant.address ? ' ' + restaurant.address : '')
+                  );
+                  const url =
+                    restaurant.mapUrl ||
+                    `https://www.google.com/maps/search/?api=1&query=${query}`;
+                  Linking.openURL(url).catch((err) =>
+                    console.log('Error opening Google Maps:', err)
+                  );
                 }}
               />
             ))}

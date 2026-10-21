@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -29,10 +30,16 @@ export default function RegisterScreen() {
   const router = useRouter();
   const { returnTo, from } = useLocalSearchParams<{ returnTo?: string; from?: string }>();
   const { login } = useAuth();  // ใช้สำหรับ auto-login หลัง signup สำเร็จ
+  const { height: windowHeight } = useWindowDimensions();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Responsive scale factors
+  const isSmallScreen = windowHeight < 720;
+  const isMediumScreen = windowHeight >= 720 && windowHeight < 840;
+  const logoSize = isSmallScreen ? 70 : isMediumScreen ? 85 : 105;
 
   const [errors, setErrors] = useState<{
     displayName?: string | null;
@@ -43,6 +50,7 @@ export default function RegisterScreen() {
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   // Password condition checks for dynamic hints
   const isLenValid = password.length >= 8 && password.length <= 20;
@@ -140,6 +148,11 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (!acceptedTerms) {
+      setGeneralError('กรุณายอมรับข้อกำหนดการใช้งานและรับทราบนโยบายความเป็นส่วนตัวก่อนสมัครบัญชี');
+      return;
+    }
+
     setErrors({});
     setIsLoading(true);
 
@@ -199,9 +212,9 @@ export default function RegisterScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           bounces={false}
+          overScrollMode="never"
           keyboardShouldPersistTaps="handled"
         >
-          {/* Target Screen Frame: 390 x 844 */}
           <View style={styles.screenContainer}>
             {/* Top Navigation Bar */}
             <View style={styles.header}>
@@ -218,25 +231,29 @@ export default function RegisterScreen() {
               <View style={styles.headerRightSpacer} />
             </View>
 
-            {/* Mascot / Logo */}
-            <View style={styles.logoSection}>
-              <Image
-                source={require('@/assets/images/kin-rai-dee-logo.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            </View>
+            {/* Center Content Section */}
+            <View style={styles.centerSection}>
+              {/* Mascot / Logo */}
+              <View style={[styles.logoSection, isSmallScreen && styles.logoSectionSmall]}>
+                <Image
+                  source={require('@/assets/images/kin-rai-dee-logo.png')}
+                  style={{ width: logoSize, height: logoSize }}
+                  resizeMode="contain"
+                />
+              </View>
 
-            {/* Heading & Subtitle */}
-            <View style={styles.headingSection}>
-              <Text style={styles.mainTitle}>มาร่วมเป็นครอบครัว KIN RAI DEE</Text>
-              <Text style={styles.subTitle}>
-                สร้างบัญชีเพื่อเริ่มค้นหาเมนูที่น่าสนใจ
-              </Text>
-            </View>
+              {/* Heading & Subtitle */}
+              <View style={[styles.headingSection, isSmallScreen && styles.headingSectionSmall]}>
+                <Text style={[styles.mainTitle, isSmallScreen && styles.mainTitleSmall]}>
+                  มาร่วมเป็นครอบครัว KIN RAI DEE
+                </Text>
+                <Text style={[styles.subTitle, isSmallScreen && styles.subTitleSmall]}>
+                  สร้างบัญชีเพื่อเริ่มค้นหาเมนูที่น่าสนใจ
+                </Text>
+              </View>
 
-            {/* White Form Card (borderRadius: 24) */}
-            <View style={styles.formCard}>
+              {/* White Form Card */}
+              <View style={[styles.formCard, isSmallScreen && styles.formCardSmall]}>
               <AuthErrorBanner message={generalError} />
 
               <AuthInput
@@ -345,13 +362,46 @@ export default function RegisterScreen() {
                 maxLength={25}
               />
 
+              {/* Terms of Use & Privacy Policy Checkbox */}
+              <Pressable
+                style={styles.termsRow}
+                onPress={() => setAcceptedTerms((prev) => !prev)}
+                hitSlop={8}
+              >
+                <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
+                  {acceptedTerms && <Feather name="check" size={14} color="#FFFFFF" />}
+                </View>
+                <Text style={styles.termsText}>
+                  ฉันยอมรับ
+                  <Text
+                    style={styles.termsLink}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      router.push('/terms-of-use');
+                    }}
+                  >
+                    ข้อกำหนดการใช้งาน
+                  </Text>
+                  และรับทราบ
+                  <Text
+                    style={styles.termsLink}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      router.push('/privacy-policy');
+                    }}
+                  >
+                    นโยบายความเป็นส่วนตัว
+                  </Text>
+                </Text>
+              </Pressable>
+
               <Pressable
                 onPress={handleRegister}
-                disabled={isLoading}
+                disabled={isLoading || !acceptedTerms}
                 style={({ pressed }) => [
                   styles.submitButton,
                   pressed && styles.buttonPressed,
-                  isLoading && styles.buttonDisabled,
+                  (isLoading || !acceptedTerms) && styles.buttonDisabled,
                 ]}
               >
                 {isLoading ? (
@@ -361,19 +411,20 @@ export default function RegisterScreen() {
                 )}
               </Pressable>
             </View>
-
-            {/* Bottom Footer Navigation */}
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>มีบัญชีอยู่แล้ว? </Text>
-              <Pressable
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                onPress={() => router.replace({ pathname: '/(auth)/login', params: { returnTo, from } })}
-                style={({ pressed }) => [pressed && styles.buttonPressed]}
-              >
-                <Text style={styles.footerLink}>เข้าสู่ระบบ</Text>
-              </Pressable>
-            </View>
           </View>
+
+          {/* Bottom Footer Navigation */}
+          <View style={[styles.footer, isSmallScreen && styles.footerSmall]}>
+            <Text style={styles.footerText}>มีบัญชีอยู่แล้ว? </Text>
+            <Pressable
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              onPress={() => router.replace({ pathname: '/(auth)/login', params: { returnTo, from } })}
+              style={({ pressed }) => [pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.footerLink}>เข้าสู่ระบบ</Text>
+            </Pressable>
+          </View>
+        </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -391,19 +442,22 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   screenContainer: {
+    flex: 1,
     width: '100%',
-    maxWidth: 390,
-    minHeight: 844,
+    maxWidth: 420,
     backgroundColor: '#FFF8ED',
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'android' ? 24 : 12,
-    paddingBottom: 24,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? 10 : 4,
+    paddingBottom: Platform.OS === 'ios' ? 12 : 20,
     justifyContent: 'space-between',
     alignSelf: 'center',
+  },
+  centerSection: {
+    width: '100%',
+    alignItems: 'center',
+    marginVertical: 2,
   },
   header: {
     flexDirection: 'row',
@@ -435,15 +489,17 @@ const styles = StyleSheet.create({
   logoSection: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 12,
+    marginVertical: 6,
   },
-  logo: {
-    width: 163,
-    height: 163,
+  logoSectionSmall: {
+    marginVertical: 2,
   },
   headingSection: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  headingSectionSmall: {
+    marginBottom: 6,
   },
   mainTitle: {
     fontSize: 20,
@@ -457,6 +513,10 @@ const styles = StyleSheet.create({
       default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
     }),
   },
+  mainTitleSmall: {
+    fontSize: 17,
+    marginBottom: 3,
+  },
   subTitle: {
     fontSize: 14,
     color: '#57423E',
@@ -467,10 +527,14 @@ const styles = StyleSheet.create({
       default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
     }),
   },
+  subTitleSmall: {
+    fontSize: 12.5,
+  },
   formCard: {
+    width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
-    padding: 20,
+    padding: 18,
     shadowColor: '#57423E',
     shadowOffset: {
       width: 0,
@@ -480,13 +544,56 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 5,
   },
+  formCardSmall: {
+    padding: 14,
+    borderRadius: 20,
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 6,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.8,
+    borderColor: '#B0A3A0',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    marginTop: 2,
+  },
+  checkboxChecked: {
+    backgroundColor: '#A7392A',
+    borderColor: '#A7392A',
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#57423E',
+    lineHeight: 18,
+    fontFamily: Platform.select({
+      ios: 'Noto Sans Thai',
+      android: 'NotoSansThai_400Regular',
+      default: 'NotoSansThai_400Regular, sans-serif',
+    }),
+  },
+  termsLink: {
+    color: '#A7392A',
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
   submitButton: {
     backgroundColor: '#A7392A',
     height: 52,
     borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 6,
     shadowColor: '#A7392A',
     shadowOffset: {
       width: 0,
@@ -496,12 +603,17 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  submitButtonSmall: {
+    height: 46,
+    borderRadius: 23,
+    marginTop: 4,
+  },
   buttonPressed: {
     opacity: 0.88,
     transform: [{ scale: 0.99 }],
   },
   buttonDisabled: {
-    opacity: 0.7,
+    opacity: 0.45,
   },
   submitButtonText: {
     color: '#FFFFFF',
@@ -517,8 +629,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 20,
-    marginBottom: 12,
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  footerSmall: {
+    marginTop: 8,
+    marginBottom: 4,
   },
   footerText: {
     fontSize: 14,

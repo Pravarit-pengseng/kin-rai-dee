@@ -51,10 +51,12 @@ __pycache__/
 *$py.class
 
 # Python virtual environment
+.venv
 .venv/
 venv/
 ENV/
 env/
+.vscode/
 
 # Python test & coverage cache
 .pytest_cache/

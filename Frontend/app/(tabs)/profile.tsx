@@ -341,8 +341,8 @@ export default function ProfileScreen() {
         title="KIN RAI DEE"
         leftIcon={isLoggedIn ? "logout" : "none"}
         onLeftPress={() => setLogoutPopupVisible(true)}
-        rightIcon="search"
-        onSearchPress={() => router.push('/(tabs)/search?from=/(tabs)/profile')}
+        rightIcon="settings"
+        onRightPress={() => router.push('/settings')}
       />
       <ScrollView
         ref={scrollRef}

@@ -24,6 +24,7 @@ export type ReasonCode =
   | 'SPAM'
   | 'HARASSMENT'
   | 'INAPPROPRIATE'
+  | 'COPYRIGHT'
   | 'PRIVACY'
   | 'HARMFUL'
   | 'OTHER';

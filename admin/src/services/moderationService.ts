@@ -16,9 +16,10 @@ export const COMMUNITY_RULES: CommunityRule[] = [
   { id: 1, code: 'SPAM', name: 'สแปมหรือโฆษณาไม่พึงประสงค์', description: 'เนื้อหาซ้ำซ้อน ขายของผิดที่ โฆษณาเว็บพนันหรือสแปมลิงก์', isActive: true },
   { id: 2, code: 'HARASSMENT', name: 'การคุกคามหรือกลั่นแกล้ง', description: 'การใช้ถ้อยคำดูถูก ข่มขู่ หรือล้อเลียนผู้อื่นให้เสียหาย', isActive: true },
   { id: 3, code: 'INAPPROPRIATE', name: 'เนื้อหาไม่เหมาะสมหรือไม่เกี่ยวกับอาหาร', description: 'รูปภาพลามกอนาจาร รูปภาพที่ไม่เกี่ยวกับอาหาร หรือคำหยาบคาย', isActive: true },
-  { id: 4, code: 'PRIVACY', name: 'ละเมิดความเป็นส่วนตัว', description: 'การเปิดเผยข้อมูลส่วนบุคคล เบอร์โทรศัพท์ หรือภาพผู้อื่นโดยไม่ได้รับอนุญาต', isActive: true },
-  { id: 5, code: 'HARMFUL', name: 'เนื้อหาที่เป็นอันตรายหรือผิดกฎหมาย', description: 'ข้อมูลสุขภาพที่บิดเบือน อาหารปลอมปน สิ่งผิดกฎหมาย', isActive: true },
-  { id: 6, code: 'OTHER', name: 'อื่นๆ ตามดุลยพินิจของทีมงาน', description: 'พฤติกรรมที่ไม่เหมาะสมอื่นๆ ที่ขัดต่อแนวทางปฏิบัติของชุมชน', isActive: true },
+  { id: 4, code: 'COPYRIGHT', name: 'การละเมิดลิขสิทธิ์', description: 'คัดลอกรูปภาพหรือเนื้อหาที่มีลิขสิทธิ์โดยไม่ได้รับอนุญาต', isActive: true },
+  { id: 5, code: 'PRIVACY', name: 'ละเมิดความเป็นส่วนตัว', description: 'การเปิดเผยข้อมูลส่วนบุคคล เบอร์โทรศัพท์ หรือภาพผู้อื่นโดยไม่ได้รับอนุญาต', isActive: true },
+  { id: 6, code: 'HARMFUL', name: 'เนื้อหาที่เป็นอันตรายหรือผิดกฎหมาย', description: 'ข้อมูลสุขภาพที่บิดเบือน อาหารปลอมปน สิ่งผิดกฎหมาย', isActive: true },
+  { id: 7, code: 'OTHER', name: 'อื่นๆ ตามดุลยพินิจของทีมงาน', description: 'พฤติกรรมที่ไม่เหมาะสมอื่นๆ ที่ขัดต่อแนวทางปฏิบัติของชุมชน', isActive: true },
 ];
 
 export const AVAILABLE_MODERATORS = [
@@ -80,23 +81,27 @@ class ModerationService {
       });
 
       // Try reading live reports table if it exists in Supabase
-      const liveReportsRes = await supabase.from('reports').select('*').limit(50);
-      if (liveReportsRes.data && !liveReportsRes.error) {
+      const liveReportsRes = await supabase.from('reports').select('*').order('created_at', { ascending: false }).limit(50);
+      let liveReports: ModerationReport[] = [];
+      if (liveReportsRes.data && !liveReportsRes.error && liveReportsRes.data.length > 0) {
         this.isLiveConnected = true;
-        // Map live reports
-        // If live reports table has data, use it
-        console.log('Using live reports from Supabase table');
+        liveReports = this.mapLiveReports(liveReportsRes.data, realPosts, realComments, profileMap);
       }
 
       // If we already have saved reports in localStorage, use them (preserves state during moderation testing)
       if (savedReports) {
-        this.reportsCache = JSON.parse(savedReports);
+        const cached = JSON.parse(savedReports) as ModerationReport[];
+        // Merge any new live reports that aren't already in cache
+        const existingIds = new Set(cached.map(c => c.id));
+        const newReports = liveReports.filter(lr => !existingIds.has(lr.id));
+        this.reportsCache = [...newReports, ...cached];
         this.hasInitialized = true;
         return { isLive: realPosts.length > 0, reportCount: this.reportsCache.length };
       }
 
       // Seed realistic moderation queue using REAL posts and comments from Supabase!
-      this.reportsCache = this.buildConnectedReports(realPosts, realComments, profileMap);
+      const fallbackReports = this.buildConnectedReports(realPosts, realComments, profileMap);
+      this.reportsCache = [...liveReports, ...fallbackReports];
       this.persistReports();
       this.hasInitialized = true;
       return { isLive: realPosts.length > 0, reportCount: this.reportsCache.length };
@@ -111,6 +116,97 @@ class ModerationService {
       this.hasInitialized = true;
       return { isLive: false, reportCount: this.reportsCache.length };
     }
+  }
+
+  private mapLiveReports(
+    dbReports: any[],
+    realPosts: any[],
+    realComments: any[],
+    profileMap: Map<string, AuthorProfile>
+  ): ModerationReport[] {
+    const getAuthor = (userId: string, defaultName = 'สมาชิกชุมชน'): AuthorProfile => {
+      if (profileMap.has(userId)) return profileMap.get(userId)!;
+      return {
+        id: userId || 'unknown-user',
+        username: 'user_' + (userId ? userId.substring(0, 6) : 'anon'),
+        displayName: defaultName,
+        avatarUrl: null,
+        status: 'active',
+        postCount: 1,
+        violationCount: 0
+      };
+    };
+
+    const getRuleLabel = (code: string): string => {
+      const rule = COMMUNITY_RULES.find(r => r.code === code);
+      return rule ? rule.name : (code || 'รายงานปัญหา');
+    };
+
+    return dbReports.map(r => {
+      const targetType = r.target_type || 'post';
+      const targetId = r.target_id;
+      let targetContent: any;
+
+      if (targetType === 'user') {
+        const targetAuthor = getAuthor(String(targetId), 'ผู้ใช้ที่ถูกรายงาน');
+        targetContent = {
+          id: targetId,
+          type: 'user',
+          title: `โปรไฟล์ผู้ใช้: @${targetAuthor.username}`,
+          text: targetAuthor.bio || 'ไม่มีคำแนะนำตัว',
+          imageUrl: targetAuthor.avatarUrl,
+          createdAt: r.created_at,
+          author: targetAuthor,
+          visibility: 'published'
+        };
+      } else if (targetType === 'comment') {
+        const foundComment = realComments.find(c => String(c.id) === String(targetId));
+        targetContent = {
+          id: targetId,
+          type: 'comment',
+          title: 'ความคิดเห็นบนโพสต์',
+          text: foundComment?.content || r.explanation || 'ความคิดเห็นที่ถูกรายงาน',
+          createdAt: foundComment?.created_at || r.created_at,
+          author: getAuthor(foundComment?.user_id, 'ผู้เขียนความคิดเห็น'),
+          visibility: 'published'
+        };
+      } else {
+        const foundPost = realPosts.find(p => String(p.id) === String(targetId));
+        targetContent = {
+          id: targetId,
+          type: 'post',
+          title: foundPost?.food_name || 'โพสต์ที่ถูกรายงาน',
+          text: foundPost?.description || r.explanation || 'ไม่มีคำบรรยาย',
+          imageUrl: foundPost?.image_url,
+          restaurantUrl: foundPost?.restaurant_url,
+          createdAt: foundPost?.created_at || r.created_at,
+          author: getAuthor(foundPost?.user_id, 'ผู้โพสต์'),
+          visibility: 'published'
+        };
+      }
+
+      const reporter = getAuthor(r.reporter_id, 'ผู้รายงาน');
+
+      return {
+        id: `RPT-LIVE-${r.id}`,
+        targetType: targetType as any,
+        targetId: targetId,
+        reasonCode: (r.reason_code || 'OTHER') as any,
+        reasonLabel: getRuleLabel(r.reason_code),
+        explanation: r.explanation,
+        reportCount: 1,
+        reporterUsername: reporter.username,
+        reporterId: r.reporter_id || 'unknown',
+        priority: (r.priority || 'medium') as any,
+        status: (r.status || 'pending') as any,
+        assignedTo: r.assigned_to,
+        assignedToName: null,
+        createdAt: r.created_at || new Date().toISOString(),
+        resolvedAt: r.resolved_at,
+        targetContent,
+        isDemo: false
+      };
+    });
   }
 
   private buildConnectedReports(

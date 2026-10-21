@@ -39,12 +39,12 @@ export default function RandomFoodScreen() {
   const loadRestaurants = async (lat?: number, lng?: number, keyword?: string) => {
     try {
       setRestaurantLoading(true);
-      const userLat = lat || location?.coords.latitude || 14.0734;
-      const userLng = lng || location?.coords.longitude || 100.6033;
+      const userLat = lat ?? location?.coords.latitude ?? 14.0734;
+      const userLng = lng ?? location?.coords.longitude ?? 100.6033;
       const data = await fetchNearbyRestaurants(userLat, userLng, keyword);
       setRestaurants(data || []);
     } catch (e) {
-      console.warn('loadRestaurants error:', e);
+      console.log('loadRestaurants error:', e);
     } finally {
       setRestaurantLoading(false);
     }
@@ -57,18 +57,25 @@ export default function RandomFoodScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
 
       if (status !== 'granted') {
-        console.log('Location permission was denied');
+        console.log('Location permission not granted, using default coordinates');
         setLocationLoading(false);
         loadRestaurants(14.0734, 100.6033);
         return;
       }
 
-      const currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      let currentLocation = await Location.getLastKnownPositionAsync({});
+      if (!currentLocation) {
+        currentLocation = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+      }
 
-      setLocation(currentLocation);
-      loadRestaurants(currentLocation.coords.latitude, currentLocation.coords.longitude);
+      if (currentLocation) {
+        setLocation(currentLocation);
+        loadRestaurants(currentLocation.coords.latitude, currentLocation.coords.longitude);
+      } else {
+        loadRestaurants(14.0734, 100.6033);
+      }
     } catch (error) {
       console.log('Location error:', error);
       loadRestaurants(14.0734, 100.6033);

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   Pressable,
@@ -12,6 +11,7 @@ import {
   ScrollView,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Stack,
   router,

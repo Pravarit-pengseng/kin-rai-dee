@@ -57,17 +57,24 @@ export default function SearchScreen() {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          setUserLocation({
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          });
+          let loc = await Location.getLastKnownPositionAsync({});
+          if (!loc) {
+            loc = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+          }
+          if (loc) {
+            setUserLocation({
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+            });
+            return;
+          }
         }
       } catch (e) {
         // location optional
       }
+      setUserLocation({ latitude: 14.0734, longitude: 100.6033 });
     })();
   }, []);
 

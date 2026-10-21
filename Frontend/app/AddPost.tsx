@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-    SafeAreaView,
     View,
     Pressable,
     Image,
@@ -10,6 +9,7 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Camera } from "lucide-react-native";

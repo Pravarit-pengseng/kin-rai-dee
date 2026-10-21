@@ -307,7 +307,7 @@ export default function OtherProfileScreen() {
                 </View>
 
                 {/* Post Grid */}
-                {loadingPosts ? (
+                {loadingPosts && posts.length === 0 ? (
                   <PostGridSkeleton count={6} />
                 ) : posts.length > 0 ? (
                   <PostGrid

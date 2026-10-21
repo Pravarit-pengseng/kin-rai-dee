@@ -66,29 +66,14 @@ export default function OtherPostScreen() {
 
   const [loading, setLoading] = useState(() => posts.length === 0);
 
+  // Scroll tracker for initial jump to postId
   const targetIndex = posts.findIndex((post) => post.id === postId);
-  const [ready, setReady] = useState(() => targetIndex <= 0);
   const hasScrolledRef = useRef(targetIndex <= 0);
 
-  // Reset on postId change
   useEffect(() => {
     const idx = posts.findIndex((p) => p.id === postId);
-    if (idx > 0) {
-      hasScrolledRef.current = false;
-      setReady(false);
-    } else {
-      hasScrolledRef.current = true;
-      setReady(true);
-    }
-  }, [postId]);
-
-  // Fallback timer so screen never stays stuck on skeleton
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setReady(true);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [postId]);
+    hasScrolledRef.current = idx <= 0;
+  }, [postId, posts]);
 
   // Load from API if needed or sync bookmarks
   useEffect(() => {
@@ -99,6 +84,7 @@ export default function OtherPostScreen() {
           if (apiPosts && apiPosts.length > 0) {
             setPosts(apiPosts.map(mapPostToPopup));
           }
+          setLoading(false);
           if (user?.id) {
             getSavedPosts()
               .then((saved) => {
@@ -108,7 +94,6 @@ export default function OtherPostScreen() {
               })
               .catch(() => {});
           }
-          setLoading(false);
         })
         .catch(() => {
           setLoading(false);
@@ -155,9 +140,6 @@ export default function OtherPostScreen() {
       if (id === postId && !hasScrolledRef.current) {
         hasScrolledRef.current = true;
         scrollRef.current?.scrollTo({ y, animated: false });
-        requestAnimationFrame(() => {
-          setReady(true);
-        });
       }
     },
     [postId]
@@ -247,7 +229,7 @@ export default function OtherPostScreen() {
           }
         />
 
-        {loading ? (
+        {loading && posts.length === 0 ? (
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -257,23 +239,10 @@ export default function OtherPostScreen() {
           </ScrollView>
         ) : (
           <View style={styles.mainWrapper}>
-            {!ready && (
-              <View style={styles.skeletonOverlay}>
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.scrollContent}
-                  scrollEnabled={false}
-                >
-                  <PostSkeleton count={1} />
-                </ScrollView>
-              </View>
-            )}
-
             <ScrollView
               ref={scrollRef}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scrollContent}
-              style={!ready ? styles.hidden : styles.visible}
             >
               {posts.map((post) => (
                 <View

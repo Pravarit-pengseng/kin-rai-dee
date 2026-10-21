@@ -400,7 +400,7 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {(activeTab === "posts" ? loadingPosts : loadingSaved) ? (
+        {(activeTab === "posts" ? loadingPosts : loadingSaved) && displayPosts.length === 0 ? (
           <PostGridSkeleton count={6} />
         ) : displayPosts.length > 0 ? (
           <PostGrid

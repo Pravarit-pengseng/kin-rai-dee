@@ -41,13 +41,37 @@ const DEFAULT_IMAGES = [
   'https://images.unsplash.com/photo-1504674900247-0877df9cc836',
 ];
 
+function normalizeQuery(keyword?: string): string {
+  const trimmed = (keyword || '').trim();
+  if (!trimmed) return 'ร้านอาหาร';
+  // If english/alphanumeric, use as is (e.g. "Grass Jelly with Fresh Milk", "Pizza")
+  if (/^[a-zA-Z0-9\s\-]+$/.test(trimmed)) {
+    return trimmed;
+  }
+  // If Thai, add 'ร้าน' prefix if missing
+  if (!trimmed.startsWith('ร้าน') && !trimmed.startsWith('คาเฟ่')) {
+    return `ร้าน${trimmed}`;
+  }
+  return trimmed;
+}
+
 export async function searchGooglePlacesDirect(
   query: string,
-  userLat: number,
-  userLng: number,
+  userLat?: number,
+  userLng?: number,
   radius: number = 8000,
 ): Promise<Restaurant[]> {
   if (!GOOGLE_API_KEY) return [];
+
+  const safeLat =
+    typeof userLat === 'number' && !isNaN(userLat) && userLat !== 0
+      ? userLat
+      : 14.0734;
+  const safeLng =
+    typeof userLng === 'number' && !isNaN(userLng) && userLng !== 0
+      ? userLng
+      : 100.6033;
+  const safeQuery = normalizeQuery(query);
 
   const url = 'https://places.googleapis.com/v1/places:searchText';
   const headers = {
@@ -58,12 +82,12 @@ export async function searchGooglePlacesDirect(
   };
 
   const payload = {
-    textQuery: query,
+    textQuery: safeQuery,
     languageCode: 'th',
     maxResultCount: 15,
     locationBias: {
       circle: {
-        center: { latitude: userLat, longitude: userLng },
+        center: { latitude: safeLat, longitude: safeLng },
         radius: radius,
       },
     },
@@ -77,7 +101,7 @@ export async function searchGooglePlacesDirect(
     });
 
     if (!res.ok) {
-      console.warn('Google Places direct error status:', res.status);
+      console.log('Google Places direct status:', res.status);
       return [];
     }
 
@@ -97,7 +121,7 @@ export async function searchGooglePlacesDirect(
       const pLng = p.location?.longitude;
       const distM =
         pLat != null && pLng != null
-          ? haversineMeters(userLat, userLng, pLat, pLng)
+          ? haversineMeters(safeLat, safeLng, pLat, pLng)
           : 999999;
 
       let photoUrl = '';
@@ -146,7 +170,7 @@ export async function searchGooglePlacesDirect(
     results.sort((a, b) => a._distMeters - b._distMeters);
     return results.map(({ _distMeters, ...r }) => r);
   } catch (err) {
-    console.warn('Google Places direct fetch error:', err);
+    console.log('Google Places direct fetch error:', err);
     return [];
   }
 }
@@ -165,13 +189,12 @@ export async function fetchNearbyRestaurants(
     return data;
   }
 
-  // Fallback: ยิงตรง Google Places API (แก้ปัญหา iOS ต่อ Backend local network ไม่ได้)
-  const directQuery = keyword ? `ร้าน${keyword}` : 'ร้านอาหาร';
+  // Fallback: ยิงตรง Google Places API (รองรับ Android และ iOS ทุกเครื่อง)
   const directResults = await searchGooglePlacesDirect(
-    directQuery,
+    keyword || 'ร้านอาหาร',
     lat,
     lng,
-    5000,
+    6000,
   );
   if (directResults.length > 0) {
     return directResults;
@@ -196,12 +219,9 @@ export async function searchRestaurants(
     return data;
   }
 
-  // Fallback: ยิงตรง Google Places API (แก้ปัญหา iOS ต่อ Backend local network ไม่ได้)
-  const directQuery = trimmed.startsWith('ร้าน')
-    ? trimmed
-    : `ร้าน${trimmed}`;
+  // Fallback: ยิงตรง Google Places API (รองรับ Android และ iOS ทุกเครื่อง)
   const directResults = await searchGooglePlacesDirect(
-    directQuery,
+    trimmed,
     lat,
     lng,
     8000,

@@ -1,8 +1,39 @@
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { supabase } from '@/lib/supabase';
 
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+function resolveApiBaseUrl(): string {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+
+  // 1. If EXPO_PUBLIC_API_URL is configured and doesn't point to localhost, use it
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl;
+  }
+
+  // 2. Try to get the Metro bundler host IP (e.g. "192.168.1.38:8081" -> "192.168.1.38")
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    if (ip) {
+      return `http://${ip}:8000`;
+    }
+  }
+
+  // 3. Android emulator loopback host
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:8000';
+  }
+
+  // 4. Default for iOS simulator and web
+  return 'http://localhost:8000';
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4000); // 4-second timeout to quickly fallback
+
   try {
     // ดึง JWT จาก Supabase session อัตโนมัติ
     const {
@@ -13,17 +44,18 @@ export async function fetchApi<T>(endpoint: string, options?: RequestInit): Prom
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      // caller สามารถ override ได้ เช่น ใส่ token อื่น หรือลบ Content-Type
       ...(options?.headers as Record<string, string>),
     };
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
+      signal: controller.signal,
     });
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
-      console.warn(`API Error ${response.status} for ${endpoint}`);
       return null;
     }
 
@@ -34,8 +66,8 @@ export async function fetchApi<T>(endpoint: string, options?: RequestInit): Prom
 
     return (await response.json()) as T;
   } catch (error) {
-    console.warn(`Fetch error for ${endpoint}:`, error);
+    clearTimeout(timeoutId);
+    // Don't log yellow-box warnings in terminal/app; callers gracefully fallback
     return null;
   }
 }
-

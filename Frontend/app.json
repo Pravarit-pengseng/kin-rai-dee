@@ -17,7 +17,11 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -25,6 +29,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "อนุญาตให้เข้าถึงตำแหน่งเพื่อค้นหาร้านอาหารใกล้เคียง"
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -38,7 +48,6 @@
         }
       ],
       "expo-font",
-      "expo-image",
       "expo-status-bar",
       "expo-web-browser"
     ],

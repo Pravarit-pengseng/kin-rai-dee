@@ -11,13 +11,17 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.kinraidee.app",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -25,6 +29,18 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "อนุญาตให้เข้าถึงตำแหน่งเพื่อค้นหาร้านอาหารใกล้เคียง"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "อนุญาตให้เข้าถึงรูปภาพเพื่อเลือกรูปอาหารหรือรูปโปรไฟล์"
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -38,7 +54,6 @@
         }
       ],
       "expo-font",
-      "expo-image",
       "expo-status-bar",
       "expo-web-browser"
     ],

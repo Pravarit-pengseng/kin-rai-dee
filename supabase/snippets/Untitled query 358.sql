@@ -1,0 +1,1 @@
+INSERT INTO "public"."ingredient_categories" ("id", "name", "created_at") VALUES (1, 'ผัก', '2026-08-28 20:32:44.388112+00'), (2, 'เนื้อสัตว์', '2026-08-28 20:32:44.388112+00');

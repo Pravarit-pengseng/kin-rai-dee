@@ -1,9 +1,17 @@
-import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, TextInput, ScrollView } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import {
+  View,
+  StyleSheet,
+  TextInput,
+  ScrollView,
+  Linking,
+} from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 
 import { Header } from '@/components/Header';
 import PostGrid from '@/components/post-grid';
@@ -11,117 +19,88 @@ import PopupPost, { PopupPostData } from '@/components/popup-post';
 import { RestaurantCard, Restaurant } from '@/components/restuarant-card';
 import { SearchTabFilter, SearchTabType } from '@/components/search-tab-filter';
 import { SearchHistory } from '@/components/search-history';
-
-const CURRENT_USER_ID = "me";
-const OTHER_USER_ID = "mookmhee";
-
-// Mock posts for search results
-const MOCK_POSTS: PopupPostData[] = [
-  {
-    id: "1",
-    image: require("@/assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-    title: "กะเพราไข่ดาว",
-    description: "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า ใครยังไม่รู้จะกินอะไร แนะนำเมนูที่อร่อยไม่เคยเปลี่ยน!",
-    location: "https://www.wongnai.com/listings/phat-ka-phrao",
-    tag: "อาหารจานเดียว",
-    timeAgo: "2 ชม. ที่แล้ว",
-  },
-  {
-    id: "2",
-    image: require("@/assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-    title: "กะเพราหมูสับ",
-    description: "กะเพราหมูสับไข่ดาว อร่อยเหมือนเดิม",
-    tag: "อาหารจานเดียว",
-    timeAgo: "4 ชม. ที่แล้ว",
-  },
-  {
-    id: "3",
-    image: require("@/assets/images/StirFriedHolyBasil.png"),
-    userId: OTHER_USER_ID,
-    title: "ข้าวผัดกุ้ง",
-    description: "ข้าวผัดกุ้งร้อนๆ มาแล้วครับทุกคน อร่อยมาก!",
-    tag: "อาหารจานเดียว",
-    timeAgo: "5 ชม. ที่แล้ว",
-  },
-  {
-    id: "4",
-    image: require("@/assets/images/StirFriedHolyBasil.png"),
-    userId: CURRENT_USER_ID,
-    title: "ผัดพริกแกงหมูกรอบ",
-    description: "หมูกรอบชิ้นใหญ่เต็มคำ รสชาติจัดจ้าน",
-    tag: "อาหารไทย",
-    timeAgo: "1 วันที่แล้ว",
-  },
-];
-
-// Fill up to 15 items for the grid
-for (let i = 5; i <= 15; i++) {
-  MOCK_POSTS.push({
-    ...MOCK_POSTS[i % 4],
-    id: String(i),
-  });
-}
-
-// Mock restaurants for search results
-const SEARCH_RESTAURANTS: Restaurant[] = [
-  {
-    id: '1',
-    name: 'กะเพราตาแป๊ะ',
-    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
-    description: 'กะเพราพริกแห้งโบราณรสเข้มข้น\nไม่ใส่ถั่วฝักยาว ไข่เป็ดกรอบลาวา',
-    openTime: 'เปิดตั้งแต่ 10.00 น. - 20.00 น.',
-    address: 'คลองหลวง ปทุมธานี',
-    distance: '800 ม.',
-    rating: 4.8,
-  },
-  {
-    id: '2',
-    name: 'ครัวป้าณี กะเพรากะทะเหล็ก',
-    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
-    description: 'สูตรโบราณผัดแห้งหอมกลิ่นคั่วกระทะเหล็ก\nใช้หมูสับอนามัยคัดเป็นอย่างดี',
-    openTime: 'เปิดตั้งแต่ 12.00 น. - 19.00 น.',
-    address: 'รังสิต ปทุมธานี',
-    distance: '1.3 กม.',
-    rating: 4.6,
-  },
-  {
-    id: '3',
-    name: 'กะเพราแซ่บสะท้าน',
-    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591',
-    description: 'รสชาติจัดจ้าน เผ็ดร้อนถึงใจ\nพร้อมไข่ดาวเยิ้มๆ และน้ำซุปร้อนๆ',
-    openTime: 'เปิดตั้งแต่ 11.00 น. - 22.00 น.',
-    address: 'รังสิต ปทุมธานี',
-    distance: '1.5 กม.',
-    rating: 4.7,
-  },
-  {
-    id: '4',
-    name: 'ครัวบ้านเรา',
-    image: 'https://images.unsplash.com/photo-1552566626-52f8b828add9',
-    description: 'อาหารตามสั่งรสเด็ด วัตถุดิบสดใหม่\nเมนูแนะนำ ข้าวผัดปู กะเพราทะเล',
-    openTime: 'เปิดตั้งแต่ 09.00 น. - 21.00 น.',
-    address: 'คลองหลวง ปทุมธานี',
-    distance: '2.1 กม.',
-    rating: 4.5,
-  },
-];
+import { useAuth } from '@/context/AuthContext';
+import {
+  searchPosts,
+  fetchSearchHistory,
+  addSearchHistory,
+  deleteSearchHistoryItem,
+  clearAllSearchHistory,
+} from '@/services/searchService';
+import {
+  bookmarkPost,
+  unbookmarkPost,
+  getSavedPosts,
+} from '@/services/postService';
+import { searchRestaurants } from '@/services/restaurantService';
 
 export default function SearchScreen() {
+  const { user, isLoggedIn } = useAuth();
   const [inputValue, setInputValue] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [recentSearches, setRecentSearches] = useState([
-    'หมูกรอบเจ้าดัง',
-    'คาเฟ่แมว นิมมาน',
-    'ข้าวซอยเนื้อ',
-  ]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [searchTab, setSearchTab] = useState<SearchTabType>('posts');
+
+  // Real Results (no mock data)
+  const [searchResults, setSearchResults] = useState<PopupPostData[]>([]);
+  const [restaurantResults, setRestaurantResults] = useState<Restaurant[]>([]);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Feed view mode & Popup post modal state
   const [showFeed, setShowFeed] = useState(false);
   const [popupPost, setPopupPost] = useState<PopupPostData | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+
+  const { from } = useLocalSearchParams<{ from?: string }>();
+
+  // Fetch user location for nearby restaurants
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          let loc = await Location.getLastKnownPositionAsync({});
+          if (!loc) {
+            loc = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+          }
+          if (loc) {
+            setUserLocation({
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+            });
+            return;
+          }
+        }
+      } catch (e) {
+        // location optional
+      }
+      setUserLocation({ latitude: 14.0734, longitude: 100.6033 });
+    })();
+  }, []);
+
+  // Load history & bookmarks
+  const loadUserData = useCallback(async () => {
+    if (isLoggedIn) {
+      const historyItems = await fetchSearchHistory();
+      if (historyItems && historyItems.length > 0) {
+        setRecentSearches(historyItems.map((item) => item.query));
+      } else {
+        setRecentSearches([]);
+      }
+
+      const saved = await getSavedPosts();
+      if (saved && saved.length > 0) {
+        setBookmarkedIds(saved.map((s) => s.id));
+      } else {
+        setBookmarkedIds([]);
+      }
+    } else {
+      setRecentSearches([]);
+      setBookmarkedIds([]);
+    }
+  }, [isLoggedIn]);
 
   // Reset state when screen is focused
   useFocusEffect(
@@ -130,11 +109,14 @@ export default function SearchScreen() {
       setIsSearching(false);
       setShowFeed(false);
       setPopupPost(null);
+      setSearchResults([]);
+      setRestaurantResults([]);
       setSearchTab('posts');
-    }, [])
+      loadUserData();
+    }, [loadUserData])
   );
 
-  const handleSearch = (text: string) => {
+  const handleSearch = async (text: string) => {
     const trimmed = text.trim();
     if (trimmed !== '') {
       setInputValue(trimmed);
@@ -144,26 +126,67 @@ export default function SearchScreen() {
         trimmed,
         ...prev.filter((item) => item !== trimmed),
       ].slice(0, 10));
+
+      // Save history to backend if logged in
+      if (isLoggedIn) {
+        addSearchHistory(trimmed).catch(() => {});
+      }
+
+      // Query posts & restaurants from real backend APIs
+      const lat = userLocation?.latitude || 14.0734;
+      const lng = userLocation?.longitude || 100.6033;
+
+      try {
+        const [apiPosts, apiRestaurants] = await Promise.all([
+          searchPosts(trimmed),
+          searchRestaurants(trimmed, lat, lng),
+        ]);
+
+        setSearchResults(apiPosts || []);
+        setRestaurantResults(apiRestaurants || []);
+      } catch (e) {
+        console.warn('Search error:', e);
+        setSearchResults([]);
+        setRestaurantResults([]);
+      }
     } else {
       setIsSearching(false);
       setShowFeed(false);
+      setSearchResults([]);
+      setRestaurantResults([]);
     }
   };
 
-  const handleClearHistory = (index: number) => {
+  const handleClearHistory = async (index: number) => {
+    if (isLoggedIn) {
+      const historyItems = await fetchSearchHistory();
+      if (historyItems && historyItems[index]) {
+        await deleteSearchHistoryItem(historyItems[index].id);
+      }
+    }
     setRecentSearches((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleClearAllHistory = () => {
+  const handleClearAllHistory = async () => {
+    if (isLoggedIn) {
+      await clearAllSearchHistory();
+    }
     setRecentSearches([]);
   };
 
-  const handleToggleBookmark = (postId: string) => {
+  const handleToggleBookmark = async (postId: string) => {
+    const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
     setBookmarkedIds((prev) =>
-      prev.includes(postId)
-        ? prev.filter((id) => id !== postId)
-        : [...prev, postId]
+      isCurrentlyBookmarked ? prev.filter((id) => id !== postId) : [...prev, postId]
     );
+
+    if (isLoggedIn) {
+      if (isCurrentlyBookmarked) {
+        await unbookmarkPost(postId);
+      } else {
+        await bookmarkPost(postId);
+      }
+    }
   };
 
   return (
@@ -178,9 +201,15 @@ export default function SearchScreen() {
           } else if (isSearching) {
             setIsSearching(false);
             setInputValue('');
+            setSearchResults([]);
+            setRestaurantResults([]);
             setSearchTab('posts');
           } else {
-            router.back();
+            if (from) {
+              router.push(decodeURIComponent(from) as any);
+            } else {
+              router.back();
+            }
           }
         }}
         rightIcon="none"
@@ -229,21 +258,24 @@ export default function SearchScreen() {
           showFeed ? (
             /* Feed View Mode */
             <View style={styles.feedContainer}>
-              {MOCK_POSTS.map((post) => (
+              {searchResults.map((post) => (
                 <View key={post.id} style={styles.postWrapper}>
                   <PopupPost
                     visible={true}
                     post={post}
                     onClose={() => {}}
                     inline
-                    isOwnPost={post.userId === CURRENT_USER_ID}
+                    isOwnPost={!!user && post.userId === user.id}
                     isBookmarked={bookmarkedIds.includes(post.id)}
                     onBookmark={handleToggleBookmark}
                     onUserPress={(userId) => {
-                      if (userId === CURRENT_USER_ID) {
+                      if (user && userId === user.id) {
                         router.push('/(tabs)/profile');
                       } else {
-                        router.push('/OtherProfile');
+                        router.push({
+                          pathname: '/OtherProfile',
+                          params: { userId },
+                        });
                       }
                     }}
                   />
@@ -254,7 +286,7 @@ export default function SearchScreen() {
             /* Grid View Mode */
             <View style={styles.gridContainer}>
               <PostGrid
-                posts={MOCK_POSTS}
+                posts={searchResults}
                 onPressPost={() => setShowFeed(true)}
                 onLongPressPost={(post) => setPopupPost(post)}
               />
@@ -263,12 +295,20 @@ export default function SearchScreen() {
         ) : (
           /* Restaurant List View Mode */
           <View style={styles.restaurantListContainer}>
-            {SEARCH_RESTAURANTS.map((restaurant) => (
+            {restaurantResults.map((restaurant) => (
               <RestaurantCard
                 key={restaurant.id}
                 restaurant={restaurant}
                 onPress={() => {
-                  console.log('Selected restaurant:', restaurant.name);
+                  const query = encodeURIComponent(
+                    restaurant.name + (restaurant.address ? ' ' + restaurant.address : '')
+                  );
+                  const url =
+                    restaurant.mapUrl ||
+                    `https://www.google.com/maps/search/?api=1&query=${query}`;
+                  Linking.openURL(url).catch((err) =>
+                    console.log('Error opening Google Maps:', err)
+                  );
                 }}
               />
             ))}
@@ -281,15 +321,18 @@ export default function SearchScreen() {
         visible={popupPost !== null}
         post={popupPost}
         onClose={() => setPopupPost(null)}
-        isOwnPost={popupPost?.userId === CURRENT_USER_ID}
+        isOwnPost={!!user && popupPost?.userId === user.id}
         isBookmarked={popupPost ? bookmarkedIds.includes(popupPost.id) : false}
         onBookmark={handleToggleBookmark}
         onUserPress={(userId) => {
           setPopupPost(null);
-          if (userId === CURRENT_USER_ID) {
+          if (user && userId === user.id) {
             router.push('/(tabs)/profile');
           } else {
-            router.push('/OtherProfile');
+            router.push({
+              pathname: '/OtherProfile',
+              params: { userId },
+            });
           }
         }}
       />

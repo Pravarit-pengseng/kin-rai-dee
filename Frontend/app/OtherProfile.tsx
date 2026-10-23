@@ -132,7 +132,12 @@ export default function OtherProfileScreen() {
             text: 'บล็อก',
             style: 'destructive',
             onPress: async () => {
-              const res = await blockUser(userId);
+              const res = await blockUser(
+                userId,
+                profile?.display_name || profile?.username,
+                profile?.avatar_url,
+                profile?.username
+              );
               if (res.success) {
                 setIsBlockedByMe(true);
                 setIsBlocked(true);

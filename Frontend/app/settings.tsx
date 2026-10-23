@@ -10,16 +10,25 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { ChevronRight, ArrowLeft, ShieldAlert } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
-import { deleteAccount } from '@/services/safetyService';
+import { deleteAccount, getBlockedUsers } from '@/services/safetyService';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { isLoggedIn, logout } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [blockedCount, setBlockedCount] = useState<number>(0);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      getBlockedUsers().then((list) => {
+        setBlockedCount(list.length);
+      });
+    }, [])
+  );
 
   const handleBack = () => {
     router.back();
@@ -34,10 +43,6 @@ export default function SettingsScreen() {
   };
 
   const handleOpenBlockedUsers = () => {
-    if (!isLoggedIn) {
-      Alert.alert('เข้าสู่ระบบ', 'กรุณาเข้าสู่ระบบเพื่อจัดการผู้ใช้ที่ถูกบล็อก');
-      return;
-    }
     router.push('/blocked-users');
   };
 
@@ -133,7 +138,14 @@ export default function SettingsScreen() {
             style={({ pressed }) => [styles.menuItem, pressed && styles.itemPressed]}
             onPress={handleOpenBlockedUsers}
           >
-            <Text style={styles.menuText}>ผู้ใช้ที่ถูกบล็อก</Text>
+            <View style={styles.menuItemLeft}>
+              <Text style={styles.menuText}>ผู้ใช้ที่ถูกบล็อก</Text>
+              {blockedCount > 0 && (
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{blockedCount}</Text>
+                </View>
+              )}
+            </View>
             <ChevronRight size={20} color="#79747E" />
           </Pressable>
 
@@ -208,6 +220,24 @@ const styles = StyleSheet.create({
   },
   itemPressed: {
     backgroundColor: '#F8F6F4',
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  countBadge: {
+    backgroundColor: '#FFF0EB',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F8D7CD',
+  },
+  countBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#A7392A',
   },
   menuText: {
     fontSize: 17,

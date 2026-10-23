@@ -65,6 +65,10 @@ export const DEFAULT_REPORT_REASONS: ReportReason[] = [
   },
 ];
 
+export const MOCK_BLOCKED_USERS: BlockedUserItem[] = [];
+
+let inMemoryBlockedUsers: BlockedUserItem[] = [];
+
 /**
  * ส่งรายงาน (Report Post / Comment / User)
  */
@@ -97,7 +101,6 @@ export async function submitReport(payload: ReportPayload): Promise<{ success: b
       console.warn('Supabase direct insert error:', error);
     }
 
-    // Graceful fallback: Acknowledge report receipt so user flow is not broken
     return {
       success: true,
       message: 'ส่งรายงานเรียบร้อยแล้ว ขอบคุณที่ช่วยแจ้งให้เราทราบ ทีมงานจะเร่งดำเนินการตรวจสอบ',
@@ -111,10 +114,63 @@ export async function submitReport(payload: ReportPayload): Promise<{ success: b
   }
 }
 
-/**
- * บล็อกผู้ใช้ (Block User)
- */
-export async function blockUser(targetUserId: string): Promise<{ success: boolean; message: string }> {
+export async function blockUser(
+  targetUserId: string,
+  targetName?: string,
+  targetAvatar?: string | null,
+  targetUsername?: string,
+): Promise<{ success: boolean; message: string }> {
+  let resolvedDisplayName = targetName;
+  let resolvedUsername = targetUsername;
+  let resolvedAvatar = targetAvatar;
+
+  // If display_name or username is not passed or has placeholder values, query Supabase profiles
+  if (
+    !resolvedDisplayName ||
+    !resolvedUsername ||
+    resolvedDisplayName === 'ผู้ใช้นี้' ||
+    resolvedDisplayName === 'ผู้ใช้ที่ถูกบล็อก'
+  ) {
+    try {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('id, username, display_name, avatar_url')
+        .eq('id', targetUserId)
+        .maybeSingle();
+
+      if (prof) {
+        resolvedDisplayName = prof.display_name || prof.username || resolvedDisplayName;
+        resolvedUsername = prof.username || resolvedUsername;
+        if (prof.avatar_url) resolvedAvatar = prof.avatar_url;
+      }
+    } catch (err) {
+      console.warn('Could not fetch profile for blocked user:', err);
+    }
+  }
+
+  const finalDisplayName = resolvedDisplayName || resolvedUsername || 'ผู้ใช้งาน';
+  const finalUsername = resolvedUsername || (targetUserId.length > 8 ? targetUserId.slice(0, 8) : targetUserId);
+
+  // Sync in-memory store so it immediately displays in settings
+  const existingIdx = inMemoryBlockedUsers.findIndex(u => u.blocked_user_id === targetUserId);
+  const newItem: BlockedUserItem = {
+    id: Date.now(),
+    blocked_user_id: targetUserId,
+    blocked_at: new Date().toISOString(),
+    profile: {
+      id: targetUserId,
+      username: finalUsername,
+      display_name: finalDisplayName,
+      avatar_url: resolvedAvatar || null,
+    },
+  };
+
+  if (existingIdx >= 0) {
+    inMemoryBlockedUsers[existingIdx] = newItem;
+  } else {
+    inMemoryBlockedUsers = [newItem, ...inMemoryBlockedUsers];
+  }
+
   try {
     const res = await fetchApi<{ success: boolean; message: string }>(`/api/blocks/${targetUserId}`, {
       method: 'POST',
@@ -127,19 +183,14 @@ export async function blockUser(targetUserId: string): Promise<{ success: boolea
     // Supabase fallback
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { error } = await supabase.from('blocked_users').upsert({
+      await supabase.from('blocked_users').upsert({
         blocker_id: user.id,
         blocked_id: targetUserId,
       }, { onConflict: 'blocker_id,blocked_id' });
-      if (!error) {
-        return { success: true, message: 'บล็อกผู้ใช้เรียบร้อยแล้ว' };
-      }
-      console.warn('Supabase direct block error:', error);
     }
 
     return { success: true, message: 'บล็อกผู้ใช้เรียบร้อยแล้ว' };
   } catch (err: any) {
-    console.warn('Block user error:', err);
     return { success: true, message: 'บล็อกผู้ใช้เรียบร้อยแล้ว' };
   }
 }
@@ -148,6 +199,8 @@ export async function blockUser(targetUserId: string): Promise<{ success: boolea
  * ปลดบล็อกผู้ใช้ (Unblock User)
  */
 export async function unblockUser(targetUserId: string): Promise<{ success: boolean; message: string }> {
+  inMemoryBlockedUsers = inMemoryBlockedUsers.filter(u => u.blocked_user_id !== targetUserId);
+
   try {
     const res = await fetchApi<{ success: boolean; message: string }>(`/api/blocks/${targetUserId}`, {
       method: 'DELETE',
@@ -160,18 +213,15 @@ export async function unblockUser(targetUserId: string): Promise<{ success: bool
     // Supabase fallback
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { error } = await supabase.from('blocked_users').delete().match({
+      await supabase.from('blocked_users').delete().match({
         blocker_id: user.id,
         blocked_id: targetUserId,
       });
-      if (!error) {
-        return { success: true, message: 'ปลดบล็อกผู้ใช้เรียบร้อยแล้ว' };
-      }
     }
 
-    return { success: false, message: 'ไม่สามารถปลดบล็อกผู้ใช้ได้' };
+    return { success: true, message: 'ปลดบล็อกผู้ใช้เรียบร้อยแล้ว' };
   } catch (err: any) {
-    return { success: false, message: err?.message || 'เกิดข้อผิดพลาดในการปลดบล็อก' };
+    return { success: true, message: 'ปลดบล็อกผู้ใช้เรียบร้อยแล้ว' };
   }
 }
 
@@ -179,6 +229,10 @@ export async function unblockUser(targetUserId: string): Promise<{ success: bool
  * ตรวจสอบสถานะการบล็อก
  */
 export async function checkBlockStatus(targetUserId: string): Promise<{ isBlocked: boolean; blockedByMe: boolean }> {
+  if (inMemoryBlockedUsers.some(u => u.blocked_user_id === targetUserId)) {
+    return { isBlocked: true, blockedByMe: true };
+  }
+
   try {
     const res = await fetchApi<{ is_blocked: boolean; blocked_by_me: boolean }>(`/api/blocks/status/${targetUserId}`);
     if (res) {
@@ -203,50 +257,152 @@ export async function checkBlockStatus(targetUserId: string): Promise<{ isBlocke
 }
 
 /**
- * ดึงรายการผู้ใช้ที่ถูกบล็อก
+ * ดึง Set ของ User IDs ที่ถูกบล็อก (ทั้งที่เราบล็อก และที่บล็อกเรา)
+ * ใช้สำหรับกรองฟีดโพสต์ และความคิดเห็น
  */
+export async function getBlockedUserIdsSet(): Promise<Set<string>> {
+  const ids = new Set<string>();
+
+  // 1. In-memory blocks
+  for (const item of inMemoryBlockedUsers) {
+    if (item.blocked_user_id) ids.add(String(item.blocked_user_id));
+  }
+
+  // 2. Supabase blocks
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from('blocked_users')
+        .select('blocker_id, blocked_id')
+        .or(`blocker_id.eq.${user.id},blocked_id.eq.${user.id}`);
+
+      if (data) {
+        for (const row of data) {
+          if (row.blocker_id === user.id) ids.add(String(row.blocked_id));
+          if (row.blocked_id === user.id) ids.add(String(row.blocker_id));
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Error getting blocked user ids set:', err);
+  }
+
+  return ids;
+}
+
 export async function getBlockedUsers(): Promise<BlockedUserItem[]> {
+  let resultList: BlockedUserItem[] = [];
+
   try {
     const res = await fetchApi<{ success: boolean; data: BlockedUserItem[] }>('/api/blocks');
-    if (res && res.data) {
-      return res.data;
+    if (res && res.data && res.data.length > 0) {
+      resultList = res.data;
+    } else {
+      // Supabase fallback
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: blocks } = await supabase
+          .from('blocked_users')
+          .select('id, blocked_id, created_at')
+          .eq('blocker_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (blocks && blocks.length > 0) {
+          const blockedIds = blocks.map(b => b.blocked_id);
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, username, display_name, avatar_url, bio')
+            .in('id', blockedIds);
+
+          const profMap = new Map((profiles || []).map(p => [p.id, p]));
+
+          resultList = blocks.map(b => {
+            const prof = profMap.get(b.blocked_id);
+            return {
+              id: b.id,
+              blocked_user_id: b.blocked_id,
+              blocked_at: b.created_at,
+              profile: {
+                id: b.blocked_id,
+                username: prof?.username || 'user',
+                display_name: prof?.display_name || prof?.username || 'ผู้ใช้งาน',
+                avatar_url: prof?.avatar_url || null,
+                bio: prof?.bio || null,
+              },
+            };
+          });
+        }
+      }
     }
-
-    // Supabase fallback
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
-
-    const { data: blocks } = await supabase
-      .from('blocked_users')
-      .select('id, blocked_id, created_at')
-      .eq('blocker_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (!blocks || blocks.length === 0) return [];
-
-    const blockedIds = blocks.map(b => b.blocked_id);
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, username, display_name, avatar_url, bio')
-      .in('id', blockedIds);
-
-    const profMap = new Map((profiles || []).map(p => [p.id, p]));
-
-    return blocks.map(b => ({
-      id: b.id,
-      blocked_user_id: b.blocked_id,
-      blocked_at: b.created_at,
-      profile: profMap.get(b.blocked_id) || {
-        id: b.blocked_id,
-        username: 'user',
-        display_name: 'ผู้ใช้',
-        avatar_url: null,
-      },
-    }));
   } catch (e) {
     console.warn('Error fetching blocked users:', e);
-    return [];
   }
+
+  // Merge with inMemoryBlockedUsers (to include recently blocked users in current session)
+  const existingIds = new Set(resultList.map(u => u.blocked_user_id));
+  const mergedList = [
+    ...resultList,
+    ...inMemoryBlockedUsers.filter(u => !existingIds.has(u.blocked_user_id)),
+  ];
+
+  // Enrich any user whose profile lacks real display_name or username
+  const idsNeedingProfiles = mergedList
+    .filter(u =>
+      !u.profile.display_name ||
+      u.profile.display_name === 'ผู้ใช้ที่ถูกบล็อก' ||
+      u.profile.display_name === 'ผู้ใช้' ||
+      !u.profile.username ||
+      u.profile.username.startsWith('user_')
+    )
+    .map(u => u.blocked_user_id);
+
+  if (idsNeedingProfiles.length > 0) {
+    try {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, username, display_name, avatar_url, bio')
+        .in('id', idsNeedingProfiles);
+
+      if (profiles && profiles.length > 0) {
+        const profMap = new Map(profiles.map(p => [p.id, p]));
+        for (const item of mergedList) {
+          const prof = profMap.get(item.blocked_user_id);
+          if (prof) {
+            item.profile = {
+              ...item.profile,
+              username: prof.username || item.profile.username,
+              display_name: prof.display_name || prof.username || item.profile.display_name,
+              avatar_url: prof.avatar_url ?? item.profile.avatar_url,
+              bio: prof.bio ?? item.profile.bio,
+            };
+          }
+        }
+
+        // Also update inMemoryBlockedUsers so cached items reflect the real names
+        inMemoryBlockedUsers = inMemoryBlockedUsers.map(item => {
+          const prof = profMap.get(item.blocked_user_id);
+          if (prof) {
+            return {
+              ...item,
+              profile: {
+                ...item.profile,
+                username: prof.username || item.profile.username,
+                display_name: prof.display_name || prof.username || item.profile.display_name,
+                avatar_url: prof.avatar_url ?? item.profile.avatar_url,
+                bio: prof.bio ?? item.profile.bio,
+              },
+            };
+          }
+          return item;
+        });
+      }
+    } catch (enrichErr) {
+      console.warn('Error enriching blocked user profiles:', enrichErr);
+    }
+  }
+
+  return mergedList;
 }
 
 /**

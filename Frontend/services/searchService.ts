@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase';
 import { PopupPostData } from '@/components/popup-post';
 import { resolveCategoryNames, mapPostToPopup, attachProfilesToPosts } from './postService';
 
+import { getBlockedUserIdsSet } from './safetyService';
+
 export interface SearchHistoryItem {
   id: number | string;
   user_id: string;
@@ -11,6 +13,7 @@ export interface SearchHistoryItem {
 }
 
 export async function searchPosts(query: string): Promise<PopupPostData[]> {
+  let result: PopupPostData[] = [];
   const resp = await fetchApi<any>(`/api/search?q=${encodeURIComponent(query)}`);
 
   let data = resp;
@@ -19,26 +22,36 @@ export async function searchPosts(query: string): Promise<PopupPostData[]> {
   }
 
   if (data && Array.isArray(data) && data.length > 0) {
-    return data.map(mapPostToPopup);
-  }
+    result = data.map(mapPostToPopup);
+  } else {
+    // Supabase fallback
+    try {
+      const { data: posts, error } = await supabase
+        .from('posts')
+        .select('*, post_categories(categories(id, name))')
+        .ilike('food_name', `%${query}%`)
+        .order('created_at', { ascending: false });
 
-  // Supabase fallback
-  try {
-    const { data: posts, error } = await supabase
-      .from('posts')
-      .select('*, post_categories(categories(id, name))')
-      .ilike('food_name', `%${query}%`)
-      .order('created_at', { ascending: false });
-
-    if (!error && posts && posts.length > 0) {
-      const populated = await attachProfilesToPosts(posts);
-      return populated.map(mapPostToPopup);
+      if (!error && posts && posts.length > 0) {
+        const populated = await attachProfilesToPosts(posts);
+        result = populated.map(mapPostToPopup);
+      }
+    } catch (e) {
+      console.warn('Supabase search posts fallback error:', e);
     }
-  } catch (e) {
-    console.warn('Supabase search posts fallback error:', e);
   }
 
-  return [];
+  // ซ่อนโพสต์จากผู้ใช้ที่ถูกบล็อก
+  try {
+    const blockedIds = await getBlockedUserIdsSet();
+    if (blockedIds.size > 0) {
+      result = result.filter(p => !p.userId || !blockedIds.has(String(p.userId)));
+    }
+  } catch (err) {
+    console.warn('Filter blocked posts in search error:', err);
+  }
+
+  return result;
 }
 
 // user_id ไม่ต้องส่งจาก Frontend — Backend ดึงจาก JWT เอง

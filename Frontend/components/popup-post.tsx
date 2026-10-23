@@ -89,6 +89,8 @@ export type PopupPostProps = {
   inline?: boolean;
 
   onUserPress?: (userId: string) => void;
+
+  onBlockUser?: (userId: string) => void;
 };
 
 export default function PopupPost({
@@ -102,6 +104,7 @@ export default function PopupPost({
   onRequestDelete,
   inline = false,
   onUserPress,
+  onBlockUser,
 }: PopupPostProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -191,9 +194,15 @@ export default function PopupPost({
           text: 'บล็อก',
           style: 'destructive',
           onPress: async () => {
-            const res = await blockUser(post.userId!);
+            const res = await blockUser(
+              post.userId!,
+              post.displayName || post.username,
+              post.avatarUrl,
+              post.username
+            );
             if (res.success) {
               Alert.alert('บล็อกผู้ใช้เรียบร้อยแล้ว', `ท่านได้บล็อก ${targetName} เรียบร้อยแล้ว`);
+              onBlockUser?.(post.userId!);
               onClose();
             } else {
               Alert.alert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถบล็อกผู้ใช้ได้');

@@ -111,10 +111,17 @@ export default function BlockedUsersScreen() {
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
           <ArrowLeft size={22} color="#1C1B1F" />
         </Pressable>
         <Text style={styles.headerTitle}>ผู้ใช้ที่ถูกบล็อก</Text>
+        <View style={styles.headerRight}>
+          {blockedUsers.length > 0 && (
+            <View style={styles.headerCountBadge}>
+              <Text style={styles.headerCountBadgeText}>{blockedUsers.length}</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {loading ? (
@@ -137,6 +144,13 @@ export default function BlockedUsersScreen() {
           keyExtractor={item => String(item.id || item.blocked_user_id)}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          ListHeaderComponent={
+            <View style={styles.bannerContainer}>
+              <Text style={styles.bannerText}>
+                โพสต์และความคิดเห็นของผู้ใช้ในรายการนี้จะถูกซ่อนจากมุมมองของคุณ คุณสามารถปลดบล็อกได้ตลอดเวลา
+              </Text>
+            </View>
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -173,11 +187,42 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#1C1B1F',
+    flex: 1,
     fontFamily: Platform.select({
       ios: 'Noto Sans Thai',
       android: 'NotoSansThai_700Bold',
       default: 'NotoSansThai_700Bold, sans-serif',
     }),
+  },
+  headerRight: {
+    minWidth: 32,
+    alignItems: 'flex-end',
+  },
+  headerCountBadge: {
+    backgroundColor: '#FFF0EB',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F8D7CD',
+  },
+  headerCountBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#A7392A',
+  },
+  bannerContainer: {
+    backgroundColor: '#FFF7F3',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2DFD5',
+    marginBottom: 8,
+  },
+  bannerText: {
+    fontSize: 13,
+    color: '#6E483B',
+    lineHeight: 18,
   },
   centerContainer: {
     flex: 1,

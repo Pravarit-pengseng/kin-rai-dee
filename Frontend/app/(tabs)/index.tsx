@@ -178,6 +178,9 @@ export default function HomeScreen() {
               onEdit={handleEditPost}
               onRequestDelete={handleRequestDelete}
               onUserPress={handleUserPress}
+              onBlockUser={(blockedUserId) => {
+                setPosts((prev) => prev.filter((p) => p.userId !== blockedUserId));
+              }}
             />
           </View>
         ))}

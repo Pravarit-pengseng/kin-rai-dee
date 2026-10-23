@@ -104,6 +104,29 @@ a {
   width: var(--sidebar-collapsed-width);
 }
 
+.sidebar.collapsed .sidebar-header {
+  padding: 0;
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-nav {
+  padding: 12px 8px;
+}
+
+.sidebar.collapsed .nav-link {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.sidebar.collapsed .sidebar-footer {
+  padding: 12px 0;
+  justify-content: center;
+}
+
+.sidebar.collapsed .admin-profile {
+  justify-content: center;
+}
+
 .sidebar-header {
   height: var(--header-height);
   padding: 0 18px;

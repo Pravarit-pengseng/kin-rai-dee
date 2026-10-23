@@ -32,7 +32,6 @@ export const ModerationDetailDrawer: React.FC<ModerationDetailDrawerProps> = ({
   if (!isOpen || !report) return null;
 
   const [selectedReason, setSelectedReason] = useState<ReasonCode>(report.reasonCode);
-  const [internalNote, setInternalNote] = useState('');
   const [confirmModalAction, setConfirmModalAction] = useState<ModerationActionType | null>(null);
 
   const content = report.targetContent;
@@ -51,7 +50,6 @@ export const ModerationDetailDrawer: React.FC<ModerationDetailDrawerProps> = ({
       reportId: report.id,
       actionType,
       reasonCode: selectedReason,
-      internalNote,
       notifyUser: false,
       moderatorId: 'mod-current',
       moderatorName: 'แอดมิน'
@@ -72,7 +70,6 @@ export const ModerationDetailDrawer: React.FC<ModerationDetailDrawerProps> = ({
               รายงาน {report.id}
             </h2>
             <Badge type="status" value={report.status} />
-            <Badge type="priority" value={report.priority} />
             <Badge type="content" value={report.targetType} />
           </div>
           <button 
@@ -108,7 +105,6 @@ export const ModerationDetailDrawer: React.FC<ModerationDetailDrawerProps> = ({
                   )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11.5px', color: '#667085' }}>
                     <span>ผู้รายงาน: <strong>@{report.reporterUsername}</strong></span>
-                    <span>รายงานซ้ำ: <strong>{report.reportCount} ครั้ง</strong></span>
                     <span>เวลา: {new Date(report.createdAt).toLocaleString('th-TH')}</span>
                   </div>
                 </div>
@@ -118,7 +114,7 @@ export const ModerationDetailDrawer: React.FC<ModerationDetailDrawerProps> = ({
               <div className="drawer-card">
                 <div className="drawer-section-title">
                   <FileText size={15} color="#2563eb" />
-                  <span>เนื้อหาที่ถูกตรวจสอบ</span>
+                  <span>{report.targetType === 'user' ? 'ข้อมูลผู้ใช้ที่ถูกตรวจสอบ' : 'เนื้อหาที่ถูกตรวจสอบ'}</span>
                 </div>
 
                 <div style={{ fontSize: '12.5px' }}>
@@ -222,20 +218,6 @@ export const ModerationDetailDrawer: React.FC<ModerationDetailDrawerProps> = ({
                   </select>
                 </div>
 
-                {/* Internal Notes */}
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ fontSize: '11.5px', fontWeight: 500, color: '#344054', display: 'block', marginBottom: '3px' }}>
-                    บันทึกภายในสำหรับทีมงาน:
-                  </label>
-                  <textarea 
-                    rows={2}
-                    placeholder="บันทึกข้อความสำหรับผู้ดูแลคนอื่น..."
-                    value={internalNote}
-                    onChange={(e) => setInternalNote(e.target.value)}
-                    style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1px solid #eaecf0', borderRadius: '6px', outline: 'none' }}
-                  />
-                </div>
-
                 {/* Moderation Actions Group */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <div style={{ fontSize: '11px', fontWeight: 600, color: '#667085', textTransform: 'uppercase' }}>
@@ -297,10 +279,9 @@ export const ModerationDetailDrawer: React.FC<ModerationDetailDrawerProps> = ({
           isOpen={true}
           actionType={confirmModalAction}
           targetId={report.targetId}
-          targetType={report.targetType === 'post' ? 'โพสต์' : report.targetType === 'comment' ? 'ความคิดเห็น' : 'เนื้อหา'}
+          targetType={report.targetType === 'post' ? 'โพสต์' : report.targetType === 'comment' ? 'ความคิดเห็น' : report.targetType === 'user' ? 'ผู้ใช้' : 'เนื้อหา'}
           authorName={content.author.displayName}
           reasonCode={selectedReason}
-          internalNote={internalNote}
           onConfirm={() => commitAction(confirmModalAction)}
           onCancel={() => setConfirmModalAction(null)}
         />

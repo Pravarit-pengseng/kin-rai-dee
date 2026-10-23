@@ -48,40 +48,40 @@ export default function TermsOfUseScreen() {
           <View style={styles.bulletItem}>
             <Text style={styles.bulletDot}>•</Text>
             <Text style={styles.bulletText}>
-              <Text style={styles.bulletBold}>เนื้อหาไม่เหมาะสม: </Text>
-              ห้ามโพสต์รูปภาพลามกอนาจาร ความรุนแรง ภาพที่น่ารังเกียจ หรือภาพที่ไม่เกี่ยวข้องกับอาหาร
+              <Text style={styles.bulletBold}>เนื้อหาไม่เหมาะสมหรือไม่เกี่ยวข้องกับอาหาร: </Text>
+              ห้ามโพสต์รูปภาพลามกอนาจาร ความรุนแรง คำหยาบคาย หรือภาพที่ไม่เกี่ยวข้องกับอาหาร
             </Text>
           </View>
 
           <View style={styles.bulletItem}>
             <Text style={styles.bulletDot}>•</Text>
             <Text style={styles.bulletText}>
-              <Text style={styles.bulletBold}>การคุกคามและกลั่นแกล้ง: </Text>
-              ห้ามใช้ถ้อยคำหยาบคาย ข่มขู่ หรือพฤติกรรมกลั่นแกล้งผู้อื่น
+              <Text style={styles.bulletBold}>การคุกคามหรือกลั่นแกล้ง: </Text>
+              ห้ามใช้ถ้อยคำดูถูก ข่มขู่ หรือล้อเลียนผู้อื่นให้เกิดความเสียหายหรืออับอาย
             </Text>
           </View>
 
           <View style={styles.bulletItem}>
             <Text style={styles.bulletDot}>•</Text>
             <Text style={styles.bulletText}>
-              <Text style={styles.bulletBold}>สแปมและการค้าที่ผิดกฎหมาย: </Text>
-              ห้ามโพสต์ข้อความซ้ำๆ เพื่อก่อกวน ลิงก์โฆษณา การพนัน หรือสิ่งผิดกฎหมายทุกชนิด
+              <Text style={styles.bulletBold}>สแปมหรือสิ่งผิดกฎหมาย: </Text>
+              ห้ามโพสต์ข้อความซ้ำซ้อน สแปมลิงก์ โฆษณาเว็บพนัน หรือสิ่งผิดกฎหมายทุกชนิด
             </Text>
           </View>
 
           <View style={styles.bulletItem}>
             <Text style={styles.bulletDot}>•</Text>
             <Text style={styles.bulletText}>
-              <Text style={styles.bulletBold}>ลิขสิทธิ์และทรัพย์สินทางปัญญา: </Text>
-              ห้ามนำรูปภาพหรือบทความของผู้อื่นมาแอบอ้างโดยไม่ได้รับความยินยอม
+              <Text style={styles.bulletBold}>การละเมิดลิขสิทธิ์: </Text>
+              ห้ามนำรูปภาพ ข้อความ หรือผลงานของผู้อื่นมาแอบอ้างโดยไม่ได้รับอนุญาต
             </Text>
           </View>
 
           <View style={styles.bulletItem}>
             <Text style={styles.bulletDot}>•</Text>
             <Text style={styles.bulletText}>
-              <Text style={styles.bulletBold}>ความเป็นส่วนตัวของผู้อื่น: </Text>
-              ห้ามเปิดเผยข้อมูลส่วนบุคคลหรือภาพบุคคลอื่นโดยไม่ได้รับอนุญาต
+              <Text style={styles.bulletBold}>ละเมิดความเป็นส่วนตัว: </Text>
+              ห้ามเปิดเผยข้อมูลส่วนบุคคล เบอร์โทรศัพท์ หรือภาพบุคคลอื่นโดยไม่ได้รับอนุญาต
             </Text>
           </View>
         </View>
@@ -95,7 +95,7 @@ export default function TermsOfUseScreen() {
             <Text style={styles.bulletDot}>•</Text>
             <Text style={styles.bulletText}>
               <Text style={styles.bulletBold}>การรายงาน (Report): </Text>
-              คุณสามารถกดรายงานโพสต์ ความคิดเห็น หรือผู้ใช้งานที่ไม่เหมาะสมได้ตลอดเวลา ทีมงานจะดำเนินการตรวจสอบและจัดการตามความเหมาะสม
+              คุณสามารถกดรายงานโพสต์ ความคิดเห็น หรือผู้ใช้ที่ไม่เหมาะสมได้ตลอดเวลา ทีมงานจะดำเนินการตรวจสอบและจัดการตามความเหมาะสม
             </Text>
           </View>
           <View style={styles.bulletItem}>

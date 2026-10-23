@@ -1,23 +1,19 @@
 import React from 'react';
-import { 
-  LayoutDashboard, 
-  ShieldAlert, 
-  FileText, 
-  Users, 
+import {
+  Flag,
+  FileText,
+  Users,
   History,
-  Settings, 
-  ChevronLeft, 
-  ChevronRight, 
+  ChevronLeft,
+  ChevronRight,
   LogOut
 } from 'lucide-react';
 
-export type NavTab = 
-  | 'overview' 
-  | 'moderation' 
-  | 'posts' 
-  | 'users' 
-  | 'audit'
-  | 'settings';
+export type NavTab =
+  | 'moderation'
+  | 'posts'
+  | 'users'
+  | 'audit';
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -35,35 +31,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse
 }) => {
   const navItems: { id: NavTab; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { id: 'overview', label: 'ภาพรวม', icon: <LayoutDashboard size={17} /> },
-    { 
-      id: 'moderation', 
-      label: 'รายงาน', 
-      icon: <ShieldAlert size={17} />, 
-      badge: pendingReportsCount > 0 ? pendingReportsCount : undefined 
+    {
+      id: 'moderation',
+      label: 'รายงาน',
+      icon: <Flag size={17} />,
+      badge: pendingReportsCount > 0 ? pendingReportsCount : undefined
     },
     { id: 'posts', label: 'จัดการเนื้อหา', icon: <FileText size={17} /> },
     { id: 'users', label: 'สมาชิก', icon: <Users size={17} /> },
     { id: 'audit', label: 'ประวัติการทำงาน', icon: <History size={17} /> },
-    { id: 'settings', label: 'ตั้งค่า', icon: <Settings size={17} /> },
   ];
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       {/* Brand Header */}
       <div className="sidebar-header">
-        <div className="brand-wrapper">
-          {!collapsed && (
+        {!collapsed && (
+          <div className="brand-wrapper">
             <div className="brand-info">
-              <span className="brand-title">กินไรดี</span>
+              <span className="brand-title">KIN RAI DEE</span>
               <span className="brand-subtitle">ระบบจัดการผู้ดูแล</span>
             </div>
-          )}
-          {collapsed && (
-            <span className="brand-title" style={{ fontSize: '16px' }}>ก</span>
-          )}
-        </div>
-        <button 
+          </div>
+        )}
+        <button
           className="sidebar-toggle-btn"
           onClick={onToggleCollapse}
           title={collapsed ? 'ขยายแถบเมนู' : 'ย่อแถบเมนู'}
@@ -111,8 +102,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
         {!collapsed && (
-          <button 
-            className="sidebar-toggle-btn" 
+          <button
+            className="sidebar-toggle-btn"
             title="ออกจากระบบ"
             onClick={() => alert('จำลองการออกจากระบบ')}
           >

@@ -86,7 +86,7 @@ export const CommentsPage: React.FC<CommentsPageProps> = ({ onShowToast }) => {
                 <th style={{ width: '130px' }}>ผู้เขียน</th>
                 <th style={{ width: '120px' }}>วันที่สร้าง</th>
                 <th style={{ width: '100px' }}>สถานะ</th>
-                <th style={{ width: '100px', textAlign: 'right' }}>จัดการ</th>
+                <th style={{ width: '100px' }}>จัดการ</th>
               </tr>
             </thead>
             <tbody>
@@ -131,8 +131,8 @@ export const CommentsPage: React.FC<CommentsPageProps> = ({ onShowToast }) => {
                         <span className="badge badge-action_taken">เผยแพร่อยู่</span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <button 
                           className="btn btn-outline btn-sm"
                           onClick={() => handleToggleHide(c.id, !!c._hidden)}

@@ -7,8 +7,6 @@ interface AdminLayoutProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   pendingReportsCount: number;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
   isLive: boolean;
   onRefreshData: () => void;
   isRefreshing: boolean;
@@ -21,8 +19,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   currentTab,
   onSelectTab,
   pendingReportsCount,
-  searchQuery,
-  onSearchChange,
   toasts,
   onDismissToast,
   children
@@ -44,8 +40,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       <div className="main-wrapper">
         <Header 
           currentTab={currentTab}
-          searchQuery={searchQuery}
-          onSearchChange={onSearchChange}
           pendingCount={pendingReportsCount}
         />
 

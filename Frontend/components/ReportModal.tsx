@@ -42,7 +42,7 @@ export default function ReportModal({
       case 'comment':
         return 'รายงานความคิดเห็น';
       case 'user':
-        return 'รายงานผู้ใช้งาน';
+        return 'รายงานผู้ใช้';
       default:
         return 'รายงานเนื้อหา';
     }

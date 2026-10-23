@@ -9,6 +9,8 @@ import {
   LogOut
 } from 'lucide-react';
 
+import { AdminUser } from '../../pages/LoginPage';
+
 export type NavTab =
   | 'moderation'
   | 'posts'
@@ -21,6 +23,8 @@ interface SidebarProps {
   pendingReportsCount: number;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  currentAdmin?: AdminUser | null;
+  onLogout?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -28,7 +32,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   pendingReportsCount,
   collapsed,
-  onToggleCollapse
+  onToggleCollapse,
+  currentAdmin,
+  onLogout
 }) => {
   const navItems: { id: NavTab; label: string; icon: React.ReactNode; badge?: number }[] = [
     {
@@ -93,11 +99,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Admin Profile Footer */}
       <div className="sidebar-footer">
         <div className="admin-profile">
-          <div className="admin-avatar">A</div>
+          <div className="admin-avatar">
+            {((currentAdmin?.name || 'A').charAt(0)).toUpperCase()}
+          </div>
           {!collapsed && (
             <div className="admin-details">
-              <span className="admin-name">ผู้ดูแลระบบ</span>
-              <span className="admin-role">Super Admin</span>
+              <span className="admin-name">{currentAdmin?.name || 'ผู้ดูแลระบบ'}</span>
+              <span className="admin-role">{currentAdmin?.role || 'Super Admin'}</span>
             </div>
           )}
         </div>
@@ -105,7 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             className="sidebar-toggle-btn"
             title="ออกจากระบบ"
-            onClick={() => alert('จำลองการออกจากระบบ')}
+            onClick={onLogout}
           >
             <LogOut size={15} />
           </button>

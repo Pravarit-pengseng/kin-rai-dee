@@ -5,10 +5,20 @@ import { ModerationQueuePage } from './pages/ModerationQueuePage';
 import { PostsPage } from './pages/PostsPage';
 import { UsersPage } from './pages/UsersPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
+import { LoginPage, AdminUser } from './pages/LoginPage';
 import { moderationService } from './services/moderationService';
-import { ToastMessage } from './components/common/Toast';
+import { ToastContainer, ToastMessage } from './components/common/Toast';
 
 export function App() {
+  const [currentAdmin, setCurrentAdmin] = useState<AdminUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('kinraidee_admin_auth') || sessionStorage.getItem('kinraidee_admin_auth');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [currentTab, setCurrentTab] = useState<NavTab>('moderation');
   const [isLive, setIsLive] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -28,6 +38,7 @@ export function App() {
   };
 
   const loadData = async () => {
+    if (!currentAdmin) return;
     setIsRefreshing(true);
     try {
       const res = await moderationService.initialize();
@@ -42,8 +53,34 @@ export function App() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (currentAdmin) {
+      loadData();
+    }
+  }, [currentAdmin]);
+
+  const handleLogout = () => {
+    if (confirm('คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?')) {
+      localStorage.removeItem('kinraidee_admin_auth');
+      sessionStorage.removeItem('kinraidee_admin_auth');
+      setCurrentAdmin(null);
+      showToast('ออกจากระบบเรียบร้อยแล้ว', 'info');
+    }
+  };
+
+  // If not logged in, render LoginPage
+  if (!currentAdmin) {
+    return (
+      <>
+        <LoginPage 
+          onLoginSuccess={(admin) => {
+            setCurrentAdmin(admin);
+          }} 
+          onShowToast={showToast} 
+        />
+        <ToastContainer toasts={toasts} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
+      </>
+    );
+  }
 
   return (
     <AdminLayout
@@ -58,6 +95,8 @@ export function App() {
       isRefreshing={isRefreshing}
       toasts={toasts}
       onDismissToast={(id) => setToasts(prev => prev.filter(t => t.id !== id))}
+      currentAdmin={currentAdmin}
+      onLogout={handleLogout}
     >
       {/* 1. Moderation Queue (Reports) */}
       {currentTab === 'moderation' && (

@@ -1,12 +1,12 @@
 import { supabase } from './supabaseClient';
-import { 
-  ModerationReport, 
-  ModerationDecision, 
-  AuditLogItem, 
-  CommunityRule, 
-  ContentType, 
-  ReportStatus, 
-  PriorityLevel, 
+import {
+  ModerationReport,
+  ModerationDecision,
+  AuditLogItem,
+  CommunityRule,
+  ContentType,
+  ReportStatus,
+  PriorityLevel,
   ReasonCode,
   AuthorProfile,
   UGCContent
@@ -23,7 +23,7 @@ export const COMMUNITY_RULES: CommunityRule[] = [
 
 export const AVAILABLE_MODERATORS = [
   { id: 'mod-1', name: 'แอดมินสุภพ (Super Admin)', email: 'admin.supap@kinraidee.app' },
-  { id: 'mod-2', name: 'แอดมินเอก (Moderator)', email: 'mod.aey@kinraidee.app' },
+  { id: 'mod-2', name: 'แอดมินเอก (Moderator)', email: 'mod.aek@kinraidee.app' },
   { id: 'mod-3', name: 'แอดมินปอนด์ (Support)', email: 'support.pond@kinraidee.app' },
 ];
 
@@ -213,8 +213,8 @@ class ModerationService {
   }
 
   private buildConnectedReports(
-    realPosts: any[], 
-    realComments: any[], 
+    realPosts: any[],
+    realComments: any[],
     profileMap: Map<string, AuthorProfile>
   ): ModerationReport[] {
     const reports: ModerationReport[] = [];
@@ -526,7 +526,7 @@ class ModerationService {
 
     if (filters.search && filters.search.trim()) {
       const q = filters.search.toLowerCase().trim();
-      result = result.filter(r => 
+      result = result.filter(r =>
         r.id.toLowerCase().includes(q) ||
         r.reasonLabel.toLowerCase().includes(q) ||
         r.targetContent.author.username.toLowerCase().includes(q) ||
@@ -689,9 +689,9 @@ class ModerationService {
 
     this.persistReports();
 
-    return { 
-      success: true, 
-      message: `บันทึกคำตัดสินเรียบร้อยแล้ว (${this.getActionTitle(decision.actionType)})` 
+    return {
+      success: true,
+      message: `บันทึกคำตัดสินเรียบร้อยแล้ว (${this.getActionTitle(decision.actionType)})`
     };
   }
 
@@ -700,8 +700,8 @@ class ModerationService {
     const pending = this.reportsCache.filter(r => r.status === 'pending').length;
     const actionTaken = this.reportsCache.filter(r => r.status === 'action_taken').length;
     const dismissed = this.reportsCache.filter(r => r.status === 'dismissed').length;
-    const highPriority = this.reportsCache.filter(r => 
-      (r.priority === 'high' || r.priority === 'urgent') && 
+    const highPriority = this.reportsCache.filter(r =>
+      (r.priority === 'high' || r.priority === 'urgent') &&
       r.status === 'pending'
     ).length;
 

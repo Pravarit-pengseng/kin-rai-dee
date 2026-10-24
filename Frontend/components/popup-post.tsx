@@ -22,11 +22,15 @@ import {
   Bookmark,
   AlignLeft,
   MessageCircle,
+  MoreVertical,
+  Flag,
 } from "lucide-react-native";
 import { useRouter, usePathname } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { getPostComments, addPostComment } from "@/services/postService";
 import { getMyProfile } from "@/services/profileService";
+import { blockUser } from "@/services/safetyService";
+import ReportModal from "@/components/ReportModal";
 
 import PostDropdown from "./post-dropdown";
 import { ThemedText } from "@/components/themed-text";
@@ -85,6 +89,8 @@ export type PopupPostProps = {
   inline?: boolean;
 
   onUserPress?: (userId: string) => void;
+
+  onBlockUser?: (userId: string) => void;
 };
 
 export default function PopupPost({
@@ -98,6 +104,7 @@ export default function PopupPost({
   onRequestDelete,
   inline = false,
   onUserPress,
+  onBlockUser,
 }: PopupPostProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -109,10 +116,6 @@ export default function PopupPost({
     setAvatarError(false);
   }, [post?.avatarUrl]);
 
-  if (!post) {
-    return null;
-  }
-
   const handleBookmarkPress = () => {
     setShowMenu(false);
     if (!isLoggedIn) {
@@ -123,8 +126,17 @@ export default function PopupPost({
       });
       return;
     }
-    onBookmark?.(post.id);
+    if (post) {
+      onBookmark?.(post.id);
+    }
   };
+
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{
+    type: 'post' | 'comment';
+    id: string;
+    title?: string;
+  }>({ type: 'post', id: '' });
 
   const handleMenuPress = () => {
     setShowMenu((prev) => !prev);
@@ -133,12 +145,89 @@ export default function PopupPost({
   // Send the selected post to the parent.
   const handleEditPress = () => {
     setShowMenu(false);
-    onEdit?.(post);
+    if (post) onEdit?.(post);
   };
 
   const handleDeletePress = () => {
     setShowMenu(false);
-    onRequestDelete?.(post.id);
+    if (post) onRequestDelete?.(post.id);
+  };
+
+  const handleReportPostPress = () => {
+    setShowMenu(false);
+    if (!isLoggedIn) {
+      onClose();
+      router.push({
+        pathname: '/(auth)/login',
+        params: { returnTo: pathname || '/', from: pathname || '/' },
+      });
+      return;
+    }
+    if (!post) return;
+    setReportTarget({
+      type: 'post',
+      id: String(post.id),
+      title: post.title || 'โพสต์นี้',
+    });
+    setReportModalVisible(true);
+  };
+
+  const handleBlockUserPress = () => {
+    setShowMenu(false);
+    if (!isLoggedIn) {
+      onClose();
+      router.push({
+        pathname: '/(auth)/login',
+        params: { returnTo: pathname || '/', from: pathname || '/' },
+      });
+      return;
+    }
+    if (!post?.userId) return;
+
+    const targetName = post.displayName || post.username || 'ผู้ใช้นี้';
+    Alert.alert(
+      'บล็อกผู้ใช้',
+      `ท่านต้องการบล็อก "${targetName}" หรือไม่?\n\n• โพสต์ของผู้ใช้นี้จะถูกซ่อนจากฟีดของท่าน\n• ความคิดเห็นของผู้ใช้นี้จะถูกซ่อน\n• ท่านสามารถปลดบล็อกได้ตลอดเวลาในหน้าตั้งค่า`,
+      [
+        { text: 'ยกเลิก', style: 'cancel' },
+        {
+          text: 'บล็อก',
+          style: 'destructive',
+          onPress: async () => {
+            const res = await blockUser(
+              post.userId!,
+              post.displayName || post.username,
+              post.avatarUrl,
+              post.username
+            );
+            if (res.success) {
+              Alert.alert('บล็อกผู้ใช้เรียบร้อยแล้ว', `ท่านได้บล็อก ${targetName} เรียบร้อยแล้ว`);
+              onBlockUser?.(post.userId!);
+              onClose();
+            } else {
+              Alert.alert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถบล็อกผู้ใช้ได้');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReportComment = (item: CommentItem) => {
+    if (!isLoggedIn) {
+      onClose();
+      router.push({
+        pathname: '/(auth)/login',
+        params: { returnTo: pathname || '/', from: pathname || '/' },
+      });
+      return;
+    }
+    setReportTarget({
+      type: 'comment',
+      id: String(item.id),
+      title: item.text ? (item.text.length > 35 ? item.text.substring(0, 35) + '...' : item.text) : 'ความคิดเห็น',
+    });
+    setReportModalVisible(true);
   };
 
   const handleClose = () => {
@@ -158,15 +247,15 @@ export default function PopupPost({
     }
   }, [user?.avatarUrl, isLoggedIn]);
 
-  const title = post.title || "กะเพราไข่ดาว";
+  const title = post?.title || "กะเพราไข่ดาว";
   const description =
-    post.description ||
+    post?.description ||
     "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า";
   const breakableDescription = formatBreakableText(description);
-  const tags = post.tags && post.tags.length > 0 ? post.tags.map(t => t.replace(/^#+/, "")) : ["อาหารทั่วไป"];
-  const location = post.location || "";
-  const timeAgo = post.timeAgo || "เมื่อเร็วๆ นี้";
-  const displayUserName = post.displayName || post.username || 'ผู้ใช้งาน';
+  const tags = post?.tags && post.tags.length > 0 ? post.tags.map(t => t.replace(/^#+/, "")) : ["อาหารทั่วไป"];
+  const location = post?.location || "";
+  const timeAgo = post?.timeAgo || "เมื่อเร็วๆ นี้";
+  const displayUserName = post?.displayName || post?.username || 'ผู้ใช้งาน';
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
@@ -218,7 +307,7 @@ export default function PopupPost({
   useEffect(() => {
     setIsExpanded(false);
     setIsTruncated(false);
-  }, [post.id, description]);
+  }, [post?.id, description]);
 
   const handleTextLayout = (e: any) => {
     const lines = e.nativeEvent?.lines;
@@ -266,7 +355,7 @@ export default function PopupPost({
 
   const handleAddComment = async () => {
     const trimmed = commentText.trim();
-    if (!trimmed) return;
+    if (!trimmed || !post) return;
     if (isPostingRef.current) return;
 
     if (!isLoggedIn) {
@@ -312,7 +401,7 @@ export default function PopupPost({
 
   const handleUserClick = () => {
     setShowMenu(false);
-    if (post.userId) {
+    if (post?.userId) {
       onUserPress?.(post.userId);
     }
   };
@@ -343,6 +432,10 @@ export default function PopupPost({
       Alert.alert("ไม่สามารถเปิดลิงก์ได้", "โปรดตรวจสอบ URL หรือลองใหม่อีกครั้ง");
     }
   };
+
+  if (!post) {
+    return null;
+  }
 
   const card = (
     <View style={styles.card}>
@@ -386,22 +479,29 @@ export default function PopupPost({
 
         {/* Header actions */}
         <View style={styles.headerActions}>
-          {/* Edit / Delete menu */}
-          {isOwnPost && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.iconButton,
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={handleMenuPress}
-            >
+          {/* Menu button (AlignLeft for own, MoreVertical for other) */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={handleMenuPress}
+            hitSlop={8}
+          >
+            {isOwnPost ? (
               <AlignLeft
                 size={20}
                 color="#57423E"
                 strokeWidth={2}
               />
-            </Pressable>
-          )}
+            ) : (
+              <MoreVertical
+                size={20}
+                color="#57423E"
+                strokeWidth={2}
+              />
+            )}
+          </Pressable>
 
           {/* Close button */}
           {!inline && (
@@ -423,11 +523,14 @@ export default function PopupPost({
       </Pressable>
 
       {/* Dropdown */}
-      {isOwnPost && showMenu && (
+      {showMenu && (
         <View style={styles.dropdownWrapper}>
           <PostDropdown
+            isOwnPost={isOwnPost}
             onEdit={handleEditPress}
             onDelete={handleDeletePress}
+            onReport={handleReportPostPress}
+            onBlock={handleBlockUserPress}
           />
         </View>
       )}
@@ -621,6 +724,19 @@ export default function PopupPost({
                   {item.text}
                 </ThemedText>
               </View>
+
+              {!item.isCurrentUser && (
+                <Pressable
+                  onPress={() => handleReportComment(item)}
+                  style={({ pressed }) => [
+                    styles.commentReportBtn,
+                    pressed && styles.buttonPressed,
+                  ]}
+                  hitSlop={8}
+                >
+                  <Flag size={14} color="#9E9693" />
+                </Pressable>
+              )}
             </View>
           ))
         )}
@@ -698,19 +814,44 @@ export default function PopupPost({
           presentationStyle="overFullScreen"
           onRequestClose={handleCloseComments}
         >
-          <ScrollView
-            style={styles.commentModalOverlay}
-            contentContainerStyle={styles.commentModalOverlayContent}
-            keyboardShouldPersistTaps="always"
-            bounces={false}
-          >
-            <Pressable
-              style={StyleSheet.absoluteFill}
-              onPress={handleCloseComments}
-            />
-            {commentSheetContent}
-          </ScrollView>
+          <View style={StyleSheet.absoluteFill}>
+            <ScrollView
+              style={styles.commentModalOverlay}
+              contentContainerStyle={styles.commentModalOverlayContent}
+              keyboardShouldPersistTaps="always"
+              bounces={false}
+            >
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={handleCloseComments}
+              />
+              {commentSheetContent}
+            </ScrollView>
+
+            {/* When comment modal is open, render ReportModal directly inside it */}
+            {reportModalVisible && (
+              <ReportModal
+                visible={reportModalVisible}
+                targetType={reportTarget.type}
+                targetId={reportTarget.id}
+                targetTitle={reportTarget.title}
+                onClose={() => setReportModalVisible(false)}
+                useNativeModal={false}
+              />
+            )}
+          </View>
         </Modal>
+
+        {/* When comments are NOT open (e.g. reporting post in inline mode) */}
+        {!showComments && (
+          <ReportModal
+            visible={reportModalVisible}
+            targetType={reportTarget.type}
+            targetId={reportTarget.id}
+            targetTitle={reportTarget.title}
+            onClose={() => setReportModalVisible(false)}
+          />
+        )}
       </>
     );
   }
@@ -748,12 +889,30 @@ export default function PopupPost({
             {commentSheetContent}
           </ScrollView>
         )}
+
+        {/* Report Modal inside the Post Modal */}
+        {reportModalVisible && (
+          <ReportModal
+            visible={reportModalVisible}
+            targetType={reportTarget.type}
+            targetId={reportTarget.id}
+            targetTitle={reportTarget.title}
+            onClose={() => setReportModalVisible(false)}
+            useNativeModal={false}
+          />
+        )}
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  commentReportBtn: {
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6,
+  },
   modalRoot: {
     flex: 1,
   },

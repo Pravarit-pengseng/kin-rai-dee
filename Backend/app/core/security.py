@@ -33,3 +33,22 @@ def get_current_user(
         "id": user.id,
         "email": user.email,
     }
+
+
+optional_security = HTTPBearer(auto_error=False)
+
+
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(optional_security),
+) -> dict | None:
+    if not credentials:
+        return None
+    token = credentials.credentials
+    try:
+        response = supabase.auth.get_user(token)
+        user = response.user
+        if user:
+            return {"id": user.id, "email": user.email}
+    except Exception:
+        pass
+    return None

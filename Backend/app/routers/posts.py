@@ -1,7 +1,8 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from app.db import supabase
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_optional_current_user
+from app.services.safety_service import get_blocked_user_ids, is_blocked_between
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/posts", tags=["Posts & Bookmarks"])
@@ -123,8 +124,12 @@ def attach_profiles_to_comments(comments: List[dict]) -> List[dict]:
 
 
 @router.get("/feed")
-def get_feed_posts(limit: int = 20, offset: int = 0):
-    """Fetch recent feed posts with user profiles and categories."""
+def get_feed_posts(
+    limit: int = 20,
+    offset: int = 0,
+    user: Optional[dict] = Depends(get_optional_current_user),
+):
+    """Fetch recent feed posts with user profiles and categories, filtering blocked users."""
     if not supabase:
         return []
     try:
@@ -136,6 +141,13 @@ def get_feed_posts(limit: int = 20, offset: int = 0):
             .execute()
         )
         posts = posts_resp.data or []
+
+        # Filter out blocked users if user is authenticated
+        if user and user.get("id"):
+            blocked_ids = get_blocked_user_ids(user["id"])
+            if blocked_ids:
+                posts = [p for p in posts if str(p.get("user_id")) not in blocked_ids]
+
         return attach_profiles_to_posts(posts)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -402,7 +414,7 @@ def save_post(
         # Check whether the post exists
         post_response = (
             supabase.table("posts")
-            .select("id")
+            .select("id, user_id")
             .eq("id", post_id)
             .execute()
         )
@@ -411,6 +423,14 @@ def save_post(
             raise HTTPException(
                 status_code=404,
                 detail="Post not found",
+            )
+
+        post_data = post_response.data[0]
+        # Check block status
+        if is_blocked_between(user["id"], post_data.get("user_id")):
+            raise HTTPException(
+                status_code=403,
+                detail="ไม่สามารถบันทึกโพสต์นี้ได้เนื่องจากมีสถานะการบล็อกระหว่างผู้ใช้",
             )
 
         # Check whether already bookmarked
@@ -472,8 +492,11 @@ def unsave_post(post_id: int, user: dict = Depends(get_current_user)):
 # ── Comment endpoints ───────────────────────────────────────────────────────
 
 @router.get("/{post_id}/comments")
-def get_post_comments(post_id: int):
-    """Fetch comments for a post ordered by created_at ascending."""
+def get_post_comments(
+    post_id: int,
+    user: Optional[dict] = Depends(get_optional_current_user),
+):
+    """Fetch comments for a post ordered by created_at ascending, filtering blocked users."""
     if not supabase:
         return {"success": True, "data": []}
 
@@ -491,6 +514,13 @@ def get_post_comments(post_id: int):
             .execute()
         )
         comments = resp.data or []
+
+        # Filter out comments from blocked users
+        if user and user.get("id"):
+            blocked_ids = get_blocked_user_ids(user["id"])
+            if blocked_ids:
+                comments = [c for c in comments if str(c.get("user_id")) not in blocked_ids]
+
         return {"success": True, "data": attach_profiles_to_comments(comments)}
     except HTTPException:
         raise
@@ -504,7 +534,7 @@ def create_comment(
     payload: CommentCreate,
     user: dict = Depends(get_current_user),
 ):
-    """Add a new comment to a post (auth required)."""
+    """Add a new comment to a post (auth required, checks block status)."""
     if not supabase:
         raise HTTPException(status_code=500, detail="Database connection uninitialized")
 
@@ -513,10 +543,18 @@ def create_comment(
         raise HTTPException(status_code=400, detail="Comment content cannot be empty")
 
     try:
-        # Check post existence
-        post_check = supabase.table("posts").select("id").eq("id", post_id).execute()
+        # Check post existence and owner
+        post_check = supabase.table("posts").select("id, user_id").eq("id", post_id).execute()
         if not getattr(post_check, "data", None):
             raise HTTPException(status_code=404, detail="Post not found")
+
+        post_data = post_check.data[0]
+        # Check block status between commenter and post owner
+        if is_blocked_between(user["id"], post_data.get("user_id")):
+            raise HTTPException(
+                status_code=403,
+                detail="ไม่สามารถแสดงความคิดเห็นได้เนื่องจากมีสถานะการบล็อกระหว่างผู้ใช้",
+            )
 
         insert_data = {
             "post_id": post_id,

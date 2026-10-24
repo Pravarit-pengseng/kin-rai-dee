@@ -1,0 +1,310 @@
+import React, { useState } from 'react';
+import { 
+  X, 
+  CheckCircle2, 
+  EyeOff, 
+  Trash2, 
+  UserX, 
+  User, 
+  Flag, 
+  FileText, 
+  Shield, 
+  ExternalLink
+} from 'lucide-react';
+import { ModerationReport, ModerationActionType, ReasonCode } from '../../types/moderation';
+import { Badge } from '../common/Badge';
+import { COMMUNITY_RULES, moderationService } from '../../services/moderationService';
+import { ConfirmActionModal } from './ConfirmActionModal';
+
+interface ModerationDetailDrawerProps {
+  report: ModerationReport | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onActionComplete: (msg: string) => void;
+}
+
+export const ModerationDetailDrawer: React.FC<ModerationDetailDrawerProps> = ({
+  report,
+  isOpen,
+  onClose,
+  onActionComplete
+}) => {
+  if (!isOpen || !report) return null;
+
+  const [selectedReason, setSelectedReason] = useState<ReasonCode>(report.reasonCode);
+  const [internalNote, setInternalNote] = useState('');
+  const [confirmModalAction, setConfirmModalAction] = useState<ModerationActionType | null>(null);
+
+  const content = report.targetContent;
+
+  const executeAction = (actionType: ModerationActionType) => {
+    if (['remove', 'hide', 'restrict'].includes(actionType)) {
+      setConfirmModalAction(actionType);
+      return;
+    }
+
+    commitAction(actionType);
+  };
+
+  const commitAction = (actionType: ModerationActionType) => {
+    const res = moderationService.applyDecision({
+      reportId: report.id,
+      actionType,
+      reasonCode: selectedReason,
+      internalNote,
+      notifyUser: false,
+      moderatorId: 'mod-current',
+      moderatorName: 'แอดมิน'
+    });
+
+    setConfirmModalAction(null);
+    onActionComplete(res.message);
+    onClose();
+  };
+
+  return (
+    <div className="drawer-overlay" onClick={onClose}>
+      <div className="drawer-container" onClick={(e) => e.stopPropagation()}>
+        {/* Drawer Header */}
+        <div className="drawer-header">
+          <div className="drawer-title-group">
+            <h2 style={{ fontSize: '15px', fontWeight: 600, color: '#101828' }}>
+              รายงาน {report.id}
+            </h2>
+            <Badge type="status" value={report.status} />
+            <Badge type="priority" value={report.priority} />
+            <Badge type="content" value={report.targetType} />
+          </div>
+          <button 
+            onClick={onClose}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#667085' }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Drawer Body */}
+        <div className="drawer-body">
+          <div className="drawer-grid">
+            
+            {/* Left Column: UGC Content & Report Details */}
+            <div>
+              {/* Report Context Card */}
+              <div className="drawer-card">
+                <div className="drawer-section-title">
+                  <Flag size={15} color="#d92d20" />
+                  <span>ข้อมูลการรายงาน</span>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12.5px' }}>
+                  <div>
+                    <span style={{ color: '#475467' }}>หัวข้อที่ผู้ใช้เลือกรายงาน: </span>
+                    <span style={{ fontWeight: 600, color: '#101828' }}>{report.reasonLabel}</span>
+                  </div>
+                  {COMMUNITY_RULES.find(r => r.code === report.reasonCode)?.description && (
+                    <div style={{ background: '#f9fafb', padding: '8px 10px', borderRadius: '6px', border: '1px solid #eaecf0', color: '#475467', fontSize: '12px' }}>
+                      คำอธิบายหมวดหมู่นี้: {COMMUNITY_RULES.find(r => r.code === report.reasonCode)?.description}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px', fontSize: '11.5px', color: '#667085' }}>
+                    <span>ผู้รายงาน: <strong>@{report.reporterUsername}</strong></span>
+                    <span>รายงานซ้ำ: <strong>{report.reportCount} ครั้ง</strong></span>
+                    <span>เวลา: {new Date(report.createdAt).toLocaleString('th-TH')}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* UGC Content Preview Card */}
+              <div className="drawer-card">
+                <div className="drawer-section-title">
+                  <FileText size={15} color="#2563eb" />
+                  <span>เนื้อหาที่ถูกตรวจสอบ</span>
+                </div>
+
+                <div style={{ fontSize: '12.5px' }}>
+                  {/* Author Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid #eaecf0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#f2f4f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <User size={16} color="#475467" />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, color: '#101828' }}>{content.author.displayName}</div>
+                        <div style={{ fontSize: '11px', color: '#667085' }}>@{content.author.username}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="badge badge-priority-low">
+                        สถานะ: {content.author.status || 'ปกติ'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Content details */}
+                  <div className="ugc-preview-box">
+                    {content.title && (
+                      <h4 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '4px', color: '#101828' }}>
+                        {content.title}
+                      </h4>
+                    )}
+                    <p style={{ color: '#344054', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                      {content.text || '(ไม่มีข้อความบรรยาย)'}
+                    </p>
+
+                    {/* Image Preview if available */}
+                    {content.imageUrl && (
+                      <div style={{ marginTop: '10px' }}>
+                        <img 
+                          src={content.imageUrl} 
+                          alt="UGC Preview" 
+                          className="ugc-image-preview" 
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Restaurant Link if exists */}
+                    {content.restaurantUrl && (
+                      <div style={{ marginTop: '8px', fontSize: '11.5px' }}>
+                        <a 
+                          href={content.restaurantUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{ color: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <ExternalLink size={12} /> ดูลิงก์ร้านค้า / แผนที่
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Comment parent context */}
+                    {report.targetType === 'comment' && content.parentPostId && (
+                      <div style={{ marginTop: '8px', padding: '6px 8px', background: '#ffffff', borderRadius: '4px', border: '1px solid #eaecf0', fontSize: '11.5px' }}>
+                        <span style={{ color: '#667085' }}>ความคิดเห็นบน: </span>
+                        <strong>โพสต์ #{content.parentPostId}</strong>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px', fontSize: '11.5px', color: '#667085' }}>
+                    <span>การแสดงผล: <strong>{content.visibility === 'published' ? 'เผยแพร่อยู่' : content.visibility}</strong></span>
+                    <span>สร้างเมื่อ: {new Date(content.createdAt).toLocaleString('th-TH')}</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Right Column: Decision Panel */}
+            <div>
+              <div className="drawer-card" style={{ position: 'sticky', top: '20px' }}>
+                <div className="drawer-section-title">
+                  <Shield size={15} color="#079455" />
+                  <span>การตัดสินใจ</span>
+                </div>
+
+                {/* Reason Selection */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: 500, color: '#344054', display: 'block', marginBottom: '3px' }}>
+                    หมวดหมู่เหตุผลตามกฎ:
+                  </label>
+                  <select 
+                    className="filter-select" 
+                    style={{ width: '100%' }}
+                    value={selectedReason}
+                    onChange={(e) => setSelectedReason(e.target.value as ReasonCode)}
+                  >
+                    {COMMUNITY_RULES.map(r => (
+                      <option key={r.code} value={r.code}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Internal Notes */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: 500, color: '#344054', display: 'block', marginBottom: '3px' }}>
+                    บันทึกภายในสำหรับทีมงาน:
+                  </label>
+                  <textarea 
+                    rows={2}
+                    placeholder="บันทึกข้อความสำหรับผู้ดูแลคนอื่น..."
+                    value={internalNote}
+                    onChange={(e) => setInternalNote(e.target.value)}
+                    style={{ width: '100%', padding: '6px 8px', fontSize: '12px', border: '1px solid #eaecf0', borderRadius: '6px', outline: 'none' }}
+                  />
+                </div>
+
+                {/* Moderation Actions Group */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#667085', textTransform: 'uppercase' }}>
+                    คำสั่งดำเนินการ
+                  </div>
+
+                  {/* 1. Keep */}
+                  <button 
+                    className="btn btn-outline" 
+                    style={{ justifyContent: 'flex-start', color: '#027a48' }}
+                    onClick={() => executeAction('keep')}
+                  >
+                    <CheckCircle2 size={14} />
+                    <span>คงเนื้อหาไว้ (ไม่พบการละเมิด)</span>
+                  </button>
+
+                  {/* 2. Hide */}
+                  <button 
+                    className="btn btn-outline" 
+                    style={{ justifyContent: 'flex-start', color: '#b54708' }}
+                    onClick={() => executeAction('hide')}
+                  >
+                    <EyeOff size={14} />
+                    <span>ซ่อนเนื้อหาชั่วคราว</span>
+                  </button>
+
+                  {/* 3. Remove */}
+                  <button 
+                    className="btn btn-danger" 
+                    style={{ justifyContent: 'flex-start' }}
+                    onClick={() => executeAction('remove')}
+                  >
+                    <Trash2 size={14} />
+                    <span>ลบเนื้อหา</span>
+                  </button>
+
+                  {/* 4. Restrict */}
+                  <button 
+                    className="btn btn-outline" 
+                    style={{ justifyContent: 'flex-start', color: '#b42318' }}
+                    onClick={() => executeAction('restrict')}
+                  >
+                    <UserX size={14} />
+                    <span>ระงับบัญชีผู้ใช้ชั่วคราว</span>
+                  </button>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      {/* Confirmation Modal */}
+      {confirmModalAction && (
+        <ConfirmActionModal 
+          isOpen={true}
+          actionType={confirmModalAction}
+          targetId={report.targetId}
+          targetType={report.targetType === 'post' ? 'โพสต์' : report.targetType === 'comment' ? 'ความคิดเห็น' : 'เนื้อหา'}
+          authorName={content.author.displayName}
+          reasonCode={selectedReason}
+          internalNote={internalNote}
+          onConfirm={() => commitAction(confirmModalAction)}
+          onCancel={() => setConfirmModalAction(null)}
+        />
+      )}
+    </div>
+  );
+};

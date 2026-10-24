@@ -2,6 +2,7 @@ import { fetchApi } from './api';
 import { supabase } from '@/lib/supabase';
 import { PopupPostData } from '@/components/popup-post';
 import { normalizeAvatarUrl } from './profileService';
+import { getBlockedUserIdsSet } from './safetyService';
 
 const DEFAULT_IMAGE = require('@/assets/images/StirFriedHolyBasil.png');
 
@@ -103,34 +104,46 @@ export async function fetchFeedPosts(
   limit: number = 20,
   offset: number = 0,
 ): Promise<PopupPostData[]> {
+  let posts: PopupPostData[] = [];
+
   const data = await fetchApi<any[]>(
     `/api/posts/feed?limit=${limit}&offset=${offset}`,
   );
 
   if (data && data.length > 0) {
-    return data.map(mapPostToPopup);
-  }
+    posts = data.map(mapPostToPopup);
+  } else {
+    // Supabase fallback
+    try {
+      const { data: supaData } = await supabase
+        .from('posts')
+        .select('*, post_categories(categories(id, name))')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
 
-  // Supabase fallback
-  try {
-    const { data: supaData } = await supabase
-      .from('posts')
-      .select('*, post_categories(categories(id, name))')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (supaData && supaData.length > 0) {
-      const populated = await attachProfilesToPosts(supaData);
-      return populated.map(mapPostToPopup);
+      if (supaData && supaData.length > 0) {
+        const populated = await attachProfilesToPosts(supaData);
+        posts = populated.map(mapPostToPopup);
+      }
+    } catch (e) {
+      console.warn(
+        'Supabase fetch feed posts fallback error:',
+        e,
+      );
     }
-  } catch (e) {
-    console.warn(
-      'Supabase fetch feed posts fallback error:',
-      e,
-    );
   }
 
-  return [];
+  // ซ่อนโพสต์จากผู้ใช้ที่ถูกบล็อก
+  try {
+    const blockedIds = await getBlockedUserIdsSet();
+    if (blockedIds.size > 0) {
+      posts = posts.filter(p => !p.userId || !blockedIds.has(String(p.userId)));
+    }
+  } catch (err) {
+    console.warn('Filter blocked posts error:', err);
+  }
+
+  return posts;
 }
 
 /**
@@ -553,18 +566,45 @@ export interface CommentData {
 }
 
 export async function getPostComments(postId: string | number): Promise<CommentData[]> {
+  let comments: CommentData[] = [];
   try {
     const resp = await fetchApi<{ success: boolean; data: CommentData[] } | CommentData[]>(
       `/api/posts/${postId}/comments`
     );
-    if (Array.isArray(resp)) return resp;
-    if (resp && typeof resp === 'object' && 'data' in resp && Array.isArray((resp as any).data)) {
-      return (resp as any).data;
+    if (Array.isArray(resp)) {
+      comments = resp;
+    } else if (resp && typeof resp === 'object' && 'data' in resp && Array.isArray((resp as any).data)) {
+      comments = (resp as any).data;
+    } else {
+      // Supabase fallback for comments
+      const { data: supaComments } = await supabase
+        .from('comments')
+        .select('*, profiles(id, username, display_name, avatar_url)')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true });
+
+      if (supaComments && supaComments.length > 0) {
+        comments = supaComments as any;
+      }
     }
   } catch (error) {
     console.warn(`Error fetching comments for post ${postId}:`, error);
   }
-  return [];
+
+  // ซ่อนคอมเมนต์จากผู้ใช้ที่ถูกบล็อก
+  try {
+    const blockedIds = await getBlockedUserIdsSet();
+    if (blockedIds.size > 0) {
+      comments = comments.filter(c => {
+        const cUserId = c.user_id || c.profiles?.id;
+        return !cUserId || !blockedIds.has(String(cUserId));
+      });
+    }
+  } catch (err) {
+    console.warn('Filter blocked comments error:', err);
+  }
+
+  return comments;
 }
 
 export async function addPostComment(

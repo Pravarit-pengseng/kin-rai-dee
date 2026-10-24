@@ -7,57 +7,117 @@ import {
 import {
   Pencil,
   Trash2,
+  Flag,
+  UserX,
 } from "lucide-react-native";
 import { ThemedText } from "@/components/themed-text";
 
 export type PostDropdownProps = {
-  onEdit: () => void;
-  onDelete: () => void;
+  isOwnPost?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onReport?: () => void;
+  onBlock?: () => void;
 };
 
 export default function PostDropdown({
+  isOwnPost = true,
   onEdit,
   onDelete,
+  onReport,
+  onBlock,
 }: PostDropdownProps) {
+  if (isOwnPost) {
+    return (
+      <View style={styles.dropdownMenu}>
+        {/* Edit Post */}
+        {onEdit && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.dropdownItem,
+              pressed && styles.itemPressed,
+            ]}
+            onPress={onEdit}
+          >
+            <Pencil
+              size={16}
+              color="#4B3500"
+              strokeWidth={2}
+            />
+
+            <ThemedText style={styles.dropdownText}>
+              แก้ไขโพสต์
+            </ThemedText>
+          </Pressable>
+        )}
+
+        {/* Delete Post */}
+        {onDelete && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.dropdownItem,
+              pressed && styles.itemPressed,
+            ]}
+            onPress={onDelete}
+          >
+            <Trash2
+              size={16}
+              color="#A7392A"
+              strokeWidth={2}
+            />
+
+            <ThemedText style={[styles.dropdownText, { color: '#A7392A' }]}>
+              ลบโพสต์
+            </ThemedText>
+          </Pressable>
+        )}
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.dropdownMenu}>
-      {/* Edit Post */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.dropdownItem,
-          pressed && styles.itemPressed,
-        ]}
-        onPress={onEdit}
-      >
-        <Pencil
-          size={16}
-          color="#4B3500"
-          strokeWidth={2}
-        />
+    <View style={[styles.dropdownMenu, { width: 160 }]}>
+      {/* Report Post */}
+      {onReport && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.dropdownItem,
+            pressed && styles.itemPressed,
+          ]}
+          onPress={onReport}
+        >
+          <Flag
+            size={16}
+            color="#A7392A"
+            strokeWidth={2}
+          />
 
-        <ThemedText style={styles.dropdownText}>
-          แก้ไขโพสต์
-        </ThemedText>
-      </Pressable>
+          <ThemedText style={[styles.dropdownText, { color: '#A7392A' }]}>
+            รายงานโพสต์
+          </ThemedText>
+        </Pressable>
+      )}
 
-      {/* Delete Post */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.dropdownItem,
-          pressed && styles.itemPressed,
-        ]}
-        onPress={onDelete}
-      >
-        <Trash2
-          size={16}
-          color="#4B3500"
-          strokeWidth={2}
-        />
+      {/* Block User */}
+      {onBlock && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.dropdownItem,
+            pressed && styles.itemPressed,
+          ]}
+          onPress={onBlock}
+        >
+          <UserX
+            size={16}
+            color="#57423E"
+            strokeWidth={2}
+          />
 
-        <ThemedText style={styles.dropdownText}>
-          ลบโพสต์
-        </ThemedText>
-      </Pressable>
+          <ThemedText style={styles.dropdownText}>
+            บล็อกผู้ใช้
+          </ThemedText>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -81,6 +141,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 10,
+    borderWidth: 1,
+    borderColor: '#F0E2D8',
   },
 
   dropdownItem: {
@@ -92,7 +154,7 @@ const styles = StyleSheet.create({
   },
 
   itemPressed: {
-    opacity: 0.6,
+    backgroundColor: "#FFF8ED",
   },
 
   dropdownText: {

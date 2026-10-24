@@ -1,4 +1,9 @@
 {
+  "name": "kin-rai-dee",
+  "scripts": {
+    "admin": "npm --prefix admin run dev",
+    "admin:build": "npm --prefix admin run build"
+  },
   "devDependencies": {
     "supabase": "^2.116.0"
   },

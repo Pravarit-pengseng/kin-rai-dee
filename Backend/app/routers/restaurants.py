@@ -49,74 +49,6 @@ DEFAULT_IMAGES = [
 ]
 
 
-def get_mock_restaurants(
-    keyword: Optional[str],
-    user_lat: float,
-    user_lng: float,
-) -> List[RestaurantResponse]:
-    """Fallback mock generator matching the search keyword."""
-    kw = (keyword or "อาหาร").strip()
-
-    sample_templates = [
-        {
-            "name": f"{kw}ตาแป๊ะ",
-            "desc": f"สูตรโบราณรสเด็ด หอมกลิ่นกระทะเหล็ก\nคัดสรรวัตถุดิบคุณภาพดี",
-            "offset_lat": 0.005,
-            "offset_lng": 0.004,
-            "rating": 4.8,
-            "time": "เปิดตั้งแต่ 10.00 น. - 20.00 น.",
-            "addr": "คลองหลวง ปทุมธานี",
-        },
-        {
-            "name": f"ครัวป้าณี {kw}",
-            "desc": f"รสชาติต้นตำรับ เมนูแนะนำ {kw} อร่อยกลมกล่อม",
-            "offset_lat": -0.008,
-            "offset_lng": 0.006,
-            "rating": 4.6,
-            "time": "เปิดตั้งแต่ 11.00 น. - 19.30 น.",
-            "addr": "รังสิต ปทุมธานี",
-        },
-        {
-            "name": f"{kw}แซ่บสะท้าน",
-            "desc": f"รสชาติจัดจ้าน เผ็ดร้อนถึงใจ\nพร้อมเสิร์ฟร้อนๆ ทุกจาน",
-            "offset_lat": 0.012,
-            "offset_lng": -0.007,
-            "rating": 4.7,
-            "time": "เปิดตั้งแต่ 11.00 น. - 22.00 น.",
-            "addr": "รังสิต ปทุมธานี",
-        },
-        {
-            "name": f"ครัวบ้านเรา {kw}รสเด็ด",
-            "desc": f"อาหารจานด่วน วัตถุดิบสดใหม่ ให้เยอะจุใจ",
-            "offset_lat": -0.015,
-            "offset_lng": -0.011,
-            "rating": 4.5,
-            "time": "เปิดตั้งแต่ 09.00 น. - 21.00 น.",
-            "addr": "คลองหลวง ปทุมธานี",
-        },
-    ]
-
-    results = []
-    for i, t in enumerate(sample_templates):
-        r_lat = user_lat + t["offset_lat"]
-        r_lng = user_lng + t["offset_lng"]
-        dist = calculate_distance(user_lat, user_lng, r_lat, r_lng)
-        map_url = f"https://www.google.com/maps/search/?api=1&query={t['name']}+{t['addr']}"
-        results.append(
-            RestaurantResponse(
-                id=f"mock_{i+1}",
-                name=t["name"],
-                image=DEFAULT_IMAGES[i % len(DEFAULT_IMAGES)],
-                description=t["desc"],
-                openTime=t["time"],
-                address=t["addr"],
-                distance=dist,
-                rating=t["rating"],
-                mapUrl=map_url,
-            )
-        )
-    return results
-
 
 async def search_google_places(
     query: str,
@@ -247,14 +179,9 @@ async def get_nearby_restaurants(
     radius: float = Query(5000.0, description="Radius in meters"),
     keyword: Optional[str] = Query(None, description="Food or restaurant keyword"),
 ):
-    """Nearby restaurants for random-food screen."""
+    """Nearby real restaurants from Google Places API for random-food screen."""
     search_query = f"ร้าน{keyword}" if keyword else "ร้านอาหาร"
     places = await search_google_places(search_query, lat, lng, radius)
-
-    if not places:
-        # Fallback to Smart Mock
-        places = get_mock_restaurants(keyword, lat, lng)
-
     return places
 
 
@@ -265,7 +192,7 @@ async def search_restaurants(
     lng: Optional[float] = Query(100.6033, description="User longitude"),
     radius: float = Query(8000.0, description="Radius in meters"),
 ):
-    """Search restaurants by keyword for search screen."""
+    """Search real restaurants from Google Places API by keyword."""
     q = query.strip()
     if not q:
         return []
@@ -275,9 +202,5 @@ async def search_restaurants(
     user_lng = lng if lng is not None else 100.6033
 
     places = await search_google_places(search_query, user_lat, user_lng, radius)
-
-    if not places:
-        # Fallback to Smart Mock matching query
-        places = get_mock_restaurants(q, user_lat, user_lng)
-
     return places
+

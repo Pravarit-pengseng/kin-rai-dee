@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from app.core.security import get_current_user
 from app.db.supabase import supabase
 
-from app.routers import auth, categories, foods, search, posts, profiles, restaurants, pages
+from app.routers import auth, categories, foods, search, posts, profiles, restaurants, safety, pages
 
 
 app = FastAPI(
@@ -42,6 +42,8 @@ for _dist_path in [
 
 
 # Register Routers
+app.include_router(pages.router)
+app.include_router(safety.router)
 app.include_router(auth.router)
 app.include_router(auth.router, prefix="/api")
 app.include_router(categories.router)
@@ -50,7 +52,6 @@ app.include_router(search.router)
 app.include_router(posts.router)
 app.include_router(profiles.router)
 app.include_router(restaurants.router)
-app.include_router(pages.router)
 
 
 @app.get("/")

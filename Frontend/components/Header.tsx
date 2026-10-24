@@ -5,7 +5,7 @@ import { StatusBar, StatusBarStyle } from 'expo-status-bar';
 import { useAuth } from '@/context/AuthContext';
 
 export type HeaderLeftIcon = 'back' | 'close' | 'logout' | 'none';
-export type HeaderRightIcon = 'search' | 'none';
+export type HeaderRightIcon = 'search' | 'settings' | 'none';
 
 interface HeaderProps {
   backgroundColor?: string;
@@ -62,6 +62,7 @@ export function Header({
 
     let iconName: keyof typeof Feather.glyphMap = 'search';
     if (rightIcon === 'search') iconName = 'search';
+    if (rightIcon === 'settings') iconName = 'settings';
 
     const handleRightPress = onRightPress || onSearchPress;
 

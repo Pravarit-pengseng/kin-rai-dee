@@ -2,15 +2,25 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { supabase } from '@/lib/supabase';
 
+const PRODUCTION_API_URL = 'https://kin-rai-dee-backend.onrender.com';
+
 function resolveApiBaseUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 
-  // 1. If EXPO_PUBLIC_API_URL is configured and doesn't point to localhost, use it
+  // 1. In Production build (!__DEV__), strictly enforce HTTPS to protect data in transit (Google Play requirement)
+  if (!__DEV__) {
+    if (envUrl && envUrl.startsWith('https://')) {
+      return envUrl;
+    }
+    return PRODUCTION_API_URL;
+  }
+
+  // 2. Development: If EXPO_PUBLIC_API_URL is configured and doesn't point to localhost, use it
   if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
     return envUrl;
   }
 
-  // 2. Try to get the Metro bundler host IP (e.g. "192.168.1.38:8081" -> "192.168.1.38")
+  // 3. Try to get the Metro bundler host IP (e.g. "192.168.1.38:8081" -> "192.168.1.38")
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {
     const ip = hostUri.split(':')[0];
@@ -19,12 +29,12 @@ function resolveApiBaseUrl(): string {
     }
   }
 
-  // 3. Android emulator loopback host
+  // 4. Android emulator loopback host
   if (Platform.OS === 'android') {
     return 'http://10.0.2.2:8000';
   }
 
-  // 4. Default for iOS simulator and web
+  // 5. Default for iOS simulator and web
   return 'http://localhost:8000';
 }
 

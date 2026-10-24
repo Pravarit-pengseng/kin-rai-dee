@@ -448,9 +448,8 @@ def save_post(
         raise
 
     except Exception as e:
-        import traceback
-        with open("bookmark_error.log", "w") as f:
-            f.write(traceback.format_exc())
+        import logging
+        logging.error("Failed to bookmark post", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=str(e),

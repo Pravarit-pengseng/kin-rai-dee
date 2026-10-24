@@ -241,3 +241,44 @@ export async function getUserPosts(
         return [];
     }
 }
+
+/**
+ * DELETE My Account
+ * Auth required
+ */
+export async function deleteMyAccount(): Promise<{ success: boolean; message?: string }> {
+    const data = await fetchApi<{ success: boolean; message?: string }>(
+        '/api/profiles/me',
+        {
+            method: 'DELETE',
+        },
+    );
+
+    if (data && data.success) {
+        try {
+            await supabase.auth.signOut();
+        } catch (e) {
+            console.warn('Signout after account deletion error:', e);
+        }
+        return { success: true, message: data.message || 'ลบบัญชีผู้ใช้เรียบร้อยแล้ว' };
+    }
+
+    // Fallback via /api/auth/account
+    const authData = await fetchApi<{ success: boolean; message?: string }>(
+        '/api/auth/account',
+        {
+            method: 'DELETE',
+        },
+    );
+
+    if (authData && authData.success) {
+        try {
+            await supabase.auth.signOut();
+        } catch (e) {
+            console.warn('Signout after account deletion error:', e);
+        }
+        return { success: true, message: authData.message || 'ลบบัญชีผู้ใช้เรียบร้อยแล้ว' };
+    }
+
+    return { success: false, message: 'ไม่สามารถลบบัญชีได้ กรุณาลองใหม่อีกครั้ง' };
+}

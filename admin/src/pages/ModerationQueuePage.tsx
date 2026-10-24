@@ -23,6 +23,7 @@ import {
   COMMUNITY_RULES 
 } from '../services/moderationService';
 import { supabase } from '../services/supabaseClient';
+import { adminApi } from '../services/adminApi';
 
 interface ModerationQueuePageProps {
   onShowToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
@@ -52,19 +53,23 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
   const [userCount, setUserCount] = useState<number>(() => moderationService.getUserCount() || 5);
 
   useEffect(() => {
-    const fetchUserCount = async () => {
+    const fetchRealStats = async () => {
       try {
-        const { count, error } = await supabase
-          .from('profiles')
-          .select('*', { count: 'exact', head: true });
-        if (!error && typeof count === 'number') {
-          setUserCount(count);
-        }
+        const s = await adminApi.getStats();
+        setUserCount(s.total_users);
       } catch (err) {
-        console.warn('Failed to fetch user count from profiles:', err);
+        console.warn('Failed to fetch stats from admin API, fallback to Supabase:', err);
+        try {
+          const { count, error } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true });
+          if (!error && typeof count === 'number') {
+            setUserCount(count);
+          }
+        } catch {}
       }
     };
-    fetchUserCount();
+    fetchRealStats();
   }, []);
 
   const refreshData = () => {

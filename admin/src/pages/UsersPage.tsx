@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserX, UserCheck, RefreshCw } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
+import { adminApi } from '../services/adminApi';
 
 interface UsersPageProps {
   onShowToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
@@ -15,16 +16,25 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast }) => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .limit(50);
-
-      if (error) throw error;
-      setUsers(data || []);
+      const res = await adminApi.getUsers();
+      const loaded = (res.data || []).map((u: any) => ({
+        ...u,
+        _suspended: u.is_suspended ?? false,
+      }));
+      setUsers(loaded);
     } catch (e: any) {
-      console.error(e);
-      onShowToast(`โหลดข้อมูลไม่สำเร็จ: ${e.message}`, 'error');
+      console.error('adminApi fetch users failed, falling back to Supabase:', e);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .limit(50);
+
+        if (error) throw error;
+        setUsers((data || []).map((u: any) => ({ ...u, _suspended: u.is_suspended ?? false })));
+      } catch (err: any) {
+        onShowToast(`โหลดข้อมูลไม่สำเร็จ: ${err.message}`, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -34,14 +44,21 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast }) => {
     fetchUsers();
   }, []);
 
-  const handleToggleSuspend = (userId: string, currentSuspended: boolean) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === userId) {
-        return { ...u, _suspended: !currentSuspended };
-      }
-      return u;
-    }));
-    onShowToast(`${currentSuspended ? 'ปลดการระงับ' : 'ระงับบัญชี'}ผู้ใช้เรียบร้อยแล้ว`, 'success');
+  const handleToggleSuspend = async (userId: string, currentSuspended: boolean) => {
+    const nextSuspended = !currentSuspended;
+    try {
+      await adminApi.setUserStatus(userId, nextSuspended ? 'suspended' : 'active');
+      setUsers(prev => prev.map(u => {
+        if (u.id === userId) {
+          return { ...u, is_suspended: nextSuspended, _suspended: nextSuspended };
+        }
+        return u;
+      }));
+      onShowToast(`${currentSuspended ? 'ปลดการระงับ' : 'ระงับบัญชี'}ผู้ใช้เรียบร้อยแล้ว`, 'success');
+    } catch (err: any) {
+      console.error(err);
+      onShowToast(`เกิดข้อผิดพลาดในการเปลี่ยนสถานะ: ${err.message}`, 'error');
+    }
   };
 
   const activeCount = users.filter(u => !u._suspended).length;

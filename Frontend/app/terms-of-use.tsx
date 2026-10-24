@@ -55,38 +55,43 @@ export default function TermsOfUseScreen() {
             เพื่อสร้างสังคมที่น่าอยู่และปลอดภัยสำหรับการแบ่งปันเรื่องราวอาหาร ผู้ใช้งานทุกคนต้องปฏิบัติตามแนวทางปฏิบัติดังนี้:
           </Text>
 
-          <View style={styles.ruleCard}>
-            <Text style={styles.ruleTitle}>• เนื้อหาต้องเกี่ยวกับอาหารและร้านอาหาร</Text>
-            <Text style={styles.ruleDesc}>
-              รูปภาพและข้อความที่โพสต์ต้องเกี่ยวข้องกับอาหาร เครื่องดื่ม หรือบรรยากาศร้านอาหารเท่านั้น
+          <View style={styles.bulletItem}>
+            <Text style={styles.bulletDot}>•</Text>
+            <Text style={styles.bulletText}>
+              <Text style={styles.bulletBold}>เนื้อหาไม่เหมาะสมหรือไม่เกี่ยวข้องกับอาหาร: </Text>
+              ห้ามโพสต์รูปภาพลามกอนาจาร ความรุนแรง คำหยาบคาย หรือภาพที่ไม่เกี่ยวข้องกับอาหาร
             </Text>
           </View>
 
-          <View style={styles.ruleCard}>
-            <Text style={styles.ruleTitle}>• ห้ามเนื้อหาลามกอนาจารและความรุนแรง</Text>
-            <Text style={styles.ruleDesc}>
-              ไม่อนุญาตให้เผยแพร่รูปภาพหรือข้อความที่ส่อไปในทางลามก อนาจาร หยาบคาย หรือสนับสนุนความรุนแรงในทุกรูปแบบ
+          <View style={styles.bulletItem}>
+            <Text style={styles.bulletDot}>•</Text>
+            <Text style={styles.bulletText}>
+              <Text style={styles.bulletBold}>การคุกคามหรือกลั่นแกล้ง: </Text>
+              ห้ามใช้ถ้อยคำดูถูก ข่มขู่ หรือล้อเลียนผู้อื่นให้เกิดความเสียหายหรืออับอาย
             </Text>
           </View>
 
-          <View style={styles.ruleCard}>
-            <Text style={styles.ruleTitle}>• ห้ามการกลั่นแกล้งและคุกคาม (No Harassment)</Text>
-            <Text style={styles.ruleDesc}>
-              ห้ามใช้ถ้อยคำดูถูก เหยียดหยาม คุกคาม หรือเจตนาทำลายชื่อเสียงของบุคคลอื่นหรือร้านอาหาร
+          <View style={styles.bulletItem}>
+            <Text style={styles.bulletDot}>•</Text>
+            <Text style={styles.bulletText}>
+              <Text style={styles.bulletBold}>สแปมหรือสิ่งผิดกฎหมาย: </Text>
+              ห้ามโพสต์ข้อความซ้ำซ้อน สแปมลิงก์ โฆษณาเว็บพนัน หรือสิ่งผิดกฎหมายทุกชนิด
             </Text>
           </View>
 
-          <View style={styles.ruleCard}>
-            <Text style={styles.ruleTitle}>• ห้ามสแปมและการโฆษณาที่ผิดวัตถุประสงค์</Text>
-            <Text style={styles.ruleDesc}>
-              ห้ามโพสต์ข้อความซ้ำ ๆ การชักชวนเล่นการพนัน หรือการปล่อยลิงก์หลอกลวง (Phishing)
+          <View style={styles.bulletItem}>
+            <Text style={styles.bulletDot}>•</Text>
+            <Text style={styles.bulletText}>
+              <Text style={styles.bulletBold}>การละเมิดลิขสิทธิ์: </Text>
+              ห้ามนำรูปภาพ ข้อความ หรือผลงานของผู้อื่นมาแอบอ้างโดยไม่ได้รับอนุญาต
             </Text>
           </View>
 
-          <View style={styles.ruleCard}>
-            <Text style={styles.ruleTitle}>• เคารพลิขสิทธิ์และทรัพย์สินทางปัญญา</Text>
-            <Text style={styles.ruleDesc}>
-              โพสต์เฉพาะรูปภาพที่คุณถ่ายเองหรือได้รับอนุญาต ห้ามนำผลงานของผู้อื่นมาแอบอ้างโดยเด็ดขาด
+          <View style={styles.bulletItem}>
+            <Text style={styles.bulletDot}>•</Text>
+            <Text style={styles.bulletText}>
+              <Text style={styles.bulletBold}>ละเมิดความเป็นส่วนตัว: </Text>
+              ห้ามเปิดเผยข้อมูลส่วนบุคคล เบอร์โทรศัพท์ หรือภาพบุคคลอื่นโดยไม่ได้รับอนุญาต
             </Text>
           </View>
         </View>
@@ -101,7 +106,7 @@ export default function TermsOfUseScreen() {
             <Text style={styles.bulletDot}>•</Text>
             <Text style={styles.bulletText}>
               <Text style={styles.bulletBold}>ระบบรายงาน (Reporting): </Text>
-              หากพบโพสต์หรือคอมเมนต์ที่ไม่เหมาะสม คุณสามารถกดเมนู <Text style={styles.boldText}>"รายงาน"</Text> ได้ทันที ทีมงานจะตรวจสอบและดำเนินการภายใน 24-48 ชั่วโมง
+              คุณสามารถกดรายงานโพสต์ ความคิดเห็น หรือผู้ใช้ที่ไม่เหมาะสมได้ตลอดเวลา ทีมงานจะดำเนินการตรวจสอบและจัดการตามความเหมาะสม
             </Text>
           </View>
           <View style={styles.bulletItem}>

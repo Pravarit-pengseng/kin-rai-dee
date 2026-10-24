@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { History, RefreshCw } from 'lucide-react';
 import { moderationService, COMMUNITY_RULES } from '../services/moderationService';
+import { adminApi } from '../services/adminApi';
 import { AuditLogItem } from '../types/moderation';
 
 interface AuditLogsPageProps {
@@ -11,9 +12,22 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ onShowToast }) => 
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
   const [search, setSearch] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
+  const [loading, setLoading] = useState(false);
 
-  const fetchLogs = () => {
-    setLogs(moderationService.getAuditLogs());
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const res = await adminApi.getAuditLogs(100);
+      setLogs(res.data || []);
+      return true;
+    } catch (err: any) {
+      console.warn('API getAuditLogs failed:', err);
+      onShowToast(`โหลดประวัติไม่สำเร็จ: ${err.message}`, 'error');
+      setLogs([]);
+      return false;
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -96,9 +110,9 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ onShowToast }) => 
 
           <button 
             className="btn btn-outline btn-sm"
-            onClick={() => {
-              fetchLogs();
-              onShowToast('อัปเดตประวัติการทำงานแล้ว', 'success');
+            onClick={async () => {
+              const ok = await fetchLogs();
+              if (ok) onShowToast('อัปเดตประวัติการทำงานแล้ว', 'success');
             }}
           >
             <RefreshCw size={12} />

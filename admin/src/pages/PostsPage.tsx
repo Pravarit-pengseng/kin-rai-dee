@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { moderationService } from '../services/moderationService';
+import { adminApi } from '../services/adminApi';
 
 interface PostsPageProps {
   onShowToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
@@ -35,24 +36,54 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [postsRes, commentsRes, profilesRes] = await Promise.all([
-        supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(50),
-        supabase.from('comments').select('*').order('created_at', { ascending: false }),
-        supabase.from('profiles').select('*').limit(50)
+      const [postsRes, commentsRes] = await Promise.all([
+        adminApi.getPosts({ limit: 100 }),
+        adminApi.getComments({ limit: 100 })
       ]);
 
-      if (postsRes.error) throw postsRes.error;
-      setPosts(postsRes.data || []);
-      setAllComments(commentsRes.data || []);
+      const loadedPosts = (postsRes.data || []).map((p: any) => ({
+        ...p,
+        _hidden: p.is_hidden ?? false,
+      }));
+      const loadedComments = (commentsRes.data || []).map((c: any) => ({
+        ...c,
+        _hidden: c.is_hidden ?? false,
+      }));
 
+      setPosts(loadedPosts);
+      setAllComments(loadedComments);
+
+      // Create author map from enriched profiles if available
       const pMap: Record<string, any> = {};
-      (profilesRes.data || []).forEach((p: any) => {
-        pMap[p.id] = p;
+      loadedPosts.forEach((p: any) => {
+        if (p.profiles && p.user_id) {
+          pMap[p.user_id] = p.profiles;
+        }
+      });
+      loadedComments.forEach((c: any) => {
+        if (c.profiles && c.user_id) {
+          pMap[c.user_id] = c.profiles;
+        }
       });
       setProfileMap(pMap);
     } catch (e: any) {
-      console.error(e);
-      onShowToast(`โหลดข้อมูลไม่สำเร็จ: ${e.message}`, 'error');
+      console.error('API fetch failed, falling back to Supabase client directly:', e);
+      try {
+        const [postsRes, commentsRes, profilesRes] = await Promise.all([
+          supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(50),
+          supabase.from('comments').select('*').order('created_at', { ascending: false }),
+          supabase.from('profiles').select('*').limit(50)
+        ]);
+        setPosts((postsRes.data || []).map((p: any) => ({ ...p, _hidden: p.is_hidden ?? false })));
+        setAllComments((commentsRes.data || []).map((c: any) => ({ ...c, _hidden: c.is_hidden ?? false })));
+        const pMap: Record<string, any> = {};
+        (profilesRes.data || []).forEach((p: any) => {
+          pMap[p.id] = p;
+        });
+        setProfileMap(pMap);
+      } catch (err: any) {
+        onShowToast(`โหลดข้อมูลไม่สำเร็จ: ${err.message}`, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -71,107 +102,70 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
   });
 
   // Post Actions
-  const handleToggleHidePost = (postId: number, currentHidden: boolean) => {
-    const targetPost = posts.find(p => p.id === postId);
-    setPosts(prev => prev.map(p => {
-      if (p.id === postId) {
-        return { ...p, _hidden: !currentHidden };
+  const handleToggleHidePost = async (postId: number, currentHidden: boolean) => {
+    const nextHidden = !currentHidden;
+    try {
+      await adminApi.setPostVisibility(postId, nextHidden);
+      setPosts(prev => prev.map(p => {
+        if (p.id === postId) {
+          return { ...p, is_hidden: nextHidden, _hidden: nextHidden };
+        }
+        return p;
+      }));
+      if (selectedPost && selectedPost.id === postId) {
+        setSelectedPost((prev: any) => ({ ...prev, is_hidden: nextHidden, _hidden: nextHidden }));
       }
-      return p;
-    }));
-    if (selectedPost && selectedPost.id === postId) {
-      setSelectedPost((prev: any) => ({ ...prev, _hidden: !currentHidden }));
+      onShowToast(`อัปเดตการแสดงผลโพสต์ #${postId} เรียบร้อยแล้ว`, 'success');
+    } catch (err: any) {
+      console.error(err);
+      onShowToast(`เกิดข้อผิดพลาดในการอัปเดตโพสต์: ${err.message}`, 'error');
     }
-
-    moderationService.addAuditLog({
-      actorId: 'mod-1',
-      actorName: 'แอดมินสุภพ (Super Admin)',
-      actionType: currentHidden ? 'POST_RESTORE' : 'POST_HIDE',
-      targetType: 'post',
-      targetId: postId,
-      note: currentHidden ? `แสดงโพสต์ #${postId} กลับคืนสู่ระบบ` : `ซ่อนโพสต์ #${postId} จากการแสดงผล`,
-      metadata: {
-        foodName: targetPost?.food_name
-      }
-    });
-
-    onShowToast(`อัปเดตการแสดงผลโพสต์ #${postId} เรียบร้อยแล้ว`, 'success');
   };
 
-  const handleRemovePost = (postId: number) => {
-    const targetPost = posts.find(p => p.id === postId);
-    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบโพสต์ #${postId}?`)) {
-      setPosts(prev => prev.filter(p => p.id !== postId));
-      if (selectedPost && selectedPost.id === postId) {
-        setSelectedPost(null);
-      }
-
-      moderationService.addAuditLog({
-        actorId: 'mod-1',
-        actorName: 'แอดมินสุภพ (Super Admin)',
-        actionType: 'POST_REMOVE',
-        targetType: 'post',
-        targetId: postId,
-        note: `ลบโพสต์ #${postId} (${targetPost?.food_name || 'อาหาร'}) ถาวร`,
-        metadata: {
-          foodName: targetPost?.food_name
+  const handleRemovePost = async (postId: number) => {
+    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบโพสต์ #${postId}? การลบนี้จะไม่สามารถกู้คืนได้`)) {
+      try {
+        await adminApi.deletePost(postId);
+        setPosts(prev => prev.filter(p => p.id !== postId));
+        if (selectedPost && selectedPost.id === postId) {
+          setSelectedPost(null);
         }
-      });
-
-      onShowToast(`ลบโพสต์ #${postId} เรียบร้อยแล้ว`, 'success');
+        onShowToast(`ลบโพสต์ #${postId} เรียบร้อยแล้ว`, 'success');
+      } catch (err: any) {
+        console.error(err);
+        onShowToast(`เกิดข้อผิดพลาดในการลบโพสต์: ${err.message}`, 'error');
+      }
     }
   };
 
   // Comment Actions
-  const handleToggleHideComment = (commentId: number, currentHidden: boolean) => {
-    const targetComment = allComments.find(c => c.id === commentId);
-    setAllComments(prev => prev.map(c => {
-      if (c.id === commentId) {
-        return { ...c, _hidden: !currentHidden };
-      }
-      return c;
-    }));
-
-    moderationService.addAuditLog({
-      actorId: 'mod-1',
-      actorName: 'แอดมินสุภพ (Super Admin)',
-      actionType: currentHidden ? 'COMMENT_RESTORE' : 'COMMENT_HIDE',
-      targetType: 'comment',
-      targetId: commentId,
-      note: currentHidden ? `แสดงความคิดเห็น #${commentId} กลับคืนสู่ระบบ` : `ซ่อนความคิดเห็น #${commentId}`,
-      metadata: {
-        parentPostId: targetComment?.post_id,
-        contentSnippet: targetComment?.content?.substring(0, 40)
-      }
-    });
-
-    onShowToast(`อัปเดตสถานะความคิดเห็น #${commentId} แล้ว`, 'success');
-  };
-
-  const handleRemoveComment = (commentId: number) => {
-    const targetComment = allComments.find(c => c.id === commentId);
-    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบความคิดเห็น #${commentId}?`)) {
+  const handleToggleHideComment = async (commentId: number, currentHidden: boolean) => {
+    const nextHidden = !currentHidden;
+    try {
+      await adminApi.setCommentVisibility(commentId, nextHidden);
       setAllComments(prev => prev.map(c => {
         if (c.id === commentId) {
-          return { ...c, _removed: true };
+          return { ...c, is_hidden: nextHidden, _hidden: nextHidden };
         }
         return c;
       }));
+      onShowToast(`อัปเดตสถานะความคิดเห็น #${commentId} แล้ว`, 'success');
+    } catch (err: any) {
+      console.error(err);
+      onShowToast(`เกิดข้อผิดพลาดในการอัปเดตความคิดเห็น: ${err.message}`, 'error');
+    }
+  };
 
-      moderationService.addAuditLog({
-        actorId: 'mod-1',
-        actorName: 'แอดมินสุภพ (Super Admin)',
-        actionType: 'COMMENT_REMOVE',
-        targetType: 'comment',
-        targetId: commentId,
-        note: `ลบความคิดเห็น #${commentId} ถาวร`,
-        metadata: {
-          parentPostId: targetComment?.post_id,
-          contentSnippet: targetComment?.content?.substring(0, 40)
-        }
-      });
-
-      onShowToast(`ลบความคิดเห็น #${commentId} แล้ว`, 'success');
+  const handleRemoveComment = async (commentId: number) => {
+    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบความคิดเห็น #${commentId}?`)) {
+      try {
+        await adminApi.deleteComment(commentId);
+        setAllComments(prev => prev.filter(c => c.id !== commentId));
+        onShowToast(`ลบความคิดเห็น #${commentId} เรียบร้อยแล้ว`, 'success');
+      } catch (err: any) {
+        console.error(err);
+        onShowToast(`เกิดข้อผิดพลาดในการลบความคิดเห็น: ${err.message}`, 'error');
+      }
     }
   };
 

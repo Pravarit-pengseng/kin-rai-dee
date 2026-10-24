@@ -2,7 +2,11 @@
   "name": "kin-rai-dee",
   "scripts": {
     "admin": "npm --prefix admin run dev",
-    "admin:build": "npm --prefix admin run build"
+    "admin:build": "npm --prefix admin run build",
+    "docker:up": "docker compose up --build -d",
+    "docker:down": "docker compose down",
+    "docker:admin": "docker compose up --build -d admin",
+    "docker:backend": "docker compose up --build -d backend"
   },
   "devDependencies": {
     "supabase": "^2.116.0"

@@ -81,3 +81,9 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_created ON public.audit_logs (created_at DESC);
+
+-- 6. Moderation Extensions for Existing Tables
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.comments ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS violation_count INT DEFAULT 0;

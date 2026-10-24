@@ -3,9 +3,11 @@ from app.db import supabase
 from app.core.config import SUPABASE_URL
 
 
-def normalize_avatar_url(url: Optional[str]) -> Optional[str]:
-    if not url:
+def normalize_avatar_url(url: Any) -> Optional[str]:
+    if not url or not isinstance(url, str):
         return None
+    if not SUPABASE_URL:
+        return url
     marker = "/storage/v1/object/public/avatars/"
     if marker in url:
         idx = url.find(marker)
@@ -35,7 +37,8 @@ def get_blocked_user_ids(user_id: str) -> Set[str]:
         )
         if res1.data:
             for row in res1.data:
-                blocked_ids.add(str(row["blocked_id"]))
+                if isinstance(row, dict) and "blocked_id" in row:
+                    blocked_ids.add(str(row["blocked_id"]))
 
         # Users who blocked me
         res2 = (
@@ -46,7 +49,8 @@ def get_blocked_user_ids(user_id: str) -> Set[str]:
         )
         if res2.data:
             for row in res2.data:
-                blocked_ids.add(str(row["blocker_id"]))
+                if isinstance(row, dict) and "blocker_id" in row:
+                    blocked_ids.add(str(row["blocker_id"]))
     except Exception as e:
         print(f"Error fetching blocked user ids for {user_id}: {e}")
 
@@ -93,24 +97,33 @@ def get_blocked_users_list(blocker_id: str) -> List[Dict[str, Any]]:
         if not blocks:
             return []
 
-        blocked_ids = [b["blocked_id"] for b in blocks]
+        blocked_ids = [
+            b["blocked_id"]
+            for b in blocks
+            if isinstance(b, dict) and "blocked_id" in b
+        ]
         prof_res = (
             supabase.table("profiles")
             .select("id, username, display_name, avatar_url, bio")
             .in_("id", blocked_ids)
             .execute()
         )
-        prof_map = {}
+        prof_map: Dict[str, Any] = {}
         if prof_res.data:
             for p in prof_res.data:
-                p["avatar_url"] = normalize_avatar_url(p.get("avatar_url"))
-                prof_map[p["id"]] = p
+                if isinstance(p, dict) and "id" in p:
+                    p["avatar_url"] = normalize_avatar_url(p.get("avatar_url"))
+                    prof_map[str(p["id"])] = p
 
-        result = []
+        result: List[Dict[str, Any]] = []
         for b in blocks:
-            bid = b["blocked_id"]
+            if not isinstance(b, dict):
+                continue
+            bid = b.get("blocked_id")
+            if not bid:
+                continue
             prof = prof_map.get(
-                bid,
+                str(bid),
                 {
                     "id": bid,
                     "username": "user",
@@ -120,9 +133,9 @@ def get_blocked_users_list(blocker_id: str) -> List[Dict[str, Any]]:
             )
             result.append(
                 {
-                    "id": b["id"],
+                    "id": b.get("id"),
                     "blocked_user_id": bid,
-                    "blocked_at": b["created_at"],
+                    "blocked_at": b.get("created_at"),
                     "profile": prof,
                 }
             )

@@ -18,6 +18,9 @@ class ReportCreate(BaseModel):
     explanation: Optional[str] = Field(None, max_length=1000)
 
 
+# ── Report Endpoints ──────────────────────────────────────────────────────────
+
+@router.get("/reports/reasons")
 @router.get("/api/reports/reasons")
 def get_report_reasons():
     """Fetch active community rules / report reasons."""
@@ -49,6 +52,7 @@ def get_report_reasons():
     return {"success": True, "data": default_reasons}
 
 
+@router.post("/reports")
 @router.post("/api/reports")
 def create_report(
     payload: ReportCreate,
@@ -106,6 +110,7 @@ def create_report(
 
 # ── Block User Endpoints ──────────────────────────────────────────────────────
 
+@router.get("/blocks")
 @router.get("/api/blocks")
 def get_my_blocked_users(user: dict = Depends(get_current_user)):
     """Get list of users blocked by current user."""
@@ -113,6 +118,7 @@ def get_my_blocked_users(user: dict = Depends(get_current_user)):
     return {"success": True, "data": blocked_list}
 
 
+@router.get("/blocks/status/{target_user_id}")
 @router.get("/api/blocks/status/{target_user_id}")
 def check_block_status(
     target_user_id: str,
@@ -154,6 +160,7 @@ def check_block_status(
         return {"is_blocked": False, "blocked_by_me": False}
 
 
+@router.post("/blocks/{target_user_id}")
 @router.post("/api/blocks/{target_user_id}")
 def block_user(
     target_user_id: str,
@@ -188,6 +195,7 @@ def block_user(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.delete("/blocks/{target_user_id}")
 @router.delete("/api/blocks/{target_user_id}")
 def unblock_user(
     target_user_id: str,
@@ -210,10 +218,11 @@ def unblock_user(
 
 # ── Delete Account Endpoint ───────────────────────────────────────────────────
 
+@router.delete("/auth/account")
 @router.delete("/api/auth/account")
 def delete_user_account(user: dict = Depends(get_current_user)):
     """
-    Permanently delete the authenticated user's account and all associated data.
+    Permanently delete the authenticated user's account, avatar files, and all associated data.
     Complies with Apple & Google App Store Account Deletion guidelines.
     """
     if not supabase:
@@ -222,21 +231,36 @@ def delete_user_account(user: dict = Depends(get_current_user)):
     user_id = user["id"]
 
     try:
-        # 1. Delete comments made by user
+        # 1. Clean up avatar files from Supabase Storage
+        try:
+            files = supabase.storage.from_("avatars").list(user_id)
+            if files and isinstance(files, list):
+                file_paths = [
+                    f"{user_id}/{f['name']}"
+                    for f in files
+                    if isinstance(f, dict) and "name" in f and f["name"]
+                ]
+                if file_paths:
+                    supabase.storage.from_("avatars").remove(file_paths)
+        except Exception as storage_err:
+            import logging
+            logging.warning(f"Error removing avatar files for user {user_id}: {storage_err}")
+
+        # 2. Delete comments made by user
         supabase.table("comments").delete().eq("user_id", user_id).execute()
 
-        # 2. Delete user's bookmarks
+        # 3. Delete user's bookmarks
         supabase.table("saved_posts").delete().eq("user_id", user_id).execute()
 
-        # 3. Delete user's search history
+        # 4. Delete user's search history
         supabase.table("search_history").delete().eq("user_id", user_id).execute()
 
-        # 4. Delete user's blocks relationships
+        # 5. Delete user's blocks relationships
         supabase.table("blocked_users").delete().or_(
             f"blocker_id.eq.{user_id},blocked_id.eq.{user_id}"
         ).execute()
 
-        # 5. Delete posts created by user (and their post_categories)
+        # 6. Delete posts created by user (and their post_categories)
         user_posts = supabase.table("posts").select("id").eq("user_id", user_id).execute()
         if user_posts.data:
             post_ids = [p["id"] for p in user_posts.data]
@@ -246,10 +270,10 @@ def delete_user_account(user: dict = Depends(get_current_user)):
                 supabase.table("comments").delete().eq("post_id", pid).execute()
             supabase.table("posts").delete().eq("user_id", user_id).execute()
 
-        # 6. Delete profile
+        # 7. Delete profile
         supabase.table("profiles").delete().eq("id", user_id).execute()
 
-        # 7. Attempt delete from auth.users via admin if service role is available
+        # 8. Delete from auth.users via admin if service role is available
         try:
             if hasattr(supabase.auth, "admin") and hasattr(supabase.auth.admin, "delete_user"):
                 supabase.auth.admin.delete_user(user_id)

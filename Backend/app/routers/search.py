@@ -3,9 +3,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_optional_current_user
 from app.db import supabase
 from app.routers.posts import attach_profiles_to_posts
+from app.services.safety_service import get_blocked_user_ids
 
 
 router = APIRouter(
@@ -23,8 +24,9 @@ def search_posts(
     q: str = Query("", description="Search term"),
     limit: int = Query(20, ge=1, le=100, description="Max items to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
+    user: Optional[dict] = Depends(get_optional_current_user),
 ):
-    """Search posts by food_name or description with partial match and pagination."""
+    """Search posts by food_name or description with partial match, pagination, and blocked user filtering."""
     if not supabase:
         return []
 
@@ -43,6 +45,11 @@ def search_posts(
             )
 
             posts = response.data or []
+
+            if user and user.get("id"):
+                blocked_ids = get_blocked_user_ids(user["id"])
+                if blocked_ids:
+                    posts = [p for p in posts if str(p.get("user_id")) not in blocked_ids]
 
             return attach_profiles_to_posts(posts)
 
@@ -89,6 +96,11 @@ def search_posts(
         )
 
         posts = response.data or []
+
+        if user and user.get("id"):
+            blocked_ids = get_blocked_user_ids(user["id"])
+            if blocked_ids:
+                posts = [p for p in posts if str(p.get("user_id")) not in blocked_ids]
 
         return attach_profiles_to_posts(posts)
 

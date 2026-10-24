@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, Eye, EyeOff, RefreshCw, AlertCircle } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
-import { AVAILABLE_MODERATORS } from '../services/moderationService';
 
 export interface AdminUser {
   id: string;
@@ -17,90 +16,129 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onShowToast }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('admin@gmail.com');
+  const [password, setPassword] = useState('admin1234');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const defaultAdmin: AdminUser = {
-    id: AVAILABLE_MODERATORS[0]?.id || 'mod-1',
-    name: AVAILABLE_MODERATORS[0]?.name || 'แอดมินสุภพ (Super Admin)',
-    email: AVAILABLE_MODERATORS[0]?.email || 'admin.supap@kinraidee.app',
-    role: 'Super Admin',
+  // Brute-force protection: Lockout state
+  const [failCount, setFailCount] = useState<number>(() => {
+    try {
+      const stored = sessionStorage.getItem('kinraidee_login_fails');
+      return stored ? parseInt(stored, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  const [lockoutRemaining, setLockoutRemaining] = useState<number>(() => {
+    try {
+      const until = sessionStorage.getItem('kinraidee_lockout_until');
+      if (until) {
+        const diff = Math.ceil((parseInt(until, 10) - Date.now()) / 1000);
+        return diff > 0 ? diff : 0;
+      }
+    } catch {}
+    return 0;
+  });
+
+  // Countdown timer for brute-force lockout
+  useEffect(() => {
+    if (lockoutRemaining <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          sessionStorage.removeItem('kinraidee_lockout_until');
+          setErrorMsg(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutRemaining]);
+
+  const recordFailedAttempt = () => {
+    const nextFails = failCount + 1;
+    setFailCount(nextFails);
+    sessionStorage.setItem('kinraidee_login_fails', nextFails.toString());
+
+    if (nextFails >= 5) {
+      const cooldownSec = 30;
+      const until = Date.now() + cooldownSec * 1000;
+      sessionStorage.setItem('kinraidee_lockout_until', until.toString());
+      setLockoutRemaining(cooldownSec);
+      setErrorMsg(`เข้าสู่ระบบผิดพลาด 5 ครั้ง กรุณารอ ${cooldownSec} วินาทีก่อนลองใหม่`);
+      onShowToast(`ผิดพลาดเกินกำหนด กรุณารอ ${cooldownSec} วินาที`, 'error');
+    } else {
+      setErrorMsg(`อีเมลหรือรหัสผ่านไม่ถูกต้อง (ลองได้อีก ${5 - nextFails} ครั้ง)`);
+      onShowToast('อีเมลหรือรหัสผ่านไม่ถูกต้อง', 'error');
+    }
   };
 
-  const handleLogin = async (e?: React.FormEvent, directUser?: AdminUser) => {
+  const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (lockoutRemaining > 0) return;
+
     setErrorMsg(null);
 
-    // If direct user passed
-    if (directUser) {
-      setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
-        saveAndLogin(directUser);
-      }, 300);
-      return;
-    }
-
-    const trimmedEmail = email.trim();
-
-    // If inputs are left empty, seamlessly log in as Super Admin
-    if (!trimmedEmail || !password) {
-      setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
-        saveAndLogin(defaultAdmin);
-      }, 350);
-      return;
-    }
+    const trimmedEmail = email.trim() || 'admin@gmail.com';
+    const loginPassword = password || 'admin1234';
 
     setLoading(true);
 
     try {
-      // 1. Try real Supabase Auth
+      // 1. Authenticate via Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
-        password: password,
+        password: loginPassword,
       });
 
-      if (!error && data?.user) {
-        const adminObj: AdminUser = {
-          id: data.user.id,
-          name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'ผู้ดูแลระบบ',
-          email: data.user.email || trimmedEmail,
-          role: data.user.user_metadata?.role || 'Admin',
-        };
-        saveAndLogin(adminObj);
+      if (error || !data?.user) {
+        recordFailedAttempt();
         return;
       }
 
-      // 2. Fallback to Registered Moderators / Demo credentials
-      const matchedMod = AVAILABLE_MODERATORS.find(
-        m => m.email.toLowerCase() === trimmedEmail.toLowerCase()
-      );
+      const user = data.user;
 
-      if (matchedMod) {
-        saveAndLogin({
-          id: matchedMod.id,
-          name: matchedMod.name,
-          email: matchedMod.email,
-          role: matchedMod.id === 'mod-1' ? 'Super Admin' : 'Moderator',
-        });
+      // 2. Strict condition check: User MUST exist in public.admins table and be active
+      const { data: adminRecord } = await supabase
+        .from('admins')
+        .select('id, user_id, email, name, role, is_active')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      const userRole = (user.app_metadata?.role || user.user_metadata?.role || '').toLowerCase();
+      const hasMetadataRole = userRole === 'admin' || userRole === 'super_admin' || userRole === 'moderator';
+
+      if (!adminRecord && !hasMetadataRole) {
+        // Reject user without admin permissions and sign out immediately.
+        // Use generic error message to prevent user enumeration / brute-force attacks (OWASP best practice).
+        await supabase.auth.signOut();
+        recordFailedAttempt();
         return;
       }
 
-      // 3. Fallback direct login with provided email
-      saveAndLogin({
-        id: 'mod-1',
-        name: trimmedEmail.includes('@') ? trimmedEmail.split('@')[0] : 'ผู้ดูแลระบบ',
-        email: trimmedEmail,
-        role: 'Super Admin',
-      });
+      // 3. Admin conditions satisfied - reset lockout and login
+      sessionStorage.removeItem('kinraidee_login_fails');
+      sessionStorage.removeItem('kinraidee_lockout_until');
+
+      const roleName = adminRecord?.role === 'super_admin' ? 'Super Admin' : (adminRecord?.role === 'moderator' ? 'Moderator' : 'Admin');
+      const adminObj: AdminUser = {
+        id: user.id,
+        name: adminRecord?.name || user.user_metadata?.display_name || user.email?.split('@')[0] || 'ผู้ดูแลระบบ',
+        email: adminRecord?.email || user.email || trimmedEmail,
+        role: roleName,
+      };
+
+      saveAndLogin(adminObj);
     } catch (err: any) {
-      // Seamless fallback
-      saveAndLogin(defaultAdmin);
+      console.error('Login error:', err);
+      setErrorMsg('เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง');
+      onShowToast('เกิดข้อผิดพลาดในการเข้าสู่ระบบ', 'error');
     } finally {
       setLoading(false);
     }
@@ -142,7 +180,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onShowToas
                 placeholder="เช่น admin@kinraidee.app"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
+                disabled={loading || lockoutRemaining > 0}
                 autoFocus
               />
             </div>
@@ -160,13 +198,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onShowToas
                 placeholder="กรอกรหัสผ่านของคุณ"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
+                disabled={loading || lockoutRemaining > 0}
               />
               <button
                 type="button"
                 className="login-eye-btn"
                 onClick={() => setShowPassword(!showPassword)}
                 tabIndex={-1}
+                disabled={lockoutRemaining > 0}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -177,13 +216,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onShowToas
           <button
             type="submit"
             className="login-submit-btn"
-            disabled={loading}
+            disabled={loading || lockoutRemaining > 0}
+            style={lockoutRemaining > 0 ? { backgroundColor: '#9ca3af', cursor: 'not-allowed' } : undefined}
           >
             {loading ? (
               <>
                 <RefreshCw size={16} className="animate-spin" />
                 <span>กำลังเข้าสู่ระบบ...</span>
               </>
+            ) : lockoutRemaining > 0 ? (
+              <span>ระงับการเข้าสู่ระบบ ({lockoutRemaining} วินาที)</span>
             ) : (
               <span>เข้าสู่ระบบ</span>
             )}

@@ -25,10 +25,16 @@ services:
     restart: unless-stopped
     ports:
       - "5173:5173"
+    env_file:
+      - ./admin/.env
     volumes:
       - ./admin/src:/app/src
       - ./admin/public:/app/public
       - ./admin/index.html:/app/index.html
+      - ./admin/vite.config.ts:/app/vite.config.ts
+      - ./admin/.env:/app/.env
+    environment:
+      - VITE_BACKEND_URL=http://backend:8000
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

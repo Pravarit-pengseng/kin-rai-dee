@@ -239,7 +239,7 @@ def delete_user_account(user: dict = Depends(get_current_user)):
         # 5. Delete posts created by user (and their post_categories)
         user_posts = supabase.table("posts").select("id").eq("user_id", user_id).execute()
         if user_posts.data:
-            post_ids = [p["id"] for p in user_posts.data]
+            post_ids = [p["id"] for p in user_posts.data if isinstance(p, dict) and "id" in p]
             for pid in post_ids:
                 supabase.table("post_categories").delete().eq("post_id", pid).execute()
                 supabase.table("saved_posts").delete().eq("post_id", pid).execute()

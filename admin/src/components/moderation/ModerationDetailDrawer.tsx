@@ -14,6 +14,7 @@ import {
 import { ModerationReport, ModerationActionType, ReasonCode } from '../../types/moderation';
 import { Badge } from '../common/Badge';
 import { COMMUNITY_RULES, moderationService } from '../../services/moderationService';
+import { adminApi } from '../../services/adminApi';
 import { ConfirmActionModal } from './ConfirmActionModal';
 
 interface ModerationDetailDrawerProps {
@@ -45,7 +46,23 @@ export const ModerationDetailDrawer: React.FC<ModerationDetailDrawerProps> = ({
     commitAction(actionType);
   };
 
-  const commitAction = (actionType: ModerationActionType) => {
+  const commitAction = async (actionType: ModerationActionType) => {
+    try {
+      const match = String(report.id).match(/\d+/);
+      if (match) {
+        const rawId = parseInt(match[0], 10);
+        await adminApi.applyReportDecision(rawId, {
+          action_type: actionType,
+          reason_code: selectedReason,
+          internal_note: `ดำเนินการ ${actionType} โดยผู้ดูแลระบบ`,
+          moderator_id: 'admin',
+          moderator_name: 'ผู้ดูแลระบบ',
+        });
+      }
+    } catch (err) {
+      console.warn('adminApi applyReportDecision error, applying locally:', err);
+    }
+
     const res = moderationService.applyDecision({
       reportId: report.id,
       actionType,

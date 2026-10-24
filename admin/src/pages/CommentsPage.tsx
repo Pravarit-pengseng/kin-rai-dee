@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { EyeOff, Eye, Trash2, RefreshCw } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
+import { adminApi } from '../services/adminApi';
 
 interface CommentsPageProps {
   onShowToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
@@ -14,17 +15,26 @@ export const CommentsPage: React.FC<CommentsPageProps> = ({ onShowToast }) => {
   const fetchComments = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('comments')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      setComments(data || []);
+      const res = await adminApi.getComments({ limit: 100 });
+      const loaded = (res.data || []).map((c: any) => ({
+        ...c,
+        _hidden: c.is_hidden ?? false,
+      }));
+      setComments(loaded);
     } catch (e: any) {
-      console.error(e);
-      onShowToast(`โหลดข้อมูลไม่สำเร็จ: ${e.message}`, 'error');
+      console.error('adminApi fetch comments error, falling back to Supabase:', e);
+      try {
+        const { data, error } = await supabase
+          .from('comments')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (error) throw error;
+        setComments((data || []).map((c: any) => ({ ...c, _hidden: c.is_hidden ?? false })));
+      } catch (err: any) {
+        onShowToast(`โหลดข้อมูลไม่สำเร็จ: ${err.message}`, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -34,20 +44,33 @@ export const CommentsPage: React.FC<CommentsPageProps> = ({ onShowToast }) => {
     fetchComments();
   }, []);
 
-  const handleToggleHide = (commentId: number, currentHidden: boolean) => {
-    setComments(prev => prev.map(c => {
-      if (c.id === commentId) {
-        return { ...c, _hidden: !currentHidden };
-      }
-      return c;
-    }));
-    onShowToast(`อัปเดตสถานะความคิดเห็น #${commentId} เรียบร้อยแล้ว`, 'success');
+  const handleToggleHide = async (commentId: number, currentHidden: boolean) => {
+    const nextHidden = !currentHidden;
+    try {
+      await adminApi.setCommentVisibility(commentId, nextHidden);
+      setComments(prev => prev.map(c => {
+        if (c.id === commentId) {
+          return { ...c, is_hidden: nextHidden, _hidden: nextHidden };
+        }
+        return c;
+      }));
+      onShowToast(`อัปเดตสถานะความคิดเห็น #${commentId} เรียบร้อยแล้ว`, 'success');
+    } catch (err: any) {
+      console.error(err);
+      onShowToast(`เกิดข้อผิดพลาดในการอัปเดตความคิดเห็น: ${err.message}`, 'error');
+    }
   };
 
-  const handleRemoveComment = (commentId: number) => {
+  const handleRemoveComment = async (commentId: number) => {
     if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบความคิดเห็น #${commentId}?`)) {
-      setComments(prev => prev.filter(c => c.id !== commentId));
-      onShowToast(`ลบความคิดเห็น #${commentId} เรียบร้อยแล้ว`, 'success');
+      try {
+        await adminApi.deleteComment(commentId);
+        setComments(prev => prev.filter(c => c.id !== commentId));
+        onShowToast(`ลบความคิดเห็น #${commentId} เรียบร้อยแล้ว`, 'success');
+      } catch (err: any) {
+        console.error(err);
+        onShowToast(`เกิดข้อผิดพลาดในการลบความคิดเห็น: ${err.message}`, 'error');
+      }
     }
   };
 

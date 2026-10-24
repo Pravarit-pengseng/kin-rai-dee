@@ -3,7 +3,6 @@ import {
   EyeOff, 
   Eye, 
   Trash2, 
-  ExternalLink, 
   RefreshCw, 
   FileText, 
   MessageSquare, 
@@ -301,7 +300,7 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
                   <th style={{ width: '130px' }}>ความคิดเห็น</th>
                   <th style={{ width: '120px' }}>วันที่สร้าง</th>
                   <th style={{ width: '100px' }}>สถานะ</th>
-                  <th style={{ width: '110px', textAlign: 'right' }}>จัดการ</th>
+                  <th style={{ width: '110px' }}>จัดการ</th>
                 </tr>
               </thead>
               <tbody>
@@ -345,17 +344,6 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
                         </td>
                         <td>
                           <div style={{ fontWeight: 600, color: '#101828' }}>{p.food_name}</div>
-                          {p.restaurant_url && (
-                            <a 
-                              href={p.restaurant_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              onClick={(e) => e.stopPropagation()}
-                              style={{ fontSize: '11px', color: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '2px', marginTop: '2px' }}
-                            >
-                              <ExternalLink size={11} /> ดูแผนที่ร้าน
-                            </a>
-                          )}
                         </td>
                         <td style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#475467', fontSize: '12px' }}>
                           {p.description || '-'}
@@ -379,8 +367,8 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
                             <span className="badge badge-action_taken">เผยแพร่อยู่</span>
                           )}
                         </td>
-                        <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <button 
                               className="btn btn-outline btn-sm"
                               onClick={() => handleToggleHidePost(p.id, !!p._hidden)}
@@ -625,19 +613,6 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
                           (e.target as HTMLElement).style.display = 'none';
                         }}
                       />
-                    </div>
-                  )}
-
-                  {selectedPost.restaurant_url && (
-                    <div style={{ marginTop: '8px', fontSize: '12px' }}>
-                      <a 
-                        href={selectedPost.restaurant_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        style={{ color: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <ExternalLink size={12} /> ลิงก์ร้านค้า / พิกัด Google Maps
-                      </a>
                     </div>
                   )}
                 </div>

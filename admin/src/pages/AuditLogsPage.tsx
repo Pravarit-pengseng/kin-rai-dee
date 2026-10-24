@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { History, Search, RefreshCw, FileText } from 'lucide-react';
-import { moderationService } from '../services/moderationService';
+import { History, RefreshCw } from 'lucide-react';
+import { moderationService, COMMUNITY_RULES } from '../services/moderationService';
 import { AuditLogItem } from '../types/moderation';
 
 interface AuditLogsPageProps {
@@ -19,6 +19,12 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ onShowToast }) => 
   useEffect(() => {
     fetchLogs();
   }, []);
+
+  const getReasonDisplay = (reasonCode?: string) => {
+    if (!reasonCode) return '-';
+    const rule = COMMUNITY_RULES.find(r => r.code === reasonCode);
+    return rule ? rule.name : reasonCode;
+  };
 
   const getActionBadge = (actionType: string) => {
     if (actionType.includes('REMOVE')) {
@@ -47,11 +53,14 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ onShowToast }) => 
 
   const filteredLogs = logs.filter(log => {
     const q = search.toLowerCase();
+    const reasonText = getReasonDisplay(log.reasonCode).toLowerCase();
     const matchSearch = !search ||
       log.actorName.toLowerCase().includes(q) ||
       log.actionType.toLowerCase().includes(q) ||
       String(log.targetId).includes(q) ||
-      (log.note && log.note.toLowerCase().includes(q));
+      (log.note && log.note.toLowerCase().includes(q)) ||
+      (log.reasonCode && log.reasonCode.toLowerCase().includes(q)) ||
+      reasonText.includes(q);
 
     if (actionFilter === 'all') return matchSearch;
     return matchSearch && log.actionType.toLowerCase().includes(actionFilter.toLowerCase());
@@ -65,7 +74,7 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ onShowToast }) => 
           <input 
             type="text"
             className="search-input-field"
-            placeholder="ค้นหาผู้ดำเนินการ, รหัสเป้าหมาย, บันทึก..."
+            placeholder="ค้นหาผู้ดำเนินการ, รหัสเป้าหมาย..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -104,18 +113,17 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ onShowToast }) => 
           <table className="admin-table">
             <thead>
               <tr>
-                <th style={{ width: '150px' }}>วันและเวลา</th>
-                <th style={{ width: '150px' }}>ผู้ดำเนินการ</th>
-                <th style={{ width: '120px' }}>การกระทำ</th>
-                <th style={{ width: '130px' }}>เป้าหมาย</th>
-                <th style={{ width: '140px' }}>เหตุผล</th>
-                <th>บันทึกรายละเอียด</th>
+                <th style={{ width: '180px' }}>วันและเวลา</th>
+                <th style={{ width: '180px' }}>ผู้ดำเนินการ</th>
+                <th style={{ width: '140px' }}>การกระทำ</th>
+                <th style={{ width: '150px' }}>เป้าหมาย</th>
+                <th>เหตุผล</th>
               </tr>
             </thead>
             <tbody>
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '48px 16px', color: '#667085' }}>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '48px 16px', color: '#667085' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                       <History size={28} color="#98a2b3" />
                       <span style={{ fontSize: '14px', fontWeight: 600, color: '#101828' }}>
@@ -156,12 +164,7 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ onShowToast }) => 
 
                     {/* Reason */}
                     <td style={{ fontSize: '12px', color: '#344054' }}>
-                      {log.reasonCode || '-'}
-                    </td>
-
-                    {/* Note / Details */}
-                    <td style={{ fontSize: '12px', color: '#475467' }}>
-                      {log.note || '-'}
+                      {getReasonDisplay(log.reasonCode)}
                     </td>
                   </tr>
                 ))

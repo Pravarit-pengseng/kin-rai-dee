@@ -3,18 +3,17 @@ import {
   RotateCcw, 
   CheckCircle, 
   Clock, 
-  ShieldAlert, 
   CheckCircle2, 
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
-  Eye
+  Eye,
+  Users
 } from 'lucide-react';
 import { 
   ModerationReport, 
   ContentType, 
   ReportStatus, 
-  PriorityLevel, 
   ReasonCode 
 } from '../types/moderation';
 import { Badge } from '../components/common/Badge';
@@ -23,22 +22,21 @@ import {
   moderationService, 
   COMMUNITY_RULES 
 } from '../services/moderationService';
+import { supabase } from '../services/supabaseClient';
 
 interface ModerationQueuePageProps {
-  searchQuery: string;
   onShowToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
-  searchQuery,
   onShowToast
 }) => {
-  // Filters State
+  // Search & Filters State
+  const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<ReportStatus | 'all'>('pending');
   const [contentType, setContentType] = useState<ContentType | 'all'>('all');
-  const [priorityFilter, setPriorityFilter] = useState<PriorityLevel | 'all'>('all');
   const [reasonFilter, setReasonFilter] = useState<ReasonCode | 'all'>('all');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'priority' | 'reportCount'>('newest');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -51,13 +49,29 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
   // Stats & Reports
   const [reports, setReports] = useState<ModerationReport[]>([]);
   const [stats, setStats] = useState(moderationService.getStats());
+  const [userCount, setUserCount] = useState<number>(() => moderationService.getUserCount() || 5);
+
+  useEffect(() => {
+    const fetchUserCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true });
+        if (!error && typeof count === 'number') {
+          setUserCount(count);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch user count from profiles:', err);
+      }
+    };
+    fetchUserCount();
+  }, []);
 
   const refreshData = () => {
     const list = moderationService.getReports({
-      search: searchQuery,
+      search,
       contentType,
       status: activeTab,
-      priority: priorityFilter,
       reasonCode: reasonFilter,
       sortBy
     });
@@ -68,7 +82,7 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
   useEffect(() => {
     refreshData();
     setCurrentPage(1);
-  }, [searchQuery, activeTab, contentType, priorityFilter, reasonFilter, sortBy]);
+  }, [search, activeTab, contentType, reasonFilter, sortBy]);
 
   const handleOpenReport = (report: ModerationReport) => {
     setSelectedReport(report);
@@ -81,9 +95,9 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
   };
 
   const resetFilters = () => {
+    setSearch('');
     setActiveTab('all');
     setContentType('all');
-    setPriorityFilter('all');
     setReasonFilter('all');
     setSortBy('newest');
   };
@@ -109,13 +123,13 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
 
         <div className="kpi-card">
           <div className="kpi-header">
-            <span>เร่งด่วน</span>
-            <ShieldAlert size={15} color="#d92d20" />
+            <span>สมาชิกในระบบ</span>
+            <Users size={15} color="#2563eb" />
           </div>
-          <div className="kpi-value" style={{ color: '#b42318' }}>
-            {stats.highPriority}
+          <div className="kpi-value" style={{ color: '#101828' }}>
+            {userCount} บัญชี
           </div>
-          <div className="kpi-footer">รายงานซ้ำหรือสำคัญสูง</div>
+          <div className="kpi-footer">บัญชีผู้ใช้ทั้งหมด</div>
         </div>
 
         <div className="kpi-card">
@@ -176,6 +190,14 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
 
         {/* Multi-Filters Row */}
         <div className="filter-row" style={{ paddingTop: '6px' }}>
+          <input 
+            type="text"
+            className="search-input-field"
+            placeholder="ค้นหารหัสรายงาน, ผู้โพสต์, ข้อความ..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
           {/* Content Type Filter */}
           <div className="filter-input-group">
             <span style={{ color: '#667085', fontSize: '12px' }}>ประเภท:</span>
@@ -187,6 +209,7 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
               <option value="all">ทุกประเภท</option>
               <option value="post">โพสต์</option>
               <option value="comment">ความคิดเห็น</option>
+              <option value="user">ผู้ใช้</option>
             </select>
           </div>
 
@@ -205,22 +228,6 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
             </select>
           </div>
 
-          {/* Priority Filter */}
-          <div className="filter-input-group">
-            <span style={{ color: '#667085', fontSize: '12px' }}>ความสำคัญ:</span>
-            <select 
-              className="filter-select"
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value as any)}
-            >
-              <option value="all">ทุกระดับ</option>
-              <option value="urgent">ด่วนที่สุด</option>
-              <option value="high">สูง</option>
-              <option value="medium">ปานกลาง</option>
-              <option value="low">ต่ำ</option>
-            </select>
-          </div>
-
           {/* Sorting */}
           <div className="filter-input-group" style={{ marginLeft: 'auto' }}>
             <ArrowUpDown size={13} color="#667085" />
@@ -231,8 +238,6 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
             >
               <option value="newest">ล่าสุด</option>
               <option value="oldest">เก่าสุด</option>
-              <option value="priority">ความสำคัญสูงสุด</option>
-              <option value="reportCount">จำนวนรายงานสูงสุด</option>
             </select>
 
             <button 
@@ -253,21 +258,19 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
           <table className="admin-table">
             <thead>
               <tr>
-                <th style={{ width: '100px' }}>รหัส</th>
+                <th style={{ width: '135px' }}>รหัส</th>
                 <th style={{ width: '80px' }}>ประเภท</th>
                 <th>เนื้อหา</th>
                 <th style={{ width: '130px' }}>ผู้โพสต์</th>
                 <th style={{ width: '160px' }}>เหตุผลที่รายงาน</th>
-                <th style={{ width: '80px', textAlign: 'center' }}>รายงานซ้ำ</th>
-                <th style={{ width: '100px' }}>ความสำคัญ</th>
                 <th style={{ width: '110px' }}>สถานะ</th>
-                <th style={{ width: '90px', textAlign: 'right' }}>จัดการ</th>
+                <th style={{ width: '90px' }}>จัดการ</th>
               </tr>
             </thead>
             <tbody>
               {paginatedReports.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '48px 16px', color: '#667085' }}>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '48px 16px', color: '#667085' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                       <CheckCircle size={28} color="#079455" />
                       <span style={{ fontSize: '14px', fontWeight: 600, color: '#101828' }}>
@@ -292,7 +295,7 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
                       style={{ cursor: 'pointer' }}
                     >
                       {/* ID */}
-                      <td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
                         <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#101828' }}>
                           {report.id}
                         </span>
@@ -305,7 +308,7 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
 
                       {/* Content Preview */}
                       <td>
-                        <div style={{ maxWidth: '320px', overflow: 'hidden' }}>
+                        <div style={{ maxWidth: '250px', overflow: 'hidden' }}>
                           {content.title && (
                             <div style={{ fontWeight: 600, fontSize: '12px', color: '#101828', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                               {content.title}
@@ -336,41 +339,20 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
                         </span>
                       </td>
 
-                      {/* Report Count */}
-                      <td style={{ textAlign: 'center' }}>
-                        <span 
-                          style={{ 
-                            padding: '1px 7px', 
-                            borderRadius: '10px', 
-                            fontSize: '11px', 
-                            fontWeight: 600,
-                            background: report.reportCount > 2 ? '#fee4e2' : '#f2f4f7',
-                            color: report.reportCount > 2 ? '#d92d20' : '#475467'
-                          }}
-                        >
-                          {report.reportCount}
-                        </span>
-                      </td>
-
-                      {/* Priority */}
-                      <td>
-                        <Badge type="priority" value={report.priority} />
-                      </td>
-
                       {/* Status */}
                       <td>
                         <Badge type="status" value={report.status} />
                       </td>
 
                       {/* Actions */}
-                      <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                      <td onClick={(e) => e.stopPropagation()}>
                         <button 
                           className="btn btn-outline btn-sm"
                           onClick={() => handleOpenReport(report)}
                           title="ตรวจสอบและพิจารณาคำร้อง"
+                          style={{ padding: '4px 7px' }}
                         >
-                          <Eye size={12} />
-                          <span>ตรวจสอบ</span>
+                          <Eye size={13} />
                         </button>
                       </td>
                     </tr>

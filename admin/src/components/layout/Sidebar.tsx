@@ -1,23 +1,21 @@
 import React from 'react';
-import { 
-  LayoutDashboard, 
-  ShieldAlert, 
-  FileText, 
-  Users, 
+import {
+  Flag,
+  FileText,
+  Users,
   History,
-  Settings, 
-  ChevronLeft, 
-  ChevronRight, 
+  ChevronLeft,
+  ChevronRight,
   LogOut
 } from 'lucide-react';
 
-export type NavTab = 
-  | 'overview' 
-  | 'moderation' 
-  | 'posts' 
-  | 'users' 
-  | 'audit'
-  | 'settings';
+import { AdminUser } from '../../pages/LoginPage';
+
+export type NavTab =
+  | 'moderation'
+  | 'posts'
+  | 'users'
+  | 'audit';
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -25,6 +23,8 @@ interface SidebarProps {
   pendingReportsCount: number;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  currentAdmin?: AdminUser | null;
+  onLogout?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -32,38 +32,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   pendingReportsCount,
   collapsed,
-  onToggleCollapse
+  onToggleCollapse,
+  currentAdmin,
+  onLogout
 }) => {
   const navItems: { id: NavTab; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { id: 'overview', label: 'ภาพรวม', icon: <LayoutDashboard size={17} /> },
-    { 
-      id: 'moderation', 
-      label: 'รายงาน', 
-      icon: <ShieldAlert size={17} />, 
-      badge: pendingReportsCount > 0 ? pendingReportsCount : undefined 
+    {
+      id: 'moderation',
+      label: 'รายงาน',
+      icon: <Flag size={17} />,
+      badge: pendingReportsCount > 0 ? pendingReportsCount : undefined
     },
     { id: 'posts', label: 'จัดการเนื้อหา', icon: <FileText size={17} /> },
     { id: 'users', label: 'สมาชิก', icon: <Users size={17} /> },
     { id: 'audit', label: 'ประวัติการทำงาน', icon: <History size={17} /> },
-    { id: 'settings', label: 'ตั้งค่า', icon: <Settings size={17} /> },
   ];
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
       {/* Brand Header */}
       <div className="sidebar-header">
-        <div className="brand-wrapper">
-          {!collapsed && (
+        {!collapsed && (
+          <div className="brand-wrapper">
             <div className="brand-info">
-              <span className="brand-title">กินไรดี</span>
+              <span className="brand-title">KIN RAI DEE</span>
               <span className="brand-subtitle">ระบบจัดการผู้ดูแล</span>
             </div>
-          )}
-          {collapsed && (
-            <span className="brand-title" style={{ fontSize: '16px' }}>ก</span>
-          )}
-        </div>
-        <button 
+          </div>
+        )}
+        <button
           className="sidebar-toggle-btn"
           onClick={onToggleCollapse}
           title={collapsed ? 'ขยายแถบเมนู' : 'ย่อแถบเมนู'}
@@ -102,19 +99,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Admin Profile Footer */}
       <div className="sidebar-footer">
         <div className="admin-profile">
-          <div className="admin-avatar">A</div>
+          <div className="admin-avatar">
+            {((currentAdmin?.name || 'A').charAt(0)).toUpperCase()}
+          </div>
           {!collapsed && (
             <div className="admin-details">
-              <span className="admin-name">ผู้ดูแลระบบ</span>
-              <span className="admin-role">Super Admin</span>
+              <span className="admin-name">{currentAdmin?.name || 'ผู้ดูแลระบบ'}</span>
+              <span className="admin-role">{currentAdmin?.role || 'Super Admin'}</span>
             </div>
           )}
         </div>
         {!collapsed && (
-          <button 
-            className="sidebar-toggle-btn" 
+          <button
+            className="sidebar-toggle-btn"
             title="ออกจากระบบ"
-            onClick={() => alert('จำลองการออกจากระบบ')}
+            onClick={onLogout}
           >
             <LogOut size={15} />
           </button>

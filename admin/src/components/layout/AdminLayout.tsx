@@ -3,17 +3,19 @@ import { Sidebar, NavTab } from './Sidebar';
 import { Header } from './Header';
 import { ToastContainer, ToastMessage } from '../common/Toast';
 
+import { AdminUser } from '../../pages/LoginPage';
+
 interface AdminLayoutProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   pendingReportsCount: number;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
   isLive: boolean;
   onRefreshData: () => void;
   isRefreshing: boolean;
   toasts: ToastMessage[];
   onDismissToast: (id: string) => void;
+  currentAdmin?: AdminUser | null;
+  onLogout?: () => void;
   children: React.ReactNode;
 }
 
@@ -21,10 +23,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   currentTab,
   onSelectTab,
   pendingReportsCount,
-  searchQuery,
-  onSearchChange,
   toasts,
   onDismissToast,
+  currentAdmin,
+  onLogout,
   children
 }) => {
   const [collapsed, setCollapsed] = useState(false);
@@ -38,14 +40,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         pendingReportsCount={pendingReportsCount}
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed(!collapsed)}
+        currentAdmin={currentAdmin}
+        onLogout={onLogout}
       />
 
       {/* Main Area */}
       <div className="main-wrapper">
         <Header 
           currentTab={currentTab}
-          searchQuery={searchQuery}
-          onSearchChange={onSearchChange}
           pendingCount={pendingReportsCount}
         />
 

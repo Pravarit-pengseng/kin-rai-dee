@@ -1,30 +1,29 @@
 import { supabase } from './supabaseClient';
-import { 
-  ModerationReport, 
-  ModerationDecision, 
-  AuditLogItem, 
-  CommunityRule, 
-  ContentType, 
-  ReportStatus, 
-  PriorityLevel, 
+import {
+  ModerationReport,
+  ModerationDecision,
+  AuditLogItem,
+  CommunityRule,
+  ContentType,
+  ReportStatus,
+  PriorityLevel,
   ReasonCode,
   AuthorProfile,
   UGCContent
 } from '../types/moderation';
 
 export const COMMUNITY_RULES: CommunityRule[] = [
-  { id: 1, code: 'SPAM', name: 'สแปมหรือโฆษณาไม่พึงประสงค์', description: 'เนื้อหาซ้ำซ้อน ขายของผิดที่ โฆษณาเว็บพนันหรือสแปมลิงก์', isActive: true },
-  { id: 2, code: 'HARASSMENT', name: 'การคุกคามหรือกลั่นแกล้ง', description: 'การใช้ถ้อยคำดูถูก ข่มขู่ หรือล้อเลียนผู้อื่นให้เสียหาย', isActive: true },
-  { id: 3, code: 'INAPPROPRIATE', name: 'เนื้อหาไม่เหมาะสมหรือไม่เกี่ยวกับอาหาร', description: 'รูปภาพลามกอนาจาร รูปภาพที่ไม่เกี่ยวกับอาหาร หรือคำหยาบคาย', isActive: true },
-  { id: 4, code: 'COPYRIGHT', name: 'การละเมิดลิขสิทธิ์', description: 'คัดลอกรูปภาพหรือเนื้อหาที่มีลิขสิทธิ์โดยไม่ได้รับอนุญาต', isActive: true },
-  { id: 5, code: 'PRIVACY', name: 'ละเมิดความเป็นส่วนตัว', description: 'การเปิดเผยข้อมูลส่วนบุคคล เบอร์โทรศัพท์ หรือภาพผู้อื่นโดยไม่ได้รับอนุญาต', isActive: true },
-  { id: 6, code: 'HARMFUL', name: 'เนื้อหาที่เป็นอันตรายหรือผิดกฎหมาย', description: 'ข้อมูลสุขภาพที่บิดเบือน อาหารปลอมปน สิ่งผิดกฎหมาย', isActive: true },
-  { id: 7, code: 'OTHER', name: 'อื่นๆ ตามดุลยพินิจของทีมงาน', description: 'พฤติกรรมที่ไม่เหมาะสมอื่นๆ ที่ขัดต่อแนวทางปฏิบัติของชุมชน', isActive: true },
+  { id: 1, code: 'INAPPROPRIATE', name: 'เนื้อหาไม่เหมาะสมหรือไม่เกี่ยวข้องกับอาหาร', description: 'รูปภาพลามกอนาจาร ความรุนแรง คำหยาบคาย หรือภาพที่ไม่เกี่ยวข้องกับอาหาร', isActive: true },
+  { id: 2, code: 'HARASSMENT', name: 'การคุกคามหรือกลั่นแกล้ง', description: 'การใช้ถ้อยคำดูถูก ข่มขู่ หรือล้อเลียนผู้อื่นให้เกิดความเสียหายหรืออับอาย', isActive: true },
+  { id: 3, code: 'SPAM', name: 'สแปมหรือสิ่งผิดกฎหมาย', description: 'โพสต์ข้อความซ้ำซ้อน สแปมลิงก์ โฆษณาเว็บพนัน หรือสิ่งผิดกฎหมาย', isActive: true },
+  { id: 4, code: 'COPYRIGHT', name: 'การละเมิดลิขสิทธิ์', description: 'นำรูปภาพ ข้อความ หรือผลงานของผู้อื่นมาแอบอ้างโดยไม่ได้รับอนุญาต', isActive: true },
+  { id: 5, code: 'PRIVACY', name: 'ละเมิดความเป็นส่วนตัว', description: 'การเปิดเผยข้อมูลส่วนบุคคล เบอร์โทรศัพท์ หรือภาพบุคคลอื่นโดยไม่ได้รับอนุญาต', isActive: true },
+  { id: 6, code: 'OTHER', name: 'อื่นๆ', description: 'พฤติกรรมที่ไม่เหมาะสมอื่นๆ ที่ขัดต่อแนวทางปฏิบัติของชุมชน', isActive: true },
 ];
 
 export const AVAILABLE_MODERATORS = [
   { id: 'mod-1', name: 'แอดมินสุภพ (Super Admin)', email: 'admin.supap@kinraidee.app' },
-  { id: 'mod-2', name: 'แอดมินเอก (Moderator)', email: 'mod.aey@kinraidee.app' },
+  { id: 'mod-2', name: 'แอดมินเอก (Moderator)', email: 'mod.aek@kinraidee.app' },
   { id: 'mod-3', name: 'แอดมินปอนด์ (Support)', email: 'support.pond@kinraidee.app' },
 ];
 
@@ -36,6 +35,7 @@ class ModerationService {
   private auditLogsCache: AuditLogItem[] = [];
   private isLiveConnected = false;
   private hasInitialized = false;
+  private userCount = 5;
 
   public async initialize(): Promise<{ isLive: boolean; reportCount: number }> {
     if (this.hasInitialized && this.reportsCache.length > 0) {
@@ -64,6 +64,9 @@ class ModerationService {
       const realPosts = postsRes.data || [];
       const realComments = commentsRes.data || [];
       const realProfiles = profilesRes.data || [];
+      if (realProfiles.length > 0) {
+        this.userCount = realProfiles.length;
+      }
 
       // Create a profile lookup map
       const profileMap = new Map<string, AuthorProfile>();
@@ -210,8 +213,8 @@ class ModerationService {
   }
 
   private buildConnectedReports(
-    realPosts: any[], 
-    realComments: any[], 
+    realPosts: any[],
+    realComments: any[],
     profileMap: Map<string, AuthorProfile>
   ): ModerationReport[] {
     const reports: ModerationReport[] = [];
@@ -388,6 +391,39 @@ class ModerationService {
       });
     }
 
+    // Report 6: Reported user profile
+    const profilesList = Array.from(profileMap.values());
+    if (profilesList.length > 0) {
+      const targetUser = profilesList[profilesList.length - 1];
+      reports.push({
+        id: 'RPT-2026-006',
+        targetType: 'user',
+        targetId: targetUser.id,
+        reasonCode: 'HARASSMENT',
+        reasonLabel: 'การคุกคามหรือกลั่นแกล้ง',
+        explanation: 'ผู้ใช้รายนี้ส่งข้อความหรือคอมเมนต์ไม่เหมาะสมในระบบ',
+        reportCount: 2,
+        reporterUsername: 'safety_guard',
+        reporterId: 'rep-06',
+        priority: 'high',
+        status: 'pending',
+        assignedTo: null,
+        assignedToName: null,
+        createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
+        isDemo: false,
+        targetContent: {
+          id: targetUser.id,
+          type: 'user',
+          title: `โปรไฟล์ผู้ใช้: @${targetUser.username}`,
+          text: targetUser.bio || `บัญชีผู้ใช้ ${targetUser.displayName} (@${targetUser.username}) มีพฤติกรรมขัดต่อกฎชุมชน`,
+          imageUrl: targetUser.avatarUrl,
+          createdAt: new Date(Date.now() - 7 * 86400 * 1000).toISOString(),
+          author: targetUser,
+          visibility: 'published'
+        }
+      });
+    }
+
     return reports;
   }
 
@@ -420,6 +456,38 @@ class ModerationService {
             username: 'spam_tester',
             displayName: 'Spam Tester',
             status: 'active'
+          },
+          visibility: 'published'
+        }
+      },
+      {
+        id: 'RPT-2026-002',
+        targetType: 'user',
+        targetId: 'demo-user-2',
+        reasonCode: 'SPAM',
+        reasonLabel: 'สแปมหรือโฆษณาไม่พึงประสงค์',
+        explanation: 'บัญชีนี้สร้างขึ้นเพื่อสแปมข้อความและโฆษณาในหลายโพสต์',
+        reportCount: 3,
+        reporterUsername: 'somchai_k',
+        reporterId: 'rep-02',
+        priority: 'medium',
+        status: 'pending',
+        assignedTo: null,
+        createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+        isDemo: true,
+        targetContent: {
+          id: 'demo-user-2',
+          type: 'user',
+          title: 'โปรไฟล์ผู้ใช้: @bot_promoter',
+          text: 'รับปั๊มยอดไลก์ รีวิวร้านอาหาร ติดต่อ line @pump_fast',
+          createdAt: new Date(Date.now() - 86400 * 1000).toISOString(),
+          author: {
+            id: 'demo-user-2',
+            username: 'bot_promoter',
+            displayName: 'Bot Promoter 24hr',
+            status: 'active',
+            postCount: 0,
+            violationCount: 1
           },
           visibility: 'published'
         }
@@ -458,7 +526,7 @@ class ModerationService {
 
     if (filters.search && filters.search.trim()) {
       const q = filters.search.toLowerCase().trim();
-      result = result.filter(r => 
+      result = result.filter(r =>
         r.id.toLowerCase().includes(q) ||
         r.reasonLabel.toLowerCase().includes(q) ||
         r.targetContent.author.username.toLowerCase().includes(q) ||
@@ -621,9 +689,9 @@ class ModerationService {
 
     this.persistReports();
 
-    return { 
-      success: true, 
-      message: `บันทึกคำตัดสินเรียบร้อยแล้ว (${this.getActionTitle(decision.actionType)})` 
+    return {
+      success: true,
+      message: `บันทึกคำตัดสินเรียบร้อยแล้ว (${this.getActionTitle(decision.actionType)})`
     };
   }
 
@@ -632,8 +700,8 @@ class ModerationService {
     const pending = this.reportsCache.filter(r => r.status === 'pending').length;
     const actionTaken = this.reportsCache.filter(r => r.status === 'action_taken').length;
     const dismissed = this.reportsCache.filter(r => r.status === 'dismissed').length;
-    const highPriority = this.reportsCache.filter(r => 
-      (r.priority === 'high' || r.priority === 'urgent') && 
+    const highPriority = this.reportsCache.filter(r =>
+      (r.priority === 'high' || r.priority === 'urgent') &&
       r.status === 'pending'
     ).length;
 
@@ -643,8 +711,13 @@ class ModerationService {
       inReview: 0,
       actionTaken,
       dismissed,
-      highPriority
+      highPriority,
+      userCount: this.userCount
     };
+  }
+
+  public getUserCount(): number {
+    return this.userCount;
   }
 
   public getAuditLogs(): AuditLogItem[] {

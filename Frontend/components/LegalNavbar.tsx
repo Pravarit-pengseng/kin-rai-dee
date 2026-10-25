@@ -11,7 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Shield, FileText, Trash2, Menu, ChevronRight, Home, X } from 'lucide-react-native';
 import { AppFonts } from '@/constants/theme';
 
 export type LegalTabType = 'privacy' | 'terms' | 'delete';

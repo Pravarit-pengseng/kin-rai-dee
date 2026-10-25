@@ -624,6 +624,236 @@ def toggle_user_status(user_id: str, payload: UserStatusPayload):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def delete_user_completely(user_id: str) -> bool:
+    """Completely and permanently remove a user and all associated records."""
+    if not supabase:
+        return False
+    try:
+        # 1. Saved posts
+        try:
+            supabase.table("saved_posts").delete().eq("user_id", user_id).execute()
+        except Exception:
+            pass
+
+        # 2. Comments authored by user
+        try:
+            supabase.table("comments").delete().eq("user_id", user_id).execute()
+        except Exception:
+            pass
+
+        # 3. Posts authored by user (and categories, comments on those posts)
+        try:
+            p_res = supabase.table("posts").select("id").eq("user_id", user_id).execute()
+            p_records = to_records(p_res.data)
+            if p_records:
+                p_ids = [p["id"] for p in p_records]
+                supabase.table("post_categories").delete().in_("post_id", p_ids).execute()
+                supabase.table("saved_posts").delete().in_("post_id", p_ids).execute()
+                supabase.table("comments").delete().in_("post_id", p_ids).execute()
+                supabase.table("posts").delete().eq("user_id", user_id).execute()
+        except Exception:
+            pass
+
+        # 4. Search history
+        try:
+            supabase.table("search_history").delete().eq("user_id", user_id).execute()
+        except Exception:
+            pass
+
+        # 5. Blocked users
+        try:
+            supabase.table("blocked_users").delete().eq("blocker_id", user_id).execute()
+            supabase.table("blocked_users").delete().eq("blocked_id", user_id).execute()
+        except Exception:
+            pass
+
+        # 6. Profile
+        try:
+            supabase.table("profiles").delete().eq("id", user_id).execute()
+        except Exception:
+            pass
+
+        # 7. Auth User (GoTrue)
+        try:
+            supabase.auth.admin.delete_user(user_id)
+        except Exception as e:
+            print(f"Auth user deletion note for {user_id}:", e)
+
+        return True
+    except Exception as e:
+        print("delete_user_completely error:", e)
+        return False
+
+
+class DeletionResolutionPayload(BaseModel):
+    notes: Optional[str] = None
+    moderator_id: Optional[str] = "admin"
+    moderator_name: Optional[str] = "ผู้ดูแลระบบ"
+
+
+@router.delete("/users/{user_id}")
+def delete_user_as_admin(
+    user_id: str,
+    moderator_id: Optional[str] = "admin",
+    moderator_name: Optional[str] = "ผู้ดูแลระบบ",
+):
+    """Permanently delete a user account and all data."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database uninitialized")
+
+    # Fetch user details before deleting for audit log
+    u_info = "ผู้ใช้"
+    try:
+        p_res = supabase.table("profiles").select("username, display_name").eq("id", user_id).limit(1).execute()
+        p_records = to_records(p_res.data)
+        if p_records:
+            u_info = p_records[0].get("display_name") or p_records[0].get("username") or "ผู้ใช้"
+    except Exception:
+        pass
+
+    success = delete_user_completely(user_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="ไม่สามารถลบบัญชีผู้ใช้ได้")
+
+    log_audit_event(
+        actor_id=moderator_id,
+        actor_name=moderator_name,
+        event_type="DELETE_USER",
+        target_type="user",
+        target_id=user_id,
+        metadata={"user_name": u_info, "note": "ลบบัญชีและข้อมูลทั้งหมดโดยผู้ดูแลระบบ"},
+    )
+
+    return {"success": True, "message": f"ลบบัญชี {u_info} และข้อมูลทั้งหมดเรียบร้อยแล้ว"}
+
+
+# ── 6. Account Deletion Requests ──────────────────────────────────────────────
+
+@router.get("/deletion-requests")
+def get_deletion_requests(
+    status: Optional[str] = "all",
+    limit: int = 50,
+    offset: int = 0,
+):
+    """Fetch user account deletion requests submitted via website."""
+    if not supabase:
+        return {"success": True, "data": []}
+
+    try:
+        query = supabase.table("account_deletion_requests").select("*")
+        if status and status != "all":
+            query = query.eq("status", status)
+
+        resp = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
+        requests = to_records(resp.data)
+
+        # Enrich requests with profile / user details
+        user_ids = list(set([r["user_id"] for r in requests if r.get("user_id")]))
+        user_map = {}
+        if user_ids:
+            try:
+                p_res = supabase.table("profiles").select("id, username, display_name, avatar_url, created_at").in_("id", user_ids).execute()
+                for p in to_records(p_res.data):
+                    user_map[str(p["id"])] = p
+            except Exception:
+                pass
+
+        for r in requests:
+            uid = str(r.get("user_id") or "")
+            if uid and uid in user_map:
+                r["user"] = user_map[uid]
+            else:
+                r["user"] = None
+
+        return {"success": True, "data": requests}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/deletion-requests/{request_id}/approve")
+def approve_deletion_request(request_id: int, payload: DeletionResolutionPayload):
+    """Approve deletion request and permanently purge user data."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database uninitialized")
+
+    try:
+        import datetime
+        req_res = supabase.table("account_deletion_requests").select("*").eq("id", request_id).limit(1).execute()
+        reqs = to_records(req_res.data)
+        if not reqs:
+            raise HTTPException(status_code=404, detail="ไม่พบคำขอลบบัญชีนี้")
+
+        req = reqs[0]
+        user_id = req.get("user_id")
+        email = req.get("email")
+
+        # If user_id is missing, look it up in auth.users by email
+        if not user_id and email:
+            try:
+                users = supabase.auth.admin.list_users()
+                for u in users:
+                    if u.email and u.email.strip().lower() == email.strip().lower():
+                        user_id = str(u.id)
+                        break
+            except Exception as e:
+                print("User lookup error:", e)
+
+        # Delete user data if user was found
+        if user_id:
+            delete_user_completely(user_id)
+
+        # Update deletion request
+        supabase.table("account_deletion_requests").update({
+            "status": "completed",
+            "resolved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "admin_notes": payload.notes or "อนุมัติและลบบัญชีเรียบร้อยแล้ว",
+        }).eq("id", request_id).execute()
+
+        # Audit log
+        log_audit_event(
+            actor_id=payload.moderator_id,
+            actor_name=payload.moderator_name,
+            event_type="DELETE_USER",
+            target_type="user",
+            target_id=user_id or str(request_id),
+            metadata={"email": email, "request_id": request_id, "notes": payload.notes, "status": "completed"},
+        )
+
+        return {"success": True, "message": f"อนุมัติและลบบัญชีสำหรับ {email} เรียบร้อยแล้ว"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/deletion-requests/{request_id}/reject")
+def reject_deletion_request(request_id: int, payload: DeletionResolutionPayload):
+    """Reject an account deletion request."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database uninitialized")
+
+    try:
+        import datetime
+        supabase.table("account_deletion_requests").update({
+            "status": "rejected",
+            "resolved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "admin_notes": payload.notes or "ปฏิเสธคำขอ",
+        }).eq("id", request_id).execute()
+
+        log_audit_event(
+            actor_id=payload.moderator_id,
+            actor_name=payload.moderator_name,
+            event_type="REJECT_DELETION",
+            target_type="user",
+            target_id=str(request_id),
+            metadata={"request_id": request_id, "notes": payload.notes, "status": "rejected"},
+        )
+
+        return {"success": True, "message": "ปฏิเสธคำขอลบบัญชีเรียบร้อยแล้ว"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ── 6. Audit Logs ─────────────────────────────────────────────────────────────
 
 @router.get("/audit-logs")

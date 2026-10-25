@@ -72,3 +72,12 @@ def test_admin_audit_logs(client):
     data = response.json()
     assert data.get("success") is True
     assert isinstance(data.get("data"), list)
+
+
+def test_admin_deletion_requests(client):
+    """Verify GET /api/admin/deletion-requests returns 200."""
+    response = client.get("/api/admin/deletion-requests")
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("success") is True
+    assert isinstance(data.get("data"), list)

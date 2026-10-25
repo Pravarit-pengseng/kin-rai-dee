@@ -244,7 +244,57 @@ export const adminApi = {
       }),
     }),
 
-  // 6. Audit Logs
+  deleteUser: (userId: string, moderator?: { id?: string; name?: string }) => {
+    const q = new URLSearchParams();
+    if (moderator?.id) q.set('moderator_id', moderator.id);
+    if (moderator?.name) q.set('moderator_name', moderator.name);
+    const queryStr = q.toString() ? `?${q.toString()}` : '';
+
+    return request<AdminApiResponse<null>>(`/api/admin/users/${userId}${queryStr}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // 6. Account Deletion Requests
+  getDeletionRequests: (params?: { status?: string; limit?: number; offset?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.status && params.status !== 'all') q.set('status', params.status);
+    if (params?.limit) q.set('limit', String(params.limit));
+    if (params?.offset) q.set('offset', String(params.offset));
+
+    const queryStr = q.toString() ? `?${q.toString()}` : '';
+    return request<AdminApiResponse<any[]>>(`/api/admin/deletion-requests${queryStr}`);
+  },
+
+  approveDeletionRequest: (
+    requestId: number,
+    notes?: string,
+    moderator?: { id?: string; name?: string }
+  ) =>
+    request<AdminApiResponse<null>>(`/api/admin/deletion-requests/${requestId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify({
+        notes: notes || undefined,
+        moderator_id: moderator?.id || 'admin',
+        moderator_name: moderator?.name || 'ผู้ดูแลระบบ',
+      }),
+    }),
+
+  rejectDeletionRequest: (
+    requestId: number,
+    notes?: string,
+    moderator?: { id?: string; name?: string }
+  ) =>
+    request<AdminApiResponse<null>>(`/api/admin/deletion-requests/${requestId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({
+        notes: notes || undefined,
+        moderator_id: moderator?.id || 'admin',
+        moderator_name: moderator?.name || 'ผู้ดูแลระบบ',
+      }),
+    }),
+
+  // 7. Audit Logs
   getAuditLogs: (limit: number = 100, offset: number = 0) =>
     request<AdminApiResponse<any[]>>(
       `/api/admin/audit-logs?limit=${limit}&offset=${offset}`

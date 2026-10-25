@@ -51,3 +51,16 @@ def test_delete_account_api_unauthorized():
     """Verify DELETE /auth/account requires authentication (401)."""
     response = client.delete("/auth/account")
     assert response.status_code == 401
+
+
+def test_submit_deletion_request_api():
+    """Verify public POST /api/legal/delete-account-request functions."""
+    payload = {
+        "email": "test-deletion@example.com",
+        "reason": "Test deletion reason",
+    }
+    response = client.post("/api/legal/delete-account-request", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("success") is True
+    assert "ลบบัญชี" in data.get("message", "")

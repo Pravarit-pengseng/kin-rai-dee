@@ -204,18 +204,59 @@
             <button type="submit" class="btn-submit" id="submitBtn">ส่งคำขอลบบัญชีผู้ใช้</button>
         </form>
 
+        <div id="errorMsg" style="display: none; margin-top: 16px; background-color: #fee4e2; border: 1px solid #fecdca; color: #b42318; padding: 14px 16px; border-radius: 8px;">
+            <strong id="errorText">เกิดข้อผิดพลาดในการส่งคำขอ</strong>
+        </div>
+
         <div id="successMsg" style="display: none; margin-top: 20px;" class="box-card">
-            <strong>ได้รับคำขอลบบัญชีแล้ว</strong>
-            <p style="margin-top: 6px; margin-bottom: 0;">ระบบได้รับคำขอลบบัญชีสำหรับอีเมลของท่านเรียบร้อยแล้ว ทีมงานจะดำเนินการตรวจสอบและลบข้อมูลที่เกี่ยวข้องทั้งหมดอย่างถาวร</p>
+            <strong style="color: #027a48; font-size: 1.1rem;">✓ ได้รับคำขอลบบัญชีแล้ว</strong>
+            <p id="successText" style="margin-top: 6px; margin-bottom: 0;">ระบบได้รับคำขอลบบัญชีสำหรับอีเมลของท่านเรียบร้อยแล้ว แอดมินจะดำเนินการตรวจสอบและลบข้อมูลที่เกี่ยวข้องทั้งหมดอย่างถาวร</p>
         </div>
 
         <script>
-            function handleSubmit(e) {
+            async function handleSubmit(e) {
                 e.preventDefault();
-                var email = document.getElementById('email').value;
-                if (!email) return;
-                document.getElementById('deleteForm').style.display = 'none';
-                document.getElementById('successMsg').style.display = 'block';
+                var emailInput = document.getElementById('email');
+                var reasonInput = document.getElementById('reason');
+                var submitBtn = document.getElementById('submitBtn');
+                var errorBox = document.getElementById('errorMsg');
+                var errorText = document.getElementById('errorText');
+                var successBox = document.getElementById('successMsg');
+                var successText = document.getElementById('successText');
+
+                errorBox.style.display = 'none';
+                var email = (emailInput.value || '').trim();
+                var reason = (reasonInput.value || '').trim();
+
+                if (!email) {
+                    alert('กรุณากรอกอีเมล');
+                    return;
+                }
+
+                submitBtn.disabled = true;
+                submitBtn.innerText = 'กำลังส่งคำขอ...';
+
+                try {
+                    var response = await fetch('/api/legal/delete-account-request', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: email, reason: reason })
+                    });
+                    var data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.detail || 'เกิดข้อผิดพลาดในการส่งคำขอ');
+                    }
+                    document.getElementById('deleteForm').style.display = 'none';
+                    if (data.message) {
+                        successText.innerText = data.message;
+                    }
+                    successBox.style.display = 'block';
+                } catch (err) {
+                    errorText.innerText = err.message || 'เกิดข้อผิดพลาดในการส่งคำขอ กรุณาลองใหม่อีกครั้ง';
+                    errorBox.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = 'ส่งคำขอลบบัญชีผู้ใช้';
+                }
             }
         </script>
 

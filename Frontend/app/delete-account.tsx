@@ -8,18 +8,22 @@ import {
   ScrollView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import LegalNavbar from '../components/LegalNavbar';
+import { API_BASE_URL } from '../services/api';
+import { supabase } from '../lib/supabase';
 
 export default function DeleteAccountScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [reason, setReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!email.trim() || !email.includes('@')) {
       if (Platform.OS === 'web') {
         window.alert('กรุณากรอกอีเมลที่ถูกต้อง');
@@ -28,7 +32,37 @@ export default function DeleteAccountScreen() {
       }
       return;
     }
-    setIsSubmitted(true);
+
+    setIsSubmitting(true);
+    try {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/legal/delete-account-request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim(), reason: reason.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'เกิดข้อผิดพลาดในการส่งคำขอ');
+      } catch (apiErr) {
+        console.warn('API error, falling back to direct Supabase:', apiErr);
+        const { error } = await supabase.from('account_deletion_requests').insert({
+          email: email.trim().toLowerCase(),
+          reason: reason.trim(),
+          status: 'pending',
+        });
+        if (error) throw error;
+      }
+      setIsSubmitted(true);
+    } catch (err: any) {
+      const msg = err.message || 'เกิดข้อผิดพลาดในการส่งคำขอ กรุณาลองใหม่อีกครั้ง';
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('ส่งคำขอไม่สำเร็จ', msg);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -174,8 +208,19 @@ export default function DeleteAccountScreen() {
                 onChangeText={setReason}
               />
 
-              <Pressable style={styles.submitBtn} onPress={handleSubmit}>
-                <Text style={styles.submitBtnText}>ส่งคำขอลบบัญชีผู้ใช้</Text>
+              <Pressable 
+                style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]} 
+                onPress={handleSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <Text style={styles.submitBtnText}>กำลังส่งคำขอ...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.submitBtnText}>ส่งคำขอลบบัญชีผู้ใช้</Text>
+                )}
               </Pressable>
             </View>
           )}

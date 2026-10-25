@@ -21,7 +21,6 @@ import {
   X,
   Bookmark,
   AlignRight,
-  AlignLeft,
   MessageCircle,
   Flag,
 } from "lucide-react-native";
@@ -111,10 +110,11 @@ export default function PopupPost({
   const { isLoggedIn, user } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
-
-  React.useEffect(() => {
+  const [prevAvatarUrl, setPrevAvatarUrl] = useState(post?.avatarUrl);
+  if (post?.avatarUrl !== prevAvatarUrl) {
+    setPrevAvatarUrl(post?.avatarUrl);
     setAvatarError(false);
-  }, [post?.avatarUrl]);
+  }
 
   const handleBookmarkPress = () => {
     setShowMenu(false);
@@ -241,14 +241,13 @@ export default function PopupPost({
     onClose();
   };
 
-  const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(user?.avatarUrl);
+  const [profileAvatar, setProfileAvatar] = useState<string | undefined>();
+  const currentUserAvatar = user?.avatarUrl || profileAvatar;
 
   useEffect(() => {
-    if (user?.avatarUrl) {
-      setCurrentUserAvatar(user.avatarUrl);
-    } else if (isLoggedIn) {
+    if (!user?.avatarUrl && isLoggedIn) {
       getMyProfile().then((p) => {
-        if (p?.avatar_url) setCurrentUserAvatar(p.avatar_url);
+        if (p?.avatar_url) setProfileAvatar(p.avatar_url);
       });
     }
   }, [user?.avatarUrl, isLoggedIn]);
@@ -270,7 +269,7 @@ export default function PopupPost({
   const [commentText, setCommentText] = useState("");
   const commentsScrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const slideAnim = useRef(new Animated.Value(600)).current;
+  const [slideAnim] = useState(() => new Animated.Value(600));
 
   // Listen to keyboard height to lift input above keyboard
   useEffect(() => {
@@ -310,10 +309,14 @@ export default function PopupPost({
     }
   }, [showComments, slideAnim]);
 
-  useEffect(() => {
+  const [prevPostId, setPrevPostId] = useState(post?.id);
+  const [prevDescription, setPrevDescription] = useState(description);
+  if (post?.id !== prevPostId || description !== prevDescription) {
+    setPrevPostId(post?.id);
+    setPrevDescription(description);
     setIsExpanded(false);
     setIsTruncated(false);
-  }, [post?.id, description]);
+  }
 
   const handleTextLayout = (e: any) => {
     const lines = e.nativeEvent?.lines;

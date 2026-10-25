@@ -6,7 +6,8 @@
     "docker:up": "docker compose up --build -d",
     "docker:down": "docker compose down",
     "docker:admin": "docker compose up --build -d admin",
-    "docker:backend": "docker compose up --build -d backend"
+    "docker:backend": "docker compose up --build -d backend",
+    "test:e2e": "npm --prefix admin run test:e2e"
   },
   "devDependencies": {
     "supabase": "^2.116.0"

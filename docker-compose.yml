@@ -51,5 +51,6 @@ services:
     volumes:
       - ./frontend/app:/app/app
       - ./frontend/components:/app/components
+      - ./frontend/lib:/app/lib
     extra_hosts:
       - "host.docker.internal:host-gateway"

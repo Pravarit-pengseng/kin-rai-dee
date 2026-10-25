@@ -1,0 +1,7 @@
+# Local Supabase Config for Admin Dashboard
+VITE_SUPABASE_URL=http://127.0.0.1:54500
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+
+# FastAPI Backend API (leave blank to use Vite reverse proxy)
+VITE_API_URL=
+VITE_BACKEND_URL=http://backend:8000

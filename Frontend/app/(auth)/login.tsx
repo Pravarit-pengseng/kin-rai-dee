@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// import React;
+import  { useState } from 'react';
 import {
   View,
   Text,
@@ -168,15 +169,22 @@ export default function LoginScreen() {
               <View style={[styles.formCard, isSmallScreen && styles.formCardSmall]}>
                 <AuthErrorBanner message={generalError} />
 
-                <AuthInput
-                  iconName="user"
-                  placeholder="อีเมล"
-                  value={email}
-                  onChangeText={handleEmailChange}
-                  keyboardType="email-address"
-                  errorMessage={errors.email}
-                  autoCapitalize="none"
-                />
+              <AuthInput
+                iconName="user"
+                placeholder="อีเมล"
+                value={email}
+                onChangeText={handleEmailChange}
+                onBlur={() => {
+                  if (email.trim()) {
+                    const err = validateEmail(formatEmail(email));
+                    if (err) setErrors((prev) => ({ ...prev, email: err }));
+                  }
+                }}
+                keyboardType="email-address"
+                errorMessage={errors.email}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
 
                 <AuthInput
                   iconName="lock"
@@ -187,25 +195,35 @@ export default function LoginScreen() {
                   errorMessage={errors.password}
                 />
 
+              <View style={styles.forgotPasswordRow}>
                 <Pressable
-                  onPress={handleLogin}
-                  disabled={isLoading}
-                  style={({ pressed }) => [
-                    styles.submitButton,
-                    pressed && styles.buttonPressed,
-                    isLoading && styles.buttonDisabled,
-                  ]}
+                  onPress={() => router.push({ pathname: '/(auth)/forgot-password', params: { returnTo, from } })}
+                  hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+                  style={({ pressed }) => [pressed && styles.buttonPressed]}
                 >
-                  {isLoading ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <Text style={styles.submitButtonText}>เข้าสู่ระบบ →</Text>
-                  )}
+                  <Text style={styles.forgotPasswordText}>ลืมรหัสผ่าน</Text>
                 </Pressable>
               </View>
-            </View>
 
-            {/* Bottom Footer Navigation */}
+              <Pressable
+                onPress={handleLogin}
+                disabled={isLoading}
+                style={({ pressed }) => [
+                  styles.submitButton,
+                  pressed && styles.buttonPressed,
+                  isLoading && styles.buttonDisabled,
+                ]}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.submitButtonText}>เข้าสู่ระบบ →</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Bottom Footer Navigation */}
             <View style={[styles.footer, isSmallScreen && styles.footerSmall]}>
               <Text style={styles.footerText}>ยังไม่มีบัญชีผู้ใช้งาน? </Text>
               <Pressable
@@ -339,6 +357,22 @@ const styles = StyleSheet.create({
   formCardSmall: {
     padding: 16,
     borderRadius: 20,
+  },
+  forgotPasswordRow: {
+    alignItems: 'flex-end',
+    marginTop: -2,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    color: '#A7392A',
+    fontWeight: '600',
+    fontFamily: Platform.select({
+      ios: 'Noto Sans Thai',
+      android: 'NotoSansThai_600SemiBold',
+      default: 'NotoSansThai_600SemiBold, Inter_600SemiBold, sans-serif',
+    }),
   },
   submitButton: {
     backgroundColor: '#A7392A',

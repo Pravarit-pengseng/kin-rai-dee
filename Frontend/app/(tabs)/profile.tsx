@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   ScrollView,
-  type ScrollViewInstance,
   Pressable,
   StyleSheet,
   Alert,
@@ -45,7 +44,7 @@ export default function ProfileScreen() {
     refresh?: string;
   }>();
 
-  const scrollRef = useRef<ScrollViewInstance>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (params.refresh) {
@@ -343,7 +342,7 @@ export default function ProfileScreen() {
         leftIcon={isLoggedIn ? "logout" : "none"}
         onLeftPress={() => setLogoutPopupVisible(true)}
         rightIcon="settings"
-        onRightPress={() => router.push('/settings')}
+        onRightPress={() => router.push('/settings' as any)}
       />
       <ScrollView
         ref={scrollRef}

@@ -28,6 +28,16 @@ export const AUTH_ERROR_MESSAGES = {
   CONFIRM_PASSWORD_REQUIRED: 'กรุณายืนยันรหัสผ่าน',
   PASSWORD_MISMATCH: 'รหัสผ่านไม่ตรงกัน',
 
+  // Recovery / OTP
+  OTP_REQUIRED: 'กรุณากรอกรหัส OTP',
+  OTP_INVALID_LENGTH: 'กรุณากรอกรหัส OTP ให้ครบ 6 หลัก',
+  OTP_INVALID: 'รหัส OTP ไม่ถูกต้อง กรุณาลองอีกครั้ง',
+  OTP_EXPIRED: 'รหัส OTP หมดอายุ กรุณาขอรหัสใหม่',
+  RATE_LIMIT_EXCEEDED: 'คำขอบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่',
+  PASSWORD_RESET_MIN_LENGTH: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 12 ตัวอักษร',
+  PASSWORD_SAME_AS_OLD: 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม',
+  SESSION_EXPIRED: 'เซสชันกู้คืนหมดอายุ กรุณาเริ่มใหม่อีกครั้ง',
+
   // General / API Errors
   CANNOT_GENERATE_USERNAME: 'ไม่สามารถสมัครบัญชีได้ กรุณาลองใหม่อีกครั้ง',
   NO_INTERNET: 'ไม่สามารถเชื่อมต่อได้ กรุณาตรวจสอบอินเทอร์เน็ต',
@@ -68,6 +78,16 @@ export function validateEmail(email: string): string | null {
   const trimmed = email.trim();
   if (!trimmed) {
     return AUTH_ERROR_MESSAGES.EMAIL_REQUIRED;
+  }
+
+  // Prevent consecutive dots or dots adjacent to @ / at beginning
+  if (
+    trimmed.includes('..') ||
+    trimmed.startsWith('.') ||
+    trimmed.includes('.@') ||
+    trimmed.includes('@.')
+  ) {
+    return AUTH_ERROR_MESSAGES.EMAIL_INVALID;
   }
 
   // Standard email RFC 5322 regex
@@ -149,3 +169,27 @@ export function validateConfirmPassword(password: string, confirmPassword: strin
 
   return null;
 }
+
+/**
+ * Validates 6-digit OTP code
+ */
+export function validateOtp(otp: string): string | null {
+  const trimmed = otp.trim();
+  if (!trimmed) {
+    return AUTH_ERROR_MESSAGES.OTP_REQUIRED;
+  }
+
+  if (!/^\d{6}$/.test(trimmed)) {
+    return AUTH_ERROR_MESSAGES.OTP_INVALID_LENGTH;
+  }
+
+  return null;
+}
+
+/**
+ * Validates new password for reset/change password flow (unified with registration rules: 8-20 chars, letters, numbers, special #?!@-_)
+ */
+export function validateNewPassword(password: string): string | null {
+  return validatePassword(password);
+}
+

@@ -41,4 +41,30 @@ test.describe('Public Account Deletion & Legal Pages (เว็บลบแล�
     await expect(page.locator('#successMsg')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('#successText')).toContainText('คำขอลบบัญชี');
   });
+
+  test('4. Should render responsively on mobile smartphone screen (375x667)', async ({ page }) => {
+    // Set mobile viewport (iPhone SE / Standard Phone)
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto(`${backendBaseUrl}/delete-account`);
+
+    // Container should not overflow
+    const container = page.locator('.container');
+    await expect(container).toBeVisible();
+    const box = await container.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      expect(box.width).toBeLessThanOrEqual(375);
+    }
+
+    // Submit button should be full width on mobile
+    const submitBtn = page.locator('#submitBtn');
+    await expect(submitBtn).toBeVisible();
+    const btnBox = await submitBtn.boundingBox();
+    expect(btnBox).not.toBeNull();
+    if (btnBox && box) {
+      // Button width should span nearly full width of container
+      expect(btnBox.width).toBeGreaterThan(box.width * 0.8);
+    }
+  });
 });
+

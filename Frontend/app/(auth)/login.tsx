@@ -160,9 +160,16 @@ export default function LoginScreen() {
                 placeholder="อีเมล"
                 value={email}
                 onChangeText={handleEmailChange}
+                onBlur={() => {
+                  if (email.trim()) {
+                    const err = validateEmail(formatEmail(email));
+                    if (err) setErrors((prev) => ({ ...prev, email: err }));
+                  }
+                }}
                 keyboardType="email-address"
                 errorMessage={errors.email}
                 autoCapitalize="none"
+                autoCorrect={false}
               />
 
               <AuthInput
@@ -173,6 +180,16 @@ export default function LoginScreen() {
                 isPassword
                 errorMessage={errors.password}
               />
+
+              <View style={styles.forgotPasswordRow}>
+                <Pressable
+                  onPress={() => router.push({ pathname: '/(auth)/forgot-password', params: { returnTo, from } })}
+                  hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+                  style={({ pressed }) => [pressed && styles.buttonPressed]}
+                >
+                  <Text style={styles.forgotPasswordText}>ลืมรหัสผ่าน</Text>
+                </Pressable>
+              </View>
 
               <Pressable
                 onPress={handleLogin}
@@ -308,6 +325,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.09,
     shadowRadius: 20,
     elevation: 5,
+  },
+  forgotPasswordRow: {
+    alignItems: 'flex-end',
+    marginTop: -2,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    color: '#A7392A',
+    fontWeight: '600',
+    fontFamily: Platform.select({
+      ios: 'Noto Sans Thai',
+      android: 'NotoSansThai_600SemiBold',
+      default: 'NotoSansThai_600SemiBold, Inter_600SemiBold, sans-serif',
+    }),
   },
   submitButton: {
     backgroundColor: '#A7392A',

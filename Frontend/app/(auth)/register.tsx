@@ -258,6 +258,7 @@ export default function RegisterScreen() {
                 keyboardType="email-address"
                 errorMessage={errors.email}
                 autoCapitalize="none"
+                autoCorrect={false}
               />
 
               <AuthInput

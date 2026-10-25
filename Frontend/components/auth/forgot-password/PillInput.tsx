@@ -27,7 +27,7 @@ export function PillInput({
 }: PillInputProps) {
   const [showPassword, setShowPassword] = useState(!isPassword);
   const [isFocused, setIsFocused] = useState(false);
-  const inputRef = useRef<TextInput | null>(null);
+  const inputRef = useRef<any>(null);
   const hasError = Boolean(errorMessage);
 
   const handleContainerPress = () => {

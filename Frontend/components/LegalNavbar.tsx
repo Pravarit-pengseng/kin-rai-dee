@@ -38,7 +38,7 @@ export default function LegalNavbar({ activeTab }: LegalNavbarProps) {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace('/' as any);
+      router.replace((Platform.OS === 'web' ? '/privacy-policy' : '/') as any);
     }
   };
 
@@ -97,7 +97,7 @@ export default function LegalNavbar({ activeTab }: LegalNavbarProps) {
             </Pressable>
 
             <Pressable
-              onPress={() => router.replace('/' as any)}
+              onPress={() => router.replace((Platform.OS === 'web' ? '/privacy-policy' : '/') as any)}
               style={[styles.brandInfo, isSuperNarrow && { gap: 6 }]}
             >
               <Image

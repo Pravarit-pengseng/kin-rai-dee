@@ -7,6 +7,7 @@ import {
   Image,
   Pressable,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +21,10 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function RandomIngredientScreen() {
+  const { width } = useWindowDimensions();
+  const isSuperNarrow = width < 340;
+  const isNarrow = width < 380;
+
   const [isVegSelected, setIsVegSelected] = useState(false);
   const [isMeatSelected, setIsMeatSelected] = useState(false);
   const [hasRandomized, setHasRandomized] = useState(false);
@@ -125,23 +130,43 @@ export default function RandomIngredientScreen() {
       <Header onSearchPress={handleSearch} />
 
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[
+          styles.container,
+          {
+            paddingHorizontal: isSuperNarrow ? 12 : isNarrow ? 16 : 20,
+            maxWidth: 560,
+            width: '100%',
+            alignSelf: 'center',
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.mainTitle}>
+        <Text
+          style={[
+            styles.mainTitle,
+            isSuperNarrow && { fontSize: 18.5 },
+            isNarrow && !isSuperNarrow && { fontSize: 20 },
+          ]}
+        >
           อยากทำอาหารแต่คิดวัตถุดิบไม่ออก?
         </Text>
 
-        <Text style={styles.subTitle}>
+        <Text
+          style={[
+            styles.subTitle,
+            isSuperNarrow && { fontSize: 12.5, marginBottom: 16 },
+          ]}
+        >
           แตะเลือกหมวดวัตถุดิบที่ต้องการก่อนกดสุ่ม
         </Text>
 
         {/* Category Toggles */}
-        <View style={styles.toggleContainer}>
+        <View style={[styles.toggleContainer, isSuperNarrow && { gap: 10, marginBottom: 14 }]}>
           {/* ผัก */}
           <Pressable
             style={({ pressed }) => [
               styles.toggleBox,
+              isSuperNarrow && styles.toggleBoxNarrow,
               isVegSelected
                 ? styles.vegSelected
                 : styles.unselected,
@@ -153,10 +178,10 @@ export default function RandomIngredientScreen() {
               setRandomVeg(null);
             }}
           >
-            <View style={styles.iconCircle}>
+            <View style={[styles.iconCircle, isSuperNarrow && styles.iconCircleNarrow]}>
               <MaterialCommunityIcons
                 name="flower"
-                size={32}
+                size={isSuperNarrow ? 24 : 32}
                 color={
                   isVegSelected
                     ? '#2A6B4E'
@@ -168,6 +193,7 @@ export default function RandomIngredientScreen() {
             <Text
               style={[
                 styles.toggleText,
+                isSuperNarrow && { fontSize: 15 },
                 isVegSelected
                   ? styles.vegText
                   : styles.unselectedText,
@@ -181,6 +207,7 @@ export default function RandomIngredientScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.toggleBox,
+              isSuperNarrow && styles.toggleBoxNarrow,
               isMeatSelected
                 ? styles.meatSelected
                 : styles.unselected,
@@ -192,10 +219,10 @@ export default function RandomIngredientScreen() {
               setRandomMeat(null);
             }}
           >
-            <View style={styles.iconCircle}>
+            <View style={[styles.iconCircle, isSuperNarrow && styles.iconCircleNarrow]}>
               <MaterialCommunityIcons
                 name="pot-steam"
-                size={32}
+                size={isSuperNarrow ? 24 : 32}
                 color={
                   isMeatSelected
                     ? '#A5352A'
@@ -207,6 +234,7 @@ export default function RandomIngredientScreen() {
             <Text
               style={[
                 styles.toggleText,
+                isSuperNarrow && { fontSize: 15 },
                 isMeatSelected
                   ? styles.meatText
                   : styles.unselectedText,
@@ -320,6 +348,11 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
+  toggleBoxNarrow: {
+    height: 105,
+    borderRadius: 14,
+  },
+
   unselected: {
     backgroundColor: '#E5E5E5',
     borderColor: '#D0D5DD',
@@ -343,6 +376,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
+  },
+
+  iconCircleNarrow: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    marginBottom: 6,
   },
 
   toggleText: {
@@ -393,7 +433,7 @@ const styles = StyleSheet.create({
   rowResults: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 16,
+    gap: 12,
   },
 
   singleResult: {
@@ -418,7 +458,8 @@ const styles = StyleSheet.create({
   },
 
   halfCard: {
-    width: 165,
+    flex: 1,
+    maxWidth: '48%',
     height: 245,
     borderRadius: 16,
     padding: 0,

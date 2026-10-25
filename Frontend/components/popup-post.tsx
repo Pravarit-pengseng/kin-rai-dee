@@ -268,7 +268,7 @@ export default function PopupPost({
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentText, setCommentText] = useState("");
-  const commentsScrollRef = useRef<ScrollView>(null);
+  const commentsScrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const slideAnim = useRef(new Animated.Value(600)).current;
 
@@ -1116,6 +1116,8 @@ const styles = StyleSheet.create({
 
   tagContainer: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
     marginBottom: 10,
   },
 
@@ -1368,6 +1370,7 @@ const styles = StyleSheet.create({
 
   blockSuccessPopup: {
     width: 290,
+    maxWidth: "88%",
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
     paddingVertical: 36,

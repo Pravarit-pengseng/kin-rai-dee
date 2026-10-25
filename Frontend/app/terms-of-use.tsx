@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
@@ -16,6 +17,17 @@ const isWeb = Platform.OS === 'web';
 
 export default function TermsOfUseScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 480;
+  const isSuperNarrow = width < 340;
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/' as any);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -26,7 +38,7 @@ export default function TermsOfUseScreen() {
         <LegalNavbar activeTab="terms" />
       ) : (
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+          <Pressable onPress={handleBack} style={styles.backBtn} hitSlop={12}>
             <ArrowLeft size={22} color="#1A1A1A" />
           </Pressable>
           <Text style={styles.headerTitle}>ข้อกำหนดการใช้งาน</Text>
@@ -36,10 +48,23 @@ export default function TermsOfUseScreen() {
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={[styles.scrollContent, isWeb && styles.webScrollContent]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isWeb && styles.webScrollContent,
+          isSmallScreen && styles.mobileScrollContent,
+          isSuperNarrow && styles.mobileScrollContentNarrow,
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.mainTitle}>ข้อกำหนดการใช้งาน</Text>
+        <Text
+          style={[
+            styles.mainTitle,
+            isSmallScreen && styles.mobileMainTitle,
+            isSuperNarrow && styles.mobileMainTitleNarrow,
+          ]}
+        >
+          ข้อกำหนดการใช้งาน
+        </Text>
         <Text style={styles.updatedDate}>อัปเดตล่าสุด 21 ตุลาคม 2569</Text>
 
         <Text style={styles.introParagraph}>
@@ -134,17 +159,36 @@ export default function TermsOfUseScreen() {
           </Text>
         </View>
 
+        {/* Contact & Reporting */}
+        <View style={styles.contactCard}>
+          <Text style={styles.contactTitle}>ติดต่อทีมงาน</Text>
+          <Text style={styles.contactText}>
+            หากมีข้อสงสัย ข้อเสนอแนะ หรือต้องการรายงานการละเมิดข้อกำหนดการใช้งาน สามารถติดต่อเราได้ที่
+          </Text>
+          <Text style={styles.contactEmail}>phatsachon25488@gmail.com</Text>
+        </View>
+
         {/* Footer Navigation (เฉพาะเว็บบราวเซอร์) */}
         {isWeb && (
           <>
             <View style={styles.footerNav}>
-              <Pressable onPress={() => router.push('/privacy-policy' as any)}>
+              <Pressable
+                onPress={() => router.push('/privacy-policy' as any)}
+                style={({ pressed }) => [styles.footerLinkPressable, pressed && styles.btnPressed]}
+                hitSlop={8}
+              >
                 <Text style={styles.footerLink}>นโยบายความเป็นส่วนตัว</Text>
               </Pressable>
               <Text style={styles.footerDot}>•</Text>
-              <Text style={[styles.footerLink, styles.footerLinkActive]}>ข้อกำหนดการใช้งาน</Text>
+              <View style={styles.footerLinkPressable}>
+                <Text style={[styles.footerLink, styles.footerLinkActive]}>ข้อกำหนดการใช้งาน</Text>
+              </View>
               <Text style={styles.footerDot}>•</Text>
-              <Pressable onPress={() => router.push('/delete-account' as any)}>
+              <Pressable
+                onPress={() => router.push('/delete-account' as any)}
+                style={({ pressed }) => [styles.footerLinkPressable, pressed && styles.btnPressed]}
+                hitSlop={8}
+              >
                 <Text style={styles.footerLink}>คำขอลบบัญชี</Text>
               </Pressable>
             </View>
@@ -198,6 +242,16 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 48,
   },
+  mobileScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 40,
+  },
+  mobileScrollContentNarrow: {
+    paddingHorizontal: 10,
+    paddingTop: 14,
+    paddingBottom: 36,
+  },
   webScrollContent: {
     width: '100%',
     maxWidth: 960,
@@ -213,6 +267,14 @@ const styles = StyleSheet.create({
       android: 'Inter_700Bold',
       default: 'Inter, sans-serif',
     }),
+  },
+  mobileMainTitle: {
+    fontSize: 21,
+    lineHeight: 28,
+  },
+  mobileMainTitleNarrow: {
+    fontSize: 18.5,
+    lineHeight: 25,
   },
   updatedDate: {
     fontSize: 13,
@@ -273,35 +335,6 @@ const styles = StyleSheet.create({
       default: 'Inter, sans-serif',
     }),
   },
-  ruleCard: {
-    backgroundColor: '#F7F7F8',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderLeftWidth: 3.5,
-    borderLeftColor: '#A7392A',
-  },
-  ruleTitle: {
-    fontSize: 14.5,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 4,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
-  },
-  ruleDesc: {
-    fontSize: 13.5,
-    color: '#636366',
-    lineHeight: 20,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
-  },
   bulletItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -334,15 +367,65 @@ const styles = StyleSheet.create({
       default: 'Inter, sans-serif',
     }),
   },
+  contactCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  contactTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 6,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
+  },
+  contactText: {
+    fontSize: 14,
+    color: '#4B5563',
+    lineHeight: 22,
+    marginBottom: 8,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
+  },
+  contactEmail: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#A7392A',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
+  },
   footerNav: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 36,
+    flexWrap: 'wrap',
+    marginTop: 32,
     paddingTop: 18,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
-    gap: 10,
+    rowGap: 8,
+    columnGap: 10,
+  },
+  footerLinkPressable: {
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  btnPressed: {
+    opacity: 0.6,
   },
   footerLink: {
     fontSize: 13,

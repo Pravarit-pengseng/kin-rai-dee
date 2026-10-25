@@ -4,6 +4,7 @@ import {
   Text,
   Pressable,
   StyleSheet,
+  useWindowDimensions,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import {
@@ -51,12 +52,27 @@ export default function LiquidMenu({
   active = "home",
   onChange,
 }: LiquidMenuProps) {
+  const { width } = useWindowDimensions();
+  const isSuperNarrow = width < 340;
+  const isNarrow = width < 380;
+
   const handlePress = (id: string) => {
     onChange?.(id);
   };
 
   return (
-    <View style={styles.wrapper}>
+    <View
+      style={[
+        styles.wrapper,
+        {
+          left: isSuperNarrow ? 8 : 16,
+          right: isSuperNarrow ? 8 : 16,
+          maxWidth: 480,
+          width: isSuperNarrow ? width - 16 : width > 512 ? 480 : width - 32,
+          alignSelf: "center",
+        },
+      ]}
+    >
       {/* Layer 1: Background Blur */}
       <BlurView
         intensity={80}
@@ -65,7 +81,7 @@ export default function LiquidMenu({
       />
 
       {/* Layer 2: Menu Items */}
-      <View style={styles.menu}>
+      <View style={[styles.menu, isSuperNarrow && { height: 62, paddingHorizontal: 2 }]}>
         {menuItems.map((item) => {
           const isActive = active === item.id;
           const Icon = item.icon;
@@ -81,7 +97,7 @@ export default function LiquidMenu({
               ]}
             >
               <Icon
-                size={22}
+                size={isSuperNarrow ? 19 : isNarrow ? 21 : 22}
                 color="#57423E"
                 strokeWidth={isActive ? 2.5 : 2}
               />
@@ -89,8 +105,11 @@ export default function LiquidMenu({
               <Text
                 style={[
                   styles.label,
+                  isSuperNarrow && { fontSize: 9.5, marginTop: 2 },
+                  isNarrow && !isSuperNarrow && { fontSize: 10.5 },
                   isActive && styles.activeLabel,
                 ]}
+                numberOfLines={1}
               >
                 {item.label}
               </Text>

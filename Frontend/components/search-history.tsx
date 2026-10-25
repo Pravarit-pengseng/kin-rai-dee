@@ -91,7 +91,9 @@ const styles = StyleSheet.create({
   },
   trendTags: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    columnGap: 10,
+    rowGap: 8,
   },
   pill: {
     paddingHorizontal: 16,

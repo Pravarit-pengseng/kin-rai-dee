@@ -28,14 +28,15 @@ export default function LoginScreen() {
   const router = useRouter();
   const { returnTo, from } = useLocalSearchParams<{ returnTo?: string; from?: string }>();
   const { login } = useAuth();
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   // Responsive scale factors
   const isSmallScreen = windowHeight < 720;
   const isMediumScreen = windowHeight >= 720 && windowHeight < 840;
-  const logoSize = isSmallScreen ? 100 : isMediumScreen ? 125 : 150;
+  const isSuperNarrow = windowWidth < 340;
+  const logoSize = isSuperNarrow ? 85 : isSmallScreen ? 100 : isMediumScreen ? 125 : 150;
 
   const [errors, setErrors] = useState<{
     email?: string | null;
@@ -128,7 +129,12 @@ export default function LoginScreen() {
           overScrollMode="never"
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.screenContainer}>
+          <View
+            style={[
+              styles.screenContainer,
+              isSuperNarrow && { paddingHorizontal: 12 },
+            ]}
+          >
             {/* Top Navigation Bar */}
             <View style={styles.header}>
               <Pressable

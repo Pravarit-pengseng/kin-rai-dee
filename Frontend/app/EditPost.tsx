@@ -240,6 +240,9 @@ const styles = StyleSheet.create({
     content: {
         padding: 16,
         paddingBottom: 40,
+        maxWidth: 600,
+        width: "100%",
+        alignSelf: "center",
     },
 
     imageBox: {

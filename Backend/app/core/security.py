@@ -40,8 +40,9 @@ def get_current_user(
     # Check if user is suspended in profiles
     try:
         prof_res = supabase.table("profiles").select("is_suspended").eq("id", user.id).execute()
-        if prof_res.data and len(prof_res.data) > 0:
-            if prof_res.data[0].get("is_suspended"):
+        if isinstance(prof_res.data, list) and len(prof_res.data) > 0:
+            profile_record = prof_res.data[0]
+            if isinstance(profile_record, dict) and profile_record.get("is_suspended"):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="บัญชีของคุณถูกระงับการใช้งาน หากคิดว่าเป็นข้อผิดพลาด สามารถติดต่อฝ่ายสนับสนุนได้ที่ phatsachon25488@gmail.com",

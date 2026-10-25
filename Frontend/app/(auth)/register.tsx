@@ -30,8 +30,8 @@ import {
 export default function RegisterScreen() {
   const router = useRouter();
   const { returnTo, from } = useLocalSearchParams<{ returnTo?: string; from?: string }>();
-  const { login } = useAuth();  // ใช้สำหรับ auto-login หลัง signup สำเร็จ
-  const { height: windowHeight } = useWindowDimensions();
+  const { login } = useAuth();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,7 +40,8 @@ export default function RegisterScreen() {
   // Responsive scale factors
   const isSmallScreen = windowHeight < 720;
   const isMediumScreen = windowHeight >= 720 && windowHeight < 840;
-  const logoSize = isSmallScreen ? 70 : isMediumScreen ? 85 : 105;
+  const isSuperNarrow = windowWidth < 340;
+  const logoSize = isSuperNarrow ? 60 : isSmallScreen ? 70 : isMediumScreen ? 85 : 105;
 
   const [errors, setErrors] = useState<{
     displayName?: string | null;
@@ -222,7 +223,12 @@ export default function RegisterScreen() {
           overScrollMode="never"
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.screenContainer}>
+          <View
+            style={[
+              styles.screenContainer,
+              isSuperNarrow && { paddingHorizontal: 12 },
+            ]}
+          >
             {/* Top Navigation Bar */}
             <View style={styles.header}>
               <Pressable

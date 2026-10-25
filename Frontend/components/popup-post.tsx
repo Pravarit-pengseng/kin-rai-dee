@@ -9,7 +9,6 @@ import {
   Alert,
   TextInput,
   ScrollView,
-  type ScrollViewInstance,
   Platform,
   Keyboard,
   Animated,
@@ -269,7 +268,7 @@ export default function PopupPost({
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentText, setCommentText] = useState("");
-  const commentsScrollRef = useRef<ScrollViewInstance>(null);
+  const commentsScrollRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const slideAnim = useRef(new Animated.Value(600)).current;
 

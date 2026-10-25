@@ -221,8 +221,9 @@ export default function LoginScreen() {
                 )}
               </Pressable>
             </View>
+          </View>
 
-            {/* Bottom Footer Navigation */}
+          {/* Bottom Footer Navigation */}
             <View style={[styles.footer, isSmallScreen && styles.footerSmall]}>
               <Text style={styles.footerText}>ยังไม่มีบัญชีผู้ใช้งาน? </Text>
               <Pressable
@@ -352,6 +353,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.09,
     shadowRadius: 20,
     elevation: 5,
+  },
+  formCardSmall: {
+    padding: 16,
+    borderRadius: 20,
   },
   forgotPasswordRow: {
     alignItems: 'flex-end',

@@ -187,23 +187,9 @@ export function validateOtp(otp: string): string | null {
 }
 
 /**
- * Validates new password for reset password flow (minimum 12 characters as specified)
+ * Validates new password for reset/change password flow (unified with registration rules: 8-20 chars, letters, numbers, special #?!@-_)
  */
 export function validateNewPassword(password: string): string | null {
-  if (!password) {
-    return AUTH_ERROR_MESSAGES.PASSWORD_REQUIRED;
-  }
-
-  if (password.length < 12) {
-    return AUTH_ERROR_MESSAGES.PASSWORD_RESET_MIN_LENGTH;
-  }
-
-  // Check character validity
-  const allowedCharsRegex = /^[a-zA-Z0-9#?!@\-_]+$/;
-  if (!allowedCharsRegex.test(password)) {
-    return AUTH_ERROR_MESSAGES.PASSWORD_INVALID_CHARS;
-  }
-
-  return null;
+  return validatePassword(password);
 }
 

@@ -37,15 +37,15 @@ export default function SettingsScreen() {
   };
 
   const handleOpenPrivacy = () => {
-    router.push('/privacy-policy');
+    router.push('/privacy-policy' as any);
   };
 
   const handleOpenTerms = () => {
-    router.push('/terms-of-use');
+    router.push('/terms-of-use' as any);
   };
 
   const handleOpenBlockedUsers = () => {
-    router.push('/blocked-users');
+    router.push('/blocked-users' as any);
   };
 
   const handleDeleteAccountPress = () => {
@@ -55,6 +55,18 @@ export default function SettingsScreen() {
     }
 
     setDeletePopupVisible(true);
+  };
+
+  const handleChangePasswordPress = () => {
+    if (!isLoggedIn) {
+      Alert.alert('เข้าสู่ระบบ', 'กรุณาเข้าสู่ระบบก่อนดำเนินการ');
+      return;
+    }
+
+    router.push({
+      pathname: '/(auth)/forgot-password',
+      params: { from: '/settings', returnTo: '/settings' },
+    } as any);
   };
 
   const confirmDeleteAccount = async () => {
@@ -146,12 +158,23 @@ export default function SettingsScreen() {
             onPress={handleDeleteAccountPress}
             disabled={isDeleting}
           >
-            <Text style={[styles.menuText, styles.deleteText]}>ลบบัญชีผู้ใช้</Text>
+            <Text style={styles.menuText}>ลบบัญชีผู้ใช้</Text>
             {isDeleting ? (
               <ActivityIndicator size="small" color="#A7392A" />
             ) : (
               <ChevronRight size={20} color="#79747E" />
             )}
+          </Pressable>
+
+          <View style={styles.divider} />
+
+          {/* เปลี่ยนรหัสผ่าน */}
+          <Pressable
+            style={({ pressed }) => [styles.menuItem, pressed && styles.itemPressed]}
+            onPress={handleChangePasswordPress}
+          >
+            <Text style={styles.menuText}>เปลี่ยนรหัสผ่าน</Text>
+            <ChevronRight size={20} color="#79747E" />
           </Pressable>
         </View>
 

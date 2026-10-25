@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, ScrollView, type ScrollViewInstance, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from "react-native";
+import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -24,7 +24,7 @@ export default function HomeScreen() {
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
-  const scrollRef = useRef<ScrollViewInstance>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const params = useLocalSearchParams<{ refresh?: string }>();
   const postsRef = useRef<PopupPostData[]>([]);
 

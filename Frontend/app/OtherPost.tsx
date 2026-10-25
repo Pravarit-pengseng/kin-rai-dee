@@ -1,4 +1,4 @@
-import React, {
+import  {
   useEffect,
   useRef,
   useState,
@@ -7,7 +7,6 @@ import React, {
 import {
   View,
   ScrollView,
-  type ScrollViewInstance,
   StyleSheet,
 } from "react-native";
 import {
@@ -47,7 +46,7 @@ export default function OtherPostScreen() {
     post?: string;
   }>();
 
-  const scrollRef = useRef<ScrollViewInstance>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
   const [deletePopupVisible, setDeletePopupVisible] = useState(false);

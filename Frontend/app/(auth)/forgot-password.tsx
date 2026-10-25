@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { ForgotPasswordHeader } from '@/components/auth/forgot-password/ForgotPasswordHeader';
 import { PillInput } from '@/components/auth/forgot-password/PillInput';
 import { BrickButton } from '@/components/auth/forgot-password/BrickButton';
@@ -18,10 +19,11 @@ import { OtpInputBoxes } from '@/components/auth/forgot-password/OtpInputBoxes';
 import { SuccessModal } from '@/components/auth/forgot-password/SuccessModal';
 import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { recoveryService } from '@/services/recoveryService';
+import { useAuth } from '@/context/AuthContext';
 import {
   validateEmail,
   formatEmail,
-  validateNewPassword,
+  validatePassword,
   validateConfirmPassword,
   AUTH_ERROR_MESSAGES,
 } from '@/utils/authValidation';
@@ -30,6 +32,7 @@ type RecoveryStep = 'email' | 'otp' | 'new-password';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { returnTo, from } = useLocalSearchParams<{ returnTo?: string; from?: string }>();
 
   // State management
@@ -38,6 +41,7 @@ export default function ForgotPasswordScreen() {
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
@@ -53,6 +57,22 @@ export default function ForgotPasswordScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Pre-fill email if user is already logged in (e.g. from /settings)
+  useEffect(() => {
+    if (user?.email && !email) {
+      setEmail(user.email);
+    }
+  }, [user?.email]);
+
+  // Real-time password requirement checklist (unified with register screen)
+  const isLenValid = newPassword.length >= 8 && newPassword.length <= 20;
+  const hasLetter = /[a-zA-Z]/.test(newPassword);
+  const hasNumber = /[0-9]/.test(newPassword);
+  const hasSpecial = /[#?!@\-_]/.test(newPassword);
+  const hasOnlyAllowed = newPassword.length > 0 && /^[a-zA-Z0-9#?!@\-_]+$/.test(newPassword);
+  const isPasswordValid =
+    isLenValid && hasLetter && hasNumber && hasSpecial && hasOnlyAllowed;
 
   // Handle countdown timer for Resend OTP
   useEffect(() => {
@@ -75,7 +95,7 @@ export default function ForgotPasswordScreen() {
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => subscription.remove();
-  }, [currentStep]);
+  }, [currentStep, from]);
 
   const handleBack = () => {
     setGeneralError(null);
@@ -86,7 +106,11 @@ export default function ForgotPasswordScreen() {
     } else if (currentStep === 'otp') {
       setCurrentStep('email');
     } else {
-      router.replace({ pathname: '/(auth)/login', params: { returnTo, from } });
+      if (from === '/settings') {
+        router.back();
+      } else {
+        router.replace({ pathname: '/(auth)/login', params: { returnTo, from } });
+      }
     }
   };
 
@@ -182,7 +206,7 @@ export default function ForgotPasswordScreen() {
       return;
     }
 
-    const passError = validateNewPassword(newPassword);
+    const passError = validatePassword(newPassword);
     const confirmError = validateConfirmPassword(newPassword, confirmPassword);
 
     if (passError || confirmError) {
@@ -201,8 +225,10 @@ export default function ForgotPasswordScreen() {
         return;
       }
 
-      // Successfully updated: clean up session and show success modal
-      await recoveryService.clearRecoverySession();
+      // If called from /settings, keep user session active. Otherwise, clear session.
+      if (from !== '/settings') {
+        await recoveryService.clearRecoverySession();
+      }
       setShowSuccessModal(true);
     } catch {
       setGeneralError(AUTH_ERROR_MESSAGES.SYSTEM_ERROR);
@@ -213,13 +239,19 @@ export default function ForgotPasswordScreen() {
 
   const handleFinish = () => {
     setShowSuccessModal(false);
-    router.replace({ pathname: '/(auth)/login', params: { returnTo, from } });
+    if (from === '/settings') {
+      router.replace('/settings' as any);
+    } else {
+      router.replace({ pathname: '/(auth)/login', params: { returnTo, from } });
+    }
   };
+
+  const pageTitle = from === '/settings' ? 'เปลี่ยนรหัสผ่าน' : 'ลืมรหัสผ่าน';
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       {/* Top Header */}
-      <ForgotPasswordHeader onBack={handleBack} />
+      <ForgotPasswordHeader onBack={handleBack} title={pageTitle} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -334,8 +366,78 @@ export default function ForgotPasswordScreen() {
                       setInputErrors((prev) => ({ ...prev, newPassword: null }));
                     }
                   }}
+                  onFocus={() => setIsPasswordFocused(true)}
+                  onBlur={() => {
+                    setIsPasswordFocused(false);
+                    if (newPassword) {
+                      const err = validatePassword(newPassword);
+                      setInputErrors((prev) => ({ ...prev, newPassword: err }));
+                    }
+                  }}
                   errorMessage={inputErrors.newPassword}
                 />
+
+                {/* Password Requirement Guidelines (Unified with Register Screen) */}
+                {(isPasswordFocused || newPassword.length > 0) && (
+                  <View style={styles.passwordRulesContainer}>
+                    <Text style={styles.passwordRulesTitle}>เงื่อนไขการตั้งรหัสผ่าน:</Text>
+
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={isLenValid ? 'check-circle' : 'circle'}
+                        size={14}
+                        color={isLenValid ? '#2E7D32' : '#8C7A75'}
+                      />
+                      <Text style={[styles.ruleText, isLenValid && styles.ruleTextValid]}>
+                        ความยาว 8–20 ตัวอักษร
+                      </Text>
+                    </View>
+
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={hasLetter ? 'check-circle' : 'circle'}
+                        size={14}
+                        color={hasLetter ? '#2E7D32' : '#8C7A75'}
+                      />
+                      <Text style={[styles.ruleText, hasLetter && styles.ruleTextValid]}>
+                        มีอักษรภาษาอังกฤษอย่างน้อย 1 ตัว (a-z, A-Z)
+                      </Text>
+                    </View>
+
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={hasNumber ? 'check-circle' : 'circle'}
+                        size={14}
+                        color={hasNumber ? '#2E7D32' : '#8C7A75'}
+                      />
+                      <Text style={[styles.ruleText, hasNumber && styles.ruleTextValid]}>
+                        มีตัวเลขอย่างน้อย 1 ตัว (0-9)
+                      </Text>
+                    </View>
+
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={hasSpecial ? 'check-circle' : 'circle'}
+                        size={14}
+                        color={hasSpecial ? '#2E7D32' : '#8C7A75'}
+                      />
+                      <Text style={[styles.ruleText, hasSpecial && styles.ruleTextValid]}>
+                        มีอักขระพิเศษอย่างน้อย 1 ตัว (# ? ! @ - _)
+                      </Text>
+                    </View>
+
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={hasOnlyAllowed ? 'check-circle' : 'circle'}
+                        size={14}
+                        color={hasOnlyAllowed ? '#2E7D32' : '#8C7A75'}
+                      />
+                      <Text style={[styles.ruleText, hasOnlyAllowed && styles.ruleTextValid]}>
+                        ไม่มีช่องว่าง และใช้อักขระที่กำหนดเท่านั้น
+                      </Text>
+                    </View>
+                  </View>
+                )}
 
                 <PillInput
                   iconName="check-circle"
@@ -348,13 +450,19 @@ export default function ForgotPasswordScreen() {
                       setInputErrors((prev) => ({ ...prev, confirmPassword: null }));
                     }
                   }}
+                  onBlur={() => {
+                    if (confirmPassword) {
+                      const err = validateConfirmPassword(newPassword, confirmPassword);
+                      setInputErrors((prev) => ({ ...prev, confirmPassword: err }));
+                    }
+                  }}
                   errorMessage={inputErrors.confirmPassword}
                 />
 
                 <BrickButton
                   title="ยืนยันรหัสผ่าน"
                   onPress={handleResetPassword}
-                  disabled={newPassword.length < 12 || newPassword !== confirmPassword}
+                  disabled={!isPasswordValid || newPassword !== confirmPassword}
                   loading={isLoading}
                   style={styles.actionButton}
                 />
@@ -439,5 +547,42 @@ const styles = StyleSheet.create({
       android: 'NotoSansThai_600SemiBold',
       default: 'NotoSansThai_600SemiBold, Inter_600SemiBold, sans-serif',
     }),
+  },
+  passwordRulesContainer: {
+    backgroundColor: '#FAF5EE',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    width: '100%',
+  },
+  passwordRulesTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#57423E',
+    marginBottom: 8,
+    fontFamily: Platform.select({
+      ios: 'Noto Sans Thai',
+      android: 'NotoSansThai_600SemiBold',
+      default: 'NotoSansThai_600SemiBold, Inter_600SemiBold, sans-serif',
+    }),
+  },
+  ruleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  ruleText: {
+    fontSize: 12,
+    color: '#8C7A75',
+    marginLeft: 8,
+    fontFamily: Platform.select({
+      ios: 'Noto Sans Thai',
+      android: 'NotoSansThai_400Regular',
+      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+    }),
+  },
+  ruleTextValid: {
+    color: '#2E7D32',
+    fontWeight: '600',
   },
 });

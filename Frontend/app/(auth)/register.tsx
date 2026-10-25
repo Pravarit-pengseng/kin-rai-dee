@@ -397,7 +397,7 @@ export default function RegisterScreen() {
                     style={styles.termsLink}
                     onPress={(e) => {
                       e.stopPropagation();
-                      router.push('/terms-of-use');
+                      router.push('/terms-of-use' as any);
                     }}
                   >
                     ข้อกำหนดการใช้งาน
@@ -407,7 +407,7 @@ export default function RegisterScreen() {
                     style={styles.termsLink}
                     onPress={(e) => {
                       e.stopPropagation();
-                      router.push('/privacy-policy');
+                      router.push('/privacy-policy' as any);
                     }}
                   >
                     นโยบายความเป็นส่วนตัว

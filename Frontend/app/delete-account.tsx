@@ -214,8 +214,8 @@ export default function DeleteAccountScreen() {
                 onChangeText={setReason}
               />
 
-              <Pressable 
-                style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]} 
+              <Pressable
+                style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]}
                 onPress={handleSubmit}
                 disabled={isSubmitting}
               >
@@ -270,6 +270,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  mobileMainTitle: {
+    fontSize: 20,
+    lineHeight: 28,
+    marginBottom: 8,
+  },
   scrollContent: {
     paddingHorizontal: 22,
     paddingTop: 24,
@@ -293,10 +298,6 @@ const styles = StyleSheet.create({
       android: 'Inter_700Bold',
       default: 'Inter, sans-serif',
     }),
-  },
-  mobileMainTitle: {
-    fontSize: 21,
-    lineHeight: 28,
   },
   updatedDate: {
     fontSize: 13,

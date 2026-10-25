@@ -22,6 +22,8 @@ import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/context/AuthContext";
 import { fetchFeedPosts, bookmarkPost, unbookmarkPost, deletePost, getSavedPosts } from "@/services/postService";
 
+
+
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const isSuperNarrow = width < 340;

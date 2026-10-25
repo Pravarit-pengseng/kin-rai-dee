@@ -202,6 +202,53 @@ export default function TermsOfUseScreen() {
 }
 
 const styles = StyleSheet.create({
+  
+  // Mobile Title
+  mobileMainTitle: {
+    fontSize: 20,
+    lineHeight: 28,
+    marginBottom: 8,
+  },
+
+  mobileMainTitleNarrow: {
+    fontSize: 18,
+    lineHeight: 26,
+    marginBottom: 8,
+  },
+
+  // Contact Section
+  contactCard: {
+    backgroundColor: '#FFF8F6',
+    borderRadius: 12,
+    padding: 20,
+    marginTop: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#EAD2CB',
+    borderLeftWidth: 4,
+    borderLeftColor: '#A7392A',
+  },
+
+  contactTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#A7392A',
+    marginBottom: 10,
+  },
+
+  contactText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#3A3A3C',
+    marginBottom: 8,
+  },
+
+  contactEmail: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#A7392A',
+    textDecorationLine: 'underline',
+  },
   safeArea: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -268,14 +315,6 @@ const styles = StyleSheet.create({
       default: 'Inter, sans-serif',
     }),
   },
-  mobileMainTitle: {
-    fontSize: 21,
-    lineHeight: 28,
-  },
-  mobileMainTitleNarrow: {
-    fontSize: 18.5,
-    lineHeight: 25,
-  },
   updatedDate: {
     fontSize: 13,
     color: '#8E8E93',
@@ -335,6 +374,35 @@ const styles = StyleSheet.create({
       default: 'Inter, sans-serif',
     }),
   },
+  ruleCard: {
+    backgroundColor: '#F7F7F8',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderLeftWidth: 3.5,
+    borderLeftColor: '#A7392A',
+  },
+  ruleTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 4,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
+  },
+  ruleDesc: {
+    fontSize: 13.5,
+    color: '#636366',
+    lineHeight: 20,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
+  },
   bulletItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -361,47 +429,6 @@ const styles = StyleSheet.create({
   bulletBold: {
     fontWeight: '600',
     color: '#1A1A1A',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_600SemiBold',
-      default: 'Inter, sans-serif',
-    }),
-  },
-  contactCard: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  contactTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 6,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
-  },
-  contactText: {
-    fontSize: 14,
-    color: '#4B5563',
-    lineHeight: 22,
-    marginBottom: 8,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
-  },
-  contactEmail: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#A7392A',
     fontFamily: Platform.select({
       ios: 'Inter',
       android: 'Inter_600SemiBold',

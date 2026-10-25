@@ -237,14 +237,14 @@ export default function RandomFoodScreen() {
               onPress={handleRandomize}
               title="สุ่มอาหาร"
               iconName="dice"
-              paddingVertical={isSuperNarrow ? 10 : 12}
+              paddingVertical={12}
               disabled={isRandomizing}
             />
           ) : (
             <RandomButton
               onPress={handleRandomize}
               variant="rerandom"
-              paddingVertical={isSuperNarrow ? 10 : 12}
+              paddingVertical={12}
               disabled={isRandomizing}
             />
           )}
@@ -428,4 +428,4 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     color: '#8A7772',
   },
-});
+});

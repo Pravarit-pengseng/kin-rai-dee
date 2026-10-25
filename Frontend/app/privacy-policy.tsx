@@ -212,6 +212,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E5E5',
   },
+  mobileMainTitle: {
+    fontSize: 20,
+    lineHeight: 28,
+    marginBottom: 8,
+  },
   backBtn: {
     padding: 6,
     marginLeft: -4,
@@ -258,10 +263,6 @@ const styles = StyleSheet.create({
       android: 'Inter_700Bold',
       default: 'Inter, sans-serif',
     }),
-  },
-  mobileMainTitle: {
-    fontSize: 21,
-    lineHeight: 28,
   },
   updatedDate: {
     fontSize: 13,

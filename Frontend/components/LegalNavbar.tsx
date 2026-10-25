@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+
+import { useState } from 'react';
+
 import {
   View,
   Text,
@@ -10,9 +12,20 @@ import {
   Modal,
   useWindowDimensions,
 } from 'react-native';
+
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Shield, FileText, Trash2, Menu, ChevronRight, Home, X } from 'lucide-react-native';
-import { AppFonts } from '@/constants/theme';
+
+import {
+  ArrowLeft,
+  Shield,
+  FileText,
+  Trash2,
+  Menu,
+  ChevronRight,
+  Home,
+  X,
+} from 'lucide-react-native';
+
 
 export type LegalTabType = 'privacy' | 'terms' | 'delete';
 
@@ -316,6 +329,61 @@ export default function LegalNavbar({ activeTab }: LegalNavbarProps) {
 }
 
 const styles = StyleSheet.create({
+
+  // Brand Title บนหน้าจอขนาดเล็ก
+  brandTitleSmall: {
+    fontSize: 14,
+  },
+
+  // Sidebar Card Icon Container
+  sidebarCardIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+
+  // Sidebar Card Icon เมื่อเลือกเมนู
+  sidebarCardIconWrapActive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#F8D8CF',
+  },
+
+  // Sidebar Card Information
+  sidebarCardInfo: {
+    flex: 1,
+  },
+
+  // Sidebar Card Title Row
+  sidebarCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+
+  // Sidebar Card Title
+  sidebarCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
+  },
+
+  // Sidebar Card Title เมื่อเลือกเมนู
+  sidebarCardTitleActive: {
+    color: '#A7392A',
+    fontWeight: '700',
+  },
+
   navContainer: {
     backgroundColor: '#FFFFFF',
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -380,9 +448,6 @@ const styles = StyleSheet.create({
       android: 'Inter_700Bold',
       default: 'Inter, sans-serif',
     }),
-  },
-  brandTitleSmall: {
-    fontSize: 14,
   },
   desktopTabContainer: {
     flexDirection: 'row',
@@ -621,40 +686,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF0EB',
     borderColor: '#A7392A',
   },
-  sidebarCardIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  sidebarCardIconWrapActive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#F8D8CF',
-  },
-  sidebarCardInfo: {
-    flex: 1,
-  },
-  sidebarCardTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
-  },
-  sidebarCardTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1A1A',
+  mobileTabText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#636366',
     fontFamily: Platform.select({
       ios: 'Inter',
       android: 'Inter_600SemiBold',
       default: 'Inter, sans-serif',
     }),
   },
-  sidebarCardTitleActive: {
+  mobileTabTextActive: {
     color: '#A7392A',
     fontWeight: '700',
   },

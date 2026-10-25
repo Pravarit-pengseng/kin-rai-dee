@@ -167,6 +167,7 @@ const styles = StyleSheet.create({
   bio: {
     minHeight: 40,
     width: 220,
+    maxWidth: "92%",
     marginTop: 13,
     marginBottom: 8,
     paddingHorizontal: 8,
@@ -187,6 +188,7 @@ const styles = StyleSheet.create({
 
   actionRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "center",
     gap: 9,

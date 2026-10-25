@@ -42,8 +42,9 @@ def login(data: LoginRequest):
         from app.db.supabase import supabase
         if supabase:
             prof_res = supabase.table("profiles").select("is_suspended").eq("id", response.user.id).execute()
-            if prof_res.data and len(prof_res.data) > 0:
-                if prof_res.data[0].get("is_suspended"):
+            if prof_res.data and isinstance(prof_res.data, list) and len(prof_res.data) > 0:
+                profile_record = prof_res.data[0]
+                if isinstance(profile_record, dict) and profile_record.get("is_suspended"):
                     try:
                         supabase_auth.auth.sign_out()
                     except Exception:

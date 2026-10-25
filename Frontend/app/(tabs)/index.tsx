@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from "react-native";
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  RefreshControl,
+  useWindowDimensions,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -15,9 +23,9 @@ import { useAuth } from "@/context/AuthContext";
 import { fetchFeedPosts, bookmarkPost, unbookmarkPost, deletePost, getSavedPosts } from "@/services/postService";
 import { AppFonts } from "@/constants/theme";
 
-
-
 export default function HomeScreen() {
+  const { width } = useWindowDimensions();
+  const isSuperNarrow = width < 340;
   const { isLoggedIn, user } = useAuth();
   const [posts, setPosts] = useState<PopupPostData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +33,7 @@ export default function HomeScreen() {
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const params = useLocalSearchParams<{ refresh?: string }>();
   const postsRef = useRef<PopupPostData[]>([]);
 
@@ -148,7 +156,10 @@ export default function HomeScreen() {
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isSuperNarrow && { paddingHorizontal: 10 },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -217,7 +228,14 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#FFF8F6" },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 110 },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 110,
+    maxWidth: 600,
+    width: "100%",
+    alignSelf: "center",
+  },
   titleContainer: {
     flexDirection: "row",
     alignItems: "center",

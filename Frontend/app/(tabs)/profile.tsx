@@ -45,7 +45,7 @@ export default function ProfileScreen() {
     refresh?: string;
   }>();
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
   useEffect(() => {
     if (params.refresh) {

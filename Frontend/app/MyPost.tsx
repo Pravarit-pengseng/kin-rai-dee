@@ -48,7 +48,7 @@ export default function MyPost() {
     post?: string;
   }>();
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
@@ -284,6 +284,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 110,
+    maxWidth: 600,
+    width: "100%",
+    alignSelf: "center",
   },
   postWrapper: {
     width: "100%",

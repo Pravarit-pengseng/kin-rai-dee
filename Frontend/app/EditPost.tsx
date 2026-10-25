@@ -17,7 +17,6 @@ import { Camera } from "lucide-react-native";
 
 import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
-import { AppFonts } from "@/constants/theme";
 import PostForm, {
     PostData,
 } from "@/components/post-form";
@@ -276,7 +275,7 @@ const styles = StyleSheet.create({
         marginTop: 5,
         fontSize: 15,
         color: "#9D8179",
-        fontFamily: AppFonts.regular,
+        fontFamily: "Inter_400Regular",
     },
 
     postButton: {

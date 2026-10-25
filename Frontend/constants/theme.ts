@@ -27,26 +27,27 @@ export const Colors = {
   },
 };
 
-export const AppFonts = {
-  regular: Platform.select({
-    ios: 'Noto Sans Thai',
-    android: 'NotoSansThai_400Regular',
-    default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
-  }) as string,
-  medium: Platform.select({
-    ios: 'Noto Sans Thai',
-    android: 'NotoSansThai_600SemiBold',
-    default: 'NotoSansThai_600SemiBold, Inter_500Medium, sans-serif',
-  }) as string,
-  semiBold: Platform.select({
-    ios: 'Noto Sans Thai',
-    android: 'NotoSansThai_600SemiBold',
-    default: 'NotoSansThai_600SemiBold, Inter_600SemiBold, sans-serif',
-  }) as string,
-  bold: Platform.select({
-    ios: 'Noto Sans Thai',
-    android: 'NotoSansThai_700Bold',
-    default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
-  }) as string,
-};
-
+export const Fonts = Platform.select({
+  ios: {
+    /** iOS `UIFontDescriptorSystemDesignDefault` */
+    sans: 'system-ui',
+    /** iOS `UIFontDescriptorSystemDesignSerif` */
+    serif: 'ui-serif',
+    /** iOS `UIFontDescriptorSystemDesignRounded` */
+    rounded: 'ui-rounded',
+    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
+    mono: 'ui-monospace',
+  },
+  default: {
+    sans: 'normal',
+    serif: 'serif',
+    rounded: 'normal',
+    mono: 'monospace',
+  },
+  web: {
+    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    serif: "Georgia, 'Times New Roman', serif",
+    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
+    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+  },
+});

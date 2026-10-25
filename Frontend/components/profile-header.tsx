@@ -10,7 +10,6 @@ import {
   SquarePen,
 } from "lucide-react-native";
 import { ThemedText } from "@/components/themed-text";
-import { AppFonts } from "@/constants/theme";
 
 export type ProfileHeaderProps = {
   name?: string;
@@ -151,7 +150,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 20,
     lineHeight: 30,
-    fontFamily: AppFonts.bold,
+    fontFamily: "Inter_700Bold",
     fontWeight: "900",
     color: "#241917",
     marginBottom: 3,

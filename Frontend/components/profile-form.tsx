@@ -10,7 +10,6 @@ import {
   AlignLeft,
 } from "lucide-react-native";
 import { ThemedText } from "@/components/themed-text";
-import { AppFonts } from "@/constants/theme";
 
 type ProfileFormProps = {
   initialName?: string;
@@ -178,6 +177,6 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     fontSize: 15,
     color: "#241917",
-    fontFamily: AppFonts.regular,
+    fontFamily: "Inter_400Regular",
   },
 });

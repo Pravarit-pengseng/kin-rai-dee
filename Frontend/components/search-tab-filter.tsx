@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
-import { AppFonts } from '@/constants/theme';
 
 export type SearchTabType = 'posts' | 'restaurants';
 
@@ -86,11 +85,11 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
   },
   tabTextActive: {
-    fontFamily: AppFonts.bold,
+    fontFamily: 'Inter_700Bold',
     color: '#236F52',
   },
   tabTextInactive: {
-    fontFamily: AppFonts.bold,
+    fontFamily: 'Inter_700Bold',
     color: '#6B7280',
   },
 });

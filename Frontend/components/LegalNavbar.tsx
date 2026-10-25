@@ -11,8 +11,16 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft } from 'lucide-react-native';
-import { AppFonts } from '@/constants/theme';
+import {
+  ArrowLeft,
+  Menu,
+  X,
+  ChevronRight,
+  Shield,
+  FileText,
+  Trash2,
+  Home,
+} from 'lucide-react-native';
 
 export type LegalTabType = 'privacy' | 'terms' | 'delete';
 
@@ -375,7 +383,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: '#A7392A',
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   brandTitleSmall: {
     fontSize: 14,
@@ -400,7 +412,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#636366',
-    fontFamily: AppFonts.semiBold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   tabTextActive: {
     color: '#A7392A',
@@ -613,11 +629,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF0EB',
     borderColor: '#A7392A',
   },
-  mobileTabText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#636366',
-    fontFamily: AppFonts.semiBold,
+  sidebarCardIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sidebarCardIconWrapActive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#F8D8CF',
+  },
+  sidebarCardInfo: {
+    flex: 1,
+  },
+  sidebarCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  sidebarCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   sidebarCardTitleActive: {
     color: '#A7392A',

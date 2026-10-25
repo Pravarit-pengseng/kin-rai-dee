@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { AppFonts } from '@/constants/theme';
 
 interface AuthErrorBannerProps {
   message: string | null;
@@ -38,6 +37,10 @@ const styles = StyleSheet.create({
     color: '#922B21',
     fontSize: 13,
     lineHeight: 18,
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
 });

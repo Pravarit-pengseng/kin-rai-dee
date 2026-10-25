@@ -12,7 +12,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import LegalNavbar from '../components/LegalNavbar';
-import { AppFonts } from '@/constants/theme';
 
 const isWeb = Platform.OS === 'web';
 
@@ -221,7 +220,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: '#1A1A1A',
-    fontFamily: AppFonts.semiBold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   headerRightSpacer: {
     width: 32,
@@ -250,7 +253,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 6,
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   mobileMainTitle: {
     fontSize: 21,
@@ -260,13 +267,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#8E8E93',
     marginBottom: 18,
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   introParagraph: {
     fontSize: 15,
     color: '#3A3A3C',
     lineHeight: 24,
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   divider: {
     height: 1,
@@ -281,19 +296,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 10,
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   paragraph: {
     fontSize: 15,
     color: '#3A3A3C',
     lineHeight: 24,
     marginBottom: 10,
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   boldText: {
     fontWeight: '600',
     color: '#1A1A1A',
-    fontFamily: AppFonts.semiBold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   bulletItem: {
     flexDirection: 'row',
@@ -312,12 +339,20 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     lineHeight: 22,
     color: '#3A3A3C',
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   bulletBold: {
     fontWeight: '600',
     color: '#1A1A1A',
-    fontFamily: AppFonts.semiBold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   contactCard: {
     backgroundColor: '#F7F7F8',
@@ -332,20 +367,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 6,
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   contactText: {
     fontSize: 13.5,
     color: '#636366',
     lineHeight: 20,
     marginBottom: 6,
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   contactEmail: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FF6B00',
-    fontFamily: AppFonts.semiBold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   footerNav: {
     flexDirection: 'row',
@@ -370,12 +417,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#8E8E93',
     fontWeight: '500',
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   footerLinkActive: {
     color: '#A7392A',
     fontWeight: '700',
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   footerDot: {
     fontSize: 13,
@@ -386,6 +441,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#8E8E93',
     marginTop: 14,
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
 });

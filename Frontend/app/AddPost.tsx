@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
         marginTop: 5,
         fontSize: 15,
         color: "#9D8179",
-        fontFamily: "NotoSansThai_400Regular",
+        fontFamily: "Inter_400Regular",
     },
 
     postButton: {

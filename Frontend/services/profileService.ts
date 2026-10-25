@@ -207,9 +207,8 @@ export async function getUserPosts(
     );
 
     if (data) {
-        if (Array.isArray(data)) return data;
-        if (!Array.isArray(data) && (data as any).data) return (data as any).data;
-        return [];
+        const list = Array.isArray(data) ? data : (data as any).data || [];
+        return list.filter((p: any) => !p.is_hidden);
     }
 
     // Supabase fallback
@@ -220,6 +219,7 @@ export async function getUserPosts(
                 '*, post_categories(categories(id, name))',
             )
             .eq('user_id', userId)
+            .or('is_hidden.is.null,is_hidden.eq.false')
             .order('created_at', {
                 ascending: false,
             });
@@ -232,7 +232,7 @@ export async function getUserPosts(
             return [];
         }
 
-        return posts || [];
+        return (posts || []).filter((p: any) => !p.is_hidden);
     } catch (e) {
         console.warn(
             'Supabase get user posts fallback error:',
@@ -240,4 +240,45 @@ export async function getUserPosts(
         );
         return [];
     }
+}
+
+/**
+ * DELETE My Account
+ * Auth required
+ */
+export async function deleteMyAccount(): Promise<{ success: boolean; message?: string }> {
+    const data = await fetchApi<{ success: boolean; message?: string }>(
+        '/api/profiles/me',
+        {
+            method: 'DELETE',
+        },
+    );
+
+    if (data && data.success) {
+        try {
+            await supabase.auth.signOut();
+        } catch (e) {
+            console.warn('Signout after account deletion error:', e);
+        }
+        return { success: true, message: data.message || 'ลบบัญชีผู้ใช้เรียบร้อยแล้ว' };
+    }
+
+    // Fallback via /api/auth/account
+    const authData = await fetchApi<{ success: boolean; message?: string }>(
+        '/api/auth/account',
+        {
+            method: 'DELETE',
+        },
+    );
+
+    if (authData && authData.success) {
+        try {
+            await supabase.auth.signOut();
+        } catch (e) {
+            console.warn('Signout after account deletion error:', e);
+        }
+        return { success: true, message: authData.message || 'ลบบัญชีผู้ใช้เรียบร้อยแล้ว' };
+    }
+
+    return { success: false, message: 'ไม่สามารถลบบัญชีได้ กรุณาลองใหม่อีกครั้ง' };
 }

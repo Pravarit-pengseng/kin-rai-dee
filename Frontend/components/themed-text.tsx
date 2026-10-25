@@ -37,26 +37,26 @@ const styles = StyleSheet.create({
   default: {
     fontSize: 16,
     lineHeight: 24,
-    fontFamily: 'NotoSansThai_400Regular',
+    fontFamily: 'Inter_400Regular',
   },
   defaultSemiBold: {
     fontSize: 16,
     lineHeight: 24,
-    fontFamily: 'NotoSansThai_600SemiBold',
+    fontFamily: 'Inter_600SemiBold',
   },
   title: {
     fontSize: 32,
     lineHeight: 32,
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
   },
   subtitle: {
     fontSize: 20,
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
   },
   link: {
     lineHeight: 30,
     fontSize: 16,
     color: '#0a7ea4',
-    fontFamily: 'NotoSansThai_400Regular',
+    fontFamily: 'Inter_400Regular',
   },
 });

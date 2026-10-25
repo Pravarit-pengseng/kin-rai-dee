@@ -164,11 +164,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#57423E",
     fontWeight: "500",
-    fontFamily: "NotoSansThai_600SemiBold",
+    fontFamily: "Inter_600SemiBold",
   },
 
   activeLabel: {
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
   },
 
   buttonPressed: {

@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontFamily: 'NotoSansThai_400Regular',
+    fontFamily: 'Inter_400Regular',
     fontSize: 15,
     color: '#4B3500',
     height: '100%',

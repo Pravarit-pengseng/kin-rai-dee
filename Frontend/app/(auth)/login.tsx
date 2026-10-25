@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// import React;
+import  { useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -26,8 +28,14 @@ export default function LoginScreen() {
   const router = useRouter();
   const { returnTo, from } = useLocalSearchParams<{ returnTo?: string; from?: string }>();
   const { login } = useAuth();
+  const { height: windowHeight } = useWindowDimensions();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // Responsive scale factors
+  const isSmallScreen = windowHeight < 720;
+  const isMediumScreen = windowHeight >= 720 && windowHeight < 840;
+  const logoSize = isSmallScreen ? 100 : isMediumScreen ? 125 : 150;
 
   const [errors, setErrors] = useState<{
     email?: string | null;
@@ -72,7 +80,9 @@ export default function LoginScreen() {
       const { error } = await login(formattedEmail, password);
       if (error) {
         // Map Supabase error messages to user-facing messages
-        if (error.toLowerCase().includes('invalid') || error.toLowerCase().includes('credentials')) {
+        if (error.includes('ระงับ') || error.toLowerCase().includes('suspend')) {
+          setGeneralError(error);
+        } else if (error.toLowerCase().includes('invalid') || error.toLowerCase().includes('credentials')) {
           setGeneralError(AUTH_ERROR_MESSAGES.INVALID_CREDENTIALS);
         } else if (error.toLowerCase().includes('too many')) {
           setGeneralError(AUTH_ERROR_MESSAGES.TOO_MANY_ATTEMPTS);
@@ -115,9 +125,9 @@ export default function LoginScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           bounces={false}
+          overScrollMode="never"
           keyboardShouldPersistTaps="handled"
         >
-          {/* Target Screen Frame: 390 x 844 */}
           <View style={styles.screenContainer}>
             {/* Top Navigation Bar */}
             <View style={styles.header}>
@@ -134,26 +144,30 @@ export default function LoginScreen() {
               <View style={styles.headerRightSpacer} />
             </View>
 
-            {/* Mascot / Logo */}
-            <View style={styles.logoSection}>
-              <Image
-                source={require('@/assets/images/kin-rai-dee-logo.png')}
-                style={styles.logo}
-                resizeMode="contain"
-              />
-            </View>
+            {/* Center Content Section */}
+            <View style={styles.centerSection}>
+              {/* Mascot / Logo */}
+              <View style={[styles.logoSection, isSmallScreen && styles.logoSectionSmall]}>
+                <Image
+                  source={require('@/assets/images/kin-rai-dee-logo.png')}
+                  style={{ width: logoSize, height: logoSize }}
+                  resizeMode="contain"
+                />
+              </View>
 
-            {/* Heading & Subtitle */}
-            <View style={styles.headingSection}>
-              <Text style={styles.mainTitle}>ยินดีต้อนรับเข้าสู่ KIN RAI DEE</Text>
-              <Text style={styles.subTitle}>
-                รีบเข้าสู่ระบบ แล้วไปหาของอร่อยกินกันเถอะ!
-              </Text>
-            </View>
+              {/* Heading & Subtitle */}
+              <View style={[styles.headingSection, isSmallScreen && styles.headingSectionSmall]}>
+                <Text style={[styles.mainTitle, isSmallScreen && styles.mainTitleSmall]}>
+                  ยินดีต้อนรับเข้าสู่ KIN RAI DEE
+                </Text>
+                <Text style={[styles.subTitle, isSmallScreen && styles.subTitleSmall]}>
+                  รีบเข้าสู่ระบบ แล้วไปหาของอร่อยกินกันเถอะ!
+                </Text>
+              </View>
 
-            {/* White Form Card (borderRadius: 24) */}
-            <View style={styles.formCard}>
-              <AuthErrorBanner message={generalError} />
+              {/* White Form Card */}
+              <View style={[styles.formCard, isSmallScreen && styles.formCardSmall]}>
+                <AuthErrorBanner message={generalError} />
 
               <AuthInput
                 iconName="user"
@@ -172,14 +186,14 @@ export default function LoginScreen() {
                 autoCorrect={false}
               />
 
-              <AuthInput
-                iconName="lock"
-                placeholder="รหัสผ่าน"
-                value={password}
-                onChangeText={handlePasswordChange}
-                isPassword
-                errorMessage={errors.password}
-              />
+                <AuthInput
+                  iconName="lock"
+                  placeholder="รหัสผ่าน"
+                  value={password}
+                  onChangeText={handlePasswordChange}
+                  isPassword
+                  errorMessage={errors.password}
+                />
 
               <View style={styles.forgotPasswordRow}>
                 <Pressable
@@ -209,7 +223,7 @@ export default function LoginScreen() {
             </View>
 
             {/* Bottom Footer Navigation */}
-            <View style={styles.footer}>
+            <View style={[styles.footer, isSmallScreen && styles.footerSmall]}>
               <Text style={styles.footerText}>ยังไม่มีบัญชีผู้ใช้งาน? </Text>
               <Pressable
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -237,19 +251,22 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   screenContainer: {
+    flex: 1,
     width: '100%',
-    maxWidth: 390,
-    minHeight: 844,
+    maxWidth: 420,
     backgroundColor: '#FFF8ED',
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'android' ? 24 : 12,
-    paddingBottom: 24,
+    paddingTop: Platform.OS === 'android' ? 12 : 6,
+    paddingBottom: Platform.OS === 'ios' ? 12 : 20,
     justifyContent: 'space-between',
     alignSelf: 'center',
+  },
+  centerSection: {
+    width: '100%',
+    alignItems: 'center',
+    marginVertical: 4,
   },
   header: {
     flexDirection: 'row',
@@ -270,9 +287,9 @@ const styles = StyleSheet.create({
     color: '#A7392A',
     letterSpacing: 0.5,
     fontFamily: Platform.select({
-      ios: 'Plus Jakarta Sans',
-      android: 'PlusJakartaSans_700Bold',
-      default: 'PlusJakartaSans_700Bold, Inter_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter_700Bold, sans-serif',
     }),
   },
   headerRightSpacer: {
@@ -281,15 +298,17 @@ const styles = StyleSheet.create({
   logoSection: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 12,
+    marginVertical: 10,
   },
-  logo: {
-    width: 163,
-    height: 163,
+  logoSectionSmall: {
+    marginVertical: 4,
   },
   headingSection: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  headingSectionSmall: {
+    marginBottom: 10,
   },
   mainTitle: {
     fontSize: 20,
@@ -298,22 +317,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 6,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
     }),
+  },
+  mainTitleSmall: {
+    fontSize: 18,
+    marginBottom: 4,
   },
   subTitle: {
     fontSize: 14,
     color: '#57423E',
     textAlign: 'center',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
     }),
   },
+  subTitleSmall: {
+    fontSize: 13,
+  },
   formCard: {
+    width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 20,
@@ -370,25 +397,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
     }),
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
-    marginBottom: 12,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  footerSmall: {
+    marginTop: 8,
+    marginBottom: 4,
   },
   footerText: {
     fontSize: 14,
     color: '#57423E',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
     }),
   },
   footerLink: {
@@ -396,9 +427,9 @@ const styles = StyleSheet.create({
     color: '#A7392A',
     textDecorationLine: 'underline',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
     }),
   },
 });

@@ -1,0 +1,7 @@
+{
+  "venvPath": "Backend",
+  "venv": ".venv",
+  "extraPaths": [
+    "Backend"
+  ]
+}

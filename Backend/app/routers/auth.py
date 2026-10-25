@@ -31,11 +31,32 @@ def login(data: LoginRequest):
             detail="Invalid email or password",
         )
 
-    if not response.session:
+    if not response.session or not response.user:
         raise HTTPException(
             status_code=401,
             detail="Login failed",
         )
+
+    # Check is_suspended in profiles
+    try:
+        from app.db.supabase import supabase
+        if supabase:
+            prof_res = supabase.table("profiles").select("is_suspended").eq("id", response.user.id).execute()
+            if prof_res.data and len(prof_res.data) > 0:
+                if prof_res.data[0].get("is_suspended"):
+                    try:
+                        supabase_auth.auth.sign_out()
+                    except Exception:
+                        pass
+                    raise HTTPException(
+                        status_code=403,
+                        detail="บัญชีของคุณถูกระงับการใช้งาน หากคิดว่าเป็นข้อผิดพลาด สามารถติดต่อฝ่ายสนับสนุนได้ที่ phatsachon25488@gmail.com",
+                    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.warning(f"Error checking user suspension during login: {e}")
 
     return {
         "success": True,
@@ -47,3 +68,52 @@ def login(data: LoginRequest):
             "email": response.user.email,
         },
     }
+
+
+from fastapi import Depends
+from app.core.security import get_current_user
+from app.db.supabase import supabase
+
+
+@router.delete("/account")
+def delete_account(user: dict = Depends(get_current_user)):
+    """Permanently delete user account, avatars from storage, and cascade DB records."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database connection uninitialized")
+
+    user_id = user["id"]
+    try:
+        # 1. Clean up avatar files from Supabase Storage
+        try:
+            files = supabase.storage.from_("avatars").list(user_id)
+            if files and isinstance(files, list):
+                file_paths = [
+                    f"{user_id}/{f['name']}"
+                    for f in files
+                    if isinstance(f, dict) and "name" in f and f["name"]
+                ]
+                if file_paths:
+                    supabase.storage.from_("avatars").remove(file_paths)
+        except Exception as storage_err:
+            import logging
+            logging.warning(f"Error removing avatar files for user {user_id}: {storage_err}")
+
+        # 2. Delete user from Supabase Auth (triggers ON DELETE CASCADE in PostgreSQL)
+        try:
+            supabase.auth.admin.delete_user(user_id)
+        except Exception as auth_err:
+            import logging
+            logging.error(f"Error deleting user from auth.admin: {auth_err}", exc_info=True)
+            supabase.table("profiles").delete().eq("id", user_id).execute()
+
+        return {
+            "success": True,
+            "message": "Account and all associated data have been permanently deleted",
+        }
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to delete account for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete account: {str(e)}",
+        )

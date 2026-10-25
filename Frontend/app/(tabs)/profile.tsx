@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   ScrollView,
+  type ScrollViewInstance,
   Pressable,
   StyleSheet,
   Alert,
@@ -44,7 +45,7 @@ export default function ProfileScreen() {
     refresh?: string;
   }>();
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   useEffect(() => {
     if (params.refresh) {
@@ -341,8 +342,8 @@ export default function ProfileScreen() {
         title="KIN RAI DEE"
         leftIcon={isLoggedIn ? "logout" : "none"}
         onLeftPress={() => setLogoutPopupVisible(true)}
-        rightIcon="search"
-        onSearchPress={() => router.push('/(tabs)/search?from=/(tabs)/profile')}
+        rightIcon="settings"
+        onRightPress={() => router.push('/settings')}
       />
       <ScrollView
         ref={scrollRef}
@@ -400,7 +401,7 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {(activeTab === "posts" ? loadingPosts : loadingSaved) ? (
+        {(activeTab === "posts" ? loadingPosts : loadingSaved) && displayPosts.length === 0 ? (
           <PostGridSkeleton count={6} />
         ) : displayPosts.length > 0 ? (
           <PostGrid

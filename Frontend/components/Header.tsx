@@ -5,7 +5,7 @@ import { StatusBar, StatusBarStyle } from 'expo-status-bar';
 import { useAuth } from '@/context/AuthContext';
 
 export type HeaderLeftIcon = 'back' | 'close' | 'logout' | 'none';
-export type HeaderRightIcon = 'search' | 'none';
+export type HeaderRightIcon = 'search' | 'settings' | 'none';
 
 interface HeaderProps {
   backgroundColor?: string;
@@ -35,8 +35,7 @@ export function Header({
   showBorder = true,
 }: HeaderProps) {
   const { isLoggedIn } = useAuth();
-  const isThai = /[\u0E00-\u0E7F]/.test(title);
-  const fontFamily = isThai ? 'NotoSansThai_700Bold' : 'PlusJakartaSans_700Bold';
+  const fontFamily = 'Inter_700Bold';
 
   const renderLeftIcon = () => {
     if (leftIcon === 'none') return null;
@@ -62,6 +61,7 @@ export function Header({
 
     let iconName: keyof typeof Feather.glyphMap = 'search';
     if (rightIcon === 'search') iconName = 'search';
+    if (rightIcon === 'settings') iconName = 'settings';
 
     const handleRightPress = onRightPress || onSearchPress;
 

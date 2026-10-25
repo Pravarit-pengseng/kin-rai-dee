@@ -3,9 +3,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_optional_current_user
 from app.db import supabase
-from app.routers.posts import attach_profiles_to_posts
+from app.routers.posts import attach_profiles_to_posts, to_records
+from app.services.safety_service import get_blocked_user_ids
 
 
 router = APIRouter(
@@ -23,8 +24,9 @@ def search_posts(
     q: str = Query("", description="Search term"),
     limit: int = Query(20, ge=1, le=100, description="Max items to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
+    user: Optional[dict] = Depends(get_optional_current_user),
 ):
-    """Search posts by food_name or description with partial match and pagination."""
+    """Search posts by food_name or description with partial match, pagination, and blocked user filtering."""
     if not supabase:
         return []
 
@@ -37,12 +39,19 @@ def search_posts(
                 supabase
                 .table("posts")
                 .select("*, post_categories(categories(id, name))")
+                .or_("is_hidden.is.null,is_hidden.eq.false")
                 .order("created_at", desc=True)
                 .range(offset, offset + limit - 1)
                 .execute()
             )
 
-            posts = response.data or []
+            posts = to_records(response.data)
+            posts = [p for p in posts if not p.get("is_hidden")]
+
+            if user and user.get("id"):
+                blocked_ids = get_blocked_user_ids(user["id"])
+                if blocked_ids:
+                    posts = [p for p in posts if str(p.get("user_id")) not in blocked_ids]
 
             return attach_profiles_to_posts(posts)
 
@@ -53,16 +62,16 @@ def search_posts(
 
         # Search users by display_name or username
         user_resp = supabase.table("profiles").select("id").or_(f"username.ilike.%{safe_term}%,display_name.ilike.%{safe_term}%").execute()
-        user_ids = [u["id"] for u in user_resp.data] if user_resp.data else []
+        user_ids = [str(u["id"]) for u in to_records(user_resp.data) if "id" in u]
 
         # Search categories
         cat_resp = supabase.table("categories").select("id").ilike("name", f"%{safe_term}%").execute()
-        cat_ids = [c["id"] for c in cat_resp.data] if cat_resp.data else []
+        cat_ids = [c["id"] for c in to_records(cat_resp.data) if "id" in c]
         
         cat_post_ids = []
         if cat_ids:
             post_cats_resp = supabase.table("post_categories").select("post_id").in_("category_id", cat_ids).execute()
-            cat_post_ids = [pc["post_id"] for pc in post_cats_resp.data] if post_cats_resp.data else []
+            cat_post_ids = [pc["post_id"] for pc in to_records(post_cats_resp.data) if "post_id" in pc]
 
         or_conds = [
             f"food_name.ilike.%{safe_term}%",
@@ -83,12 +92,19 @@ def search_posts(
             .table("posts")
             .select("*, post_categories(categories(id, name))")
             .or_(or_query)
+            .or_("is_hidden.is.null,is_hidden.eq.false")
             .order("created_at", desc=True)
             .range(offset, offset + limit - 1)
             .execute()
         )
 
-        posts = response.data or []
+        posts = to_records(response.data)
+        posts = [p for p in posts if not p.get("is_hidden")]
+
+        if user and user.get("id"):
+            blocked_ids = get_blocked_user_ids(user["id"])
+            if blocked_ids:
+                posts = [p for p in posts if str(p.get("user_id")) not in blocked_ids]
 
         return attach_profiles_to_posts(posts)
 

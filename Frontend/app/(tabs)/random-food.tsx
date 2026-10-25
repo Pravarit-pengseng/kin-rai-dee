@@ -23,6 +23,7 @@ import {
 } from '@/components/restuarant-card';
 
 import { FOOD_CATEGORIES, FoodCategory } from '@/constants/categories';
+import { Typography } from '@/constants/typography';
 import { FOOD_LIST, FoodItem } from '@/constants/foodData';
 import { fetchNearbyRestaurants } from '@/services/restaurantService';
 
@@ -271,14 +272,14 @@ const styles = StyleSheet.create({
   },
   mainTitle: {
     fontSize: 24,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: Typography.bold,
     color: '#241917',
     textAlign: 'center',
     marginBottom: 8,
   },
   subTitle: {
     fontSize: 14,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: Typography.regular,
     color: '#57423E',
     textAlign: 'center',
     marginBottom: 24,
@@ -314,7 +315,7 @@ const styles = StyleSheet.create({
   },
   foodTitle: {
     fontSize: 20,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: Typography.bold,
     color: '#46302B',
     marginTop: 12,
     textAlign: 'center',
@@ -334,12 +335,12 @@ const styles = StyleSheet.create({
   },
   restaurantTitle: {
     fontSize: 17,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: Typography.bold,
     color: '#241917',
   },
   restaurantSubtitle: {
     fontSize: 11,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: Typography.regular,
     color: '#8A7772',
     marginLeft: 5,
   },
@@ -354,7 +355,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 8,
     fontSize: 11,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: Typography.regular,
     color: '#75625E',
   },
   locationWarning: {
@@ -366,7 +367,7 @@ const styles = StyleSheet.create({
   locationWarningText: {
     fontSize: 11,
     textAlign: 'center',
-    fontFamily: 'Inter_400Regular',
+    fontFamily: Typography.regular,
     color: '#8A7772',
   },
   emptyContainer: {
@@ -380,7 +381,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 13,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: Typography.regular,
     color: '#8A7772',
   },
 });

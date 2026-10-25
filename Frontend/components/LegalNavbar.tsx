@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
+import { Typography } from '@/constants/typography';
 
 export type LegalTabType = 'privacy' | 'terms' | 'delete';
 
@@ -197,11 +198,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: '#A7392A',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: Typography.bold,
   },
   desktopTabContainer: {
     flexDirection: 'row',
@@ -221,11 +218,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#636366',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_600SemiBold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: Typography.semiBold,
   },
   tabTextActive: {
     color: '#A7392A',
@@ -257,11 +250,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: '#636366',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_600SemiBold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: Typography.semiBold,
   },
   mobileTabTextActive: {
     color: '#A7392A',

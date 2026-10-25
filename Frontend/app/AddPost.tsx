@@ -21,6 +21,7 @@ import PostForm, {
 import { useAuth } from "@/context/AuthContext";
 import { createPost } from "@/services/postService";
 import { FOOD_CATEGORIES } from "@/constants/categories";
+import { Typography } from "@/constants/typography";
 
 export default function AddPost() {
     const { isLoggedIn } = useAuth();
@@ -261,7 +262,7 @@ const styles = StyleSheet.create({
         marginTop: 5,
         fontSize: 15,
         color: "#9D8179",
-        fontFamily: "Inter_400Regular",
+        fontFamily: Typography.regular,
     },
 
     postButton: {

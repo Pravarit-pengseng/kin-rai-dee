@@ -18,6 +18,7 @@ import {
   IngredientItem,
 } from '@/constants/ingredientData';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Typography } from '@/constants/typography';
 
 export default function RandomIngredientScreen() {
   const [isVegSelected, setIsVegSelected] = useState(false);
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
 
   mainTitle: {
     fontSize: 22,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: Typography.bold,
     color: '#241917',
     textAlign: 'center',
     marginBottom: 8,
@@ -290,7 +291,7 @@ const styles = StyleSheet.create({
 
   subTitle: {
     fontSize: 14,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: Typography.regular,
     color: '#57423E',
     textAlign: 'center',
     marginBottom: 24,
@@ -347,7 +348,7 @@ const styles = StyleSheet.create({
 
   toggleText: {
     fontSize: 18,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: Typography.bold,
   },
 
   unselectedText: {

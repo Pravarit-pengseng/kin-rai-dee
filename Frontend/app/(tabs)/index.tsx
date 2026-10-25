@@ -13,6 +13,7 @@ import DeletePopup from "@/components/DeletePopup";
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/context/AuthContext";
 import { fetchFeedPosts, bookmarkPost, unbookmarkPost, deletePost, getSavedPosts } from "@/services/postService";
+import { Typography } from "@/constants/typography";
 
 
 
@@ -224,8 +225,8 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 22,
     lineHeight: 34,
-    fontFamily: "Inter_700Bold",
-    fontWeight: "800",
+    fontFamily: Typography.bold,
+    fontWeight: "bold",
     color: "#46302B",
   },
   postWrapper: { marginBottom: 16 },
@@ -253,7 +254,7 @@ const styles = StyleSheet.create({
   },
   fabText: {
     fontSize: 16,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Typography.bold,
     fontWeight: "800",
     color: "#721209",
   },

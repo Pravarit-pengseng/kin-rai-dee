@@ -23,6 +23,7 @@ import { setCachedPostList } from "@/services/postCache";
 import { useAuth } from "@/context/AuthContext";
 import { blockUser, unblockUser, checkBlockStatus } from "@/services/safetyService";
 import ReportModal from "@/components/ReportModal";
+import { Typography } from "@/constants/typography";
 import { ShieldAlert, UserX, Flag, UserCheck } from "lucide-react-native";
 import { Pressable, Alert } from "react-native";
 
@@ -427,7 +428,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 20,
     lineHeight: 30,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Typography.bold,
     fontWeight: "800",
     color: "#241917",
     marginBottom: 3,

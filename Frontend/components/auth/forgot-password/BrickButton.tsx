@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
+import { Typography } from '@/constants/typography';
+
 interface BrickButtonProps {
   title: string;
   onPress: () => void;
@@ -96,11 +98,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: Typography.bold,
   },
   arrowIcon: {
     marginLeft: 8,

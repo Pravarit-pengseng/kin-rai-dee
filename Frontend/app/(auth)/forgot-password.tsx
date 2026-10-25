@@ -20,6 +20,7 @@ import { SuccessModal } from '@/components/auth/forgot-password/SuccessModal';
 import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { recoveryService } from '@/services/recoveryService';
 import { useAuth } from '@/context/AuthContext';
+import { Typography } from '@/constants/typography';
 import {
   validateEmail,
   formatEmail,
@@ -515,11 +516,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 28,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: Typography.regular,
   },
   actionButton: {
     marginTop: 8,
@@ -532,21 +529,13 @@ const styles = StyleSheet.create({
   cooldownText: {
     fontSize: 14,
     color: '#9CA3AF',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: Typography.regular,
   },
   resendLink: {
     fontSize: 14,
     color: '#A63826',
     fontWeight: '600',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_600SemiBold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: Typography.semiBold,
   },
   passwordRulesContainer: {
     backgroundColor: '#FAF5EE',
@@ -560,11 +549,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#57423E',
     marginBottom: 8,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_600SemiBold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: Typography.semiBold,
   },
   ruleItem: {
     flexDirection: 'row',
@@ -575,11 +560,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#8C7A75',
     marginLeft: 8,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: Typography.regular,
   },
   ruleTextValid: {
     color: '#2E7D32',

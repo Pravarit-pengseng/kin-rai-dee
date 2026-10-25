@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, StyleSheet, Pressable, View } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { Typography } from '@/constants/typography';
 
 export interface RandomButtonProps {
   onPress: () => void;
@@ -101,6 +102,6 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 18,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: Typography.bold,
   },
 });

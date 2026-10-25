@@ -8,6 +8,7 @@ import {
   Platform,
 } from "react-native";
 import { ThemedText } from "@/components/themed-text";
+import { Typography } from "@/constants/typography";
 
 export type DeleteAccountPopupProps = {
   visible: boolean;
@@ -113,11 +114,7 @@ const styles = StyleSheet.create({
   title: {
     textAlign: "center",
     fontSize: 18,
-    fontFamily: Platform.select({
-      ios: "Inter",
-      android: "Inter_700Bold",
-      default: "Inter, sans-serif",
-    }),
+    fontFamily: Typography.bold,
     fontWeight: "700",
     color: "#241917",
     marginBottom: 12,
@@ -126,11 +123,7 @@ const styles = StyleSheet.create({
   description: {
     textAlign: "center",
     fontSize: 12.5,
-    fontFamily: Platform.select({
-      ios: "Inter",
-      android: "Inter_400Regular",
-      default: "Inter, sans-serif",
-    }),
+    fontFamily: Typography.regular,
     color: "#4A3E39",
     lineHeight: 18,
     marginBottom: 20,
@@ -172,11 +165,7 @@ const styles = StyleSheet.create({
 
   cancelText: {
     fontSize: 15,
-    fontFamily: Platform.select({
-      ios: "Inter",
-      android: "Inter_700Bold",
-      default: "Inter, sans-serif",
-    }),
+    fontFamily: Typography.bold,
     fontWeight: "700",
     color: "#241917",
     textAlign: "center",
@@ -184,11 +173,7 @@ const styles = StyleSheet.create({
 
   deleteText: {
     fontSize: 14.5,
-    fontFamily: Platform.select({
-      ios: "Inter",
-      android: "Inter_700Bold",
-      default: "Inter, sans-serif",
-    }),
+    fontFamily: Typography.bold,
     fontWeight: "700",
     color: "#8B2519",
     textAlign: "center",

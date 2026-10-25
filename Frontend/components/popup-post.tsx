@@ -9,6 +9,7 @@ import {
   Alert,
   TextInput,
   ScrollView,
+  type ScrollViewInstance,
   Platform,
   Keyboard,
   Animated,
@@ -20,9 +21,9 @@ import { Image } from "expo-image";
 import {
   X,
   Bookmark,
+  AlignRight,
   AlignLeft,
   MessageCircle,
-  MoreVertical,
   Flag,
 } from "lucide-react-native";
 import { useRouter, usePathname } from "expo-router";
@@ -172,9 +173,22 @@ export default function PopupPost({
     setReportModalVisible(true);
   };
 
-  const handleBlockUserPress = () => {
+  const [blockSuccessVisible, setBlockSuccessVisible] = useState(false);
+
+  const handleDismissBlockSuccess = () => {
+    setBlockSuccessVisible(false);
     setShowMenu(false);
+    if (post?.userId) {
+      onBlockUser?.(post.userId);
+    }
+    if (!inline) {
+      onClose();
+    }
+  };
+
+  const handleBlockUserPress = async () => {
     if (!isLoggedIn) {
+      setShowMenu(false);
       onClose();
       router.push({
         pathname: '/(auth)/login',
@@ -184,33 +198,26 @@ export default function PopupPost({
     }
     if (!post?.userId) return;
 
-    const targetName = post.displayName || post.username || 'ผู้ใช้นี้';
-    Alert.alert(
-      'บล็อกผู้ใช้',
-      `ท่านต้องการบล็อก "${targetName}" หรือไม่?\n\n• โพสต์ของผู้ใช้นี้จะถูกซ่อนจากฟีดของท่าน\n• ความคิดเห็นของผู้ใช้นี้จะถูกซ่อน\n• ท่านสามารถปลดบล็อกได้ตลอดเวลาในหน้าตั้งค่า`,
-      [
-        { text: 'ยกเลิก', style: 'cancel' },
-        {
-          text: 'บล็อก',
-          style: 'destructive',
-          onPress: async () => {
-            const res = await blockUser(
-              post.userId!,
-              post.displayName || post.username,
-              post.avatarUrl,
-              post.username
-            );
-            if (res.success) {
-              Alert.alert('บล็อกผู้ใช้เรียบร้อยแล้ว', `ท่านได้บล็อก ${targetName} เรียบร้อยแล้ว`);
-              onBlockUser?.(post.userId!);
-              onClose();
-            } else {
-              Alert.alert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถบล็อกผู้ใช้ได้');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      const res = await blockUser(
+        post.userId,
+        post.displayName || post.username,
+        post.avatarUrl,
+        post.username
+      );
+      if (res.success) {
+        setBlockSuccessVisible(true);
+        setTimeout(() => {
+          handleDismissBlockSuccess();
+        }, 1500);
+      } else {
+        setShowMenu(false);
+        Alert.alert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถบล็อกผู้ใช้ได้');
+      }
+    } catch {
+      setShowMenu(false);
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถบล็อกผู้ใช้ได้');
+    }
   };
 
   const handleReportComment = (item: CommentItem) => {
@@ -262,7 +269,7 @@ export default function PopupPost({
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentText, setCommentText] = useState("");
-  const commentsScrollRef = useRef<ScrollView>(null);
+  const commentsScrollRef = useRef<ScrollViewInstance>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const slideAnim = useRef(new Animated.Value(600)).current;
 
@@ -479,7 +486,7 @@ export default function PopupPost({
 
         {/* Header actions */}
         <View style={styles.headerActions}>
-          {/* Menu button (AlignLeft for own, MoreVertical for other) */}
+          {/* Menu button */}
           <Pressable
             style={({ pressed }) => [
               styles.iconButton,
@@ -488,19 +495,11 @@ export default function PopupPost({
             onPress={handleMenuPress}
             hitSlop={8}
           >
-            {isOwnPost ? (
-              <AlignLeft
-                size={20}
-                color="#57423E"
-                strokeWidth={2}
-              />
-            ) : (
-              <MoreVertical
-                size={20}
-                color="#57423E"
-                strokeWidth={2}
-              />
-            )}
+            <AlignRight
+              size={20}
+              color="#57423E"
+              strokeWidth={2}
+            />
           </Pressable>
 
           {/* Close button */}
@@ -852,6 +851,27 @@ export default function PopupPost({
             onClose={() => setReportModalVisible(false)}
           />
         )}
+
+        {/* Block Success Modal (matches Image 2) */}
+        <Modal
+          transparent
+          visible={blockSuccessVisible}
+          animationType="fade"
+          statusBarTranslucent
+          presentationStyle="overFullScreen"
+          onRequestClose={handleDismissBlockSuccess}
+        >
+          <Pressable
+            style={styles.blockSuccessOverlay}
+            onPress={handleDismissBlockSuccess}
+          >
+            <View style={styles.blockSuccessPopup}>
+              <ThemedText style={styles.blockSuccessText}>
+                บล็อกผู้ใช้สำเร็จ
+              </ThemedText>
+            </View>
+          </Pressable>
+        </Modal>
       </>
     );
   }
@@ -900,6 +920,22 @@ export default function PopupPost({
             onClose={() => setReportModalVisible(false)}
             useNativeModal={false}
           />
+        )}
+
+        {/* Block Success Modal inside Post Modal */}
+        {blockSuccessVisible && (
+          <View style={StyleSheet.absoluteFill}>
+            <Pressable
+              style={styles.blockSuccessOverlay}
+              onPress={handleDismissBlockSuccess}
+            >
+              <View style={styles.blockSuccessPopup}>
+                <ThemedText style={styles.blockSuccessText}>
+                  บล็อกผู้ใช้สำเร็จ
+                </ThemedText>
+              </View>
+            </Pressable>
+          </View>
         )}
       </View>
     </Modal>
@@ -1323,5 +1359,38 @@ const styles = StyleSheet.create({
     fontFamily: "NotoSansThai_700Bold",
     fontWeight: "700",
     color: "#8A3E2D",
+  },
+
+  blockSuccessOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  blockSuccessPopup: {
+    width: 290,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    paddingVertical: 36,
+    paddingHorizontal: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+
+  blockSuccessText: {
+    textAlign: "center",
+    fontSize: 18,
+    fontFamily: "NotoSansThai_700Bold",
+    fontWeight: "700",
+    color: "#1C1B1F",
   },
 });

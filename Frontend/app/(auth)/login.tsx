@@ -268,9 +268,9 @@ const styles = StyleSheet.create({
     color: '#A7392A',
     letterSpacing: 0.5,
     fontFamily: Platform.select({
-      ios: 'Plus Jakarta Sans',
-      android: 'PlusJakartaSans_700Bold',
-      default: 'PlusJakartaSans_700Bold, Inter_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter_700Bold, sans-serif',
     }),
   },
   headerRightSpacer: {

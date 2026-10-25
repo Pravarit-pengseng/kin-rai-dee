@@ -40,7 +40,7 @@ export default function PostDropdown({
             onPress={onEdit}
           >
             <Pencil
-              size={16}
+              size={18}
               color="#4B3500"
               strokeWidth={2}
             />
@@ -50,6 +50,8 @@ export default function PostDropdown({
             </ThemedText>
           </Pressable>
         )}
+
+        {onEdit && onDelete && <View style={styles.divider} />}
 
         {/* Delete Post */}
         {onDelete && (
@@ -61,7 +63,7 @@ export default function PostDropdown({
             onPress={onDelete}
           >
             <Trash2
-              size={16}
+              size={18}
               color="#A7392A"
               strokeWidth={2}
             />
@@ -87,7 +89,7 @@ export default function PostDropdown({
           onPress={onReport}
         >
           <Flag
-            size={16}
+            size={18}
             color="#A7392A"
             strokeWidth={2}
           />
@@ -97,6 +99,8 @@ export default function PostDropdown({
           </ThemedText>
         </Pressable>
       )}
+
+      {onReport && onBlock && <View style={styles.divider} />}
 
       {/* Block User */}
       {onBlock && (
@@ -108,7 +112,7 @@ export default function PostDropdown({
           onPress={onBlock}
         >
           <UserX
-            size={16}
+            size={18}
             color="#57423E"
             strokeWidth={2}
           />
@@ -127,7 +131,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     right: 0,
-    width: 150,
+    width: 155,
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     paddingVertical: 4,
@@ -138,8 +142,8 @@ const styles = StyleSheet.create({
       width: 0,
       height: 3,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
     elevation: 10,
     borderWidth: 1,
     borderColor: '#F0E2D8',
@@ -148,18 +152,24 @@ const styles = StyleSheet.create({
   dropdownItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 10,
-    gap: 9,
+    gap: 10,
   },
 
   itemPressed: {
     backgroundColor: "#FFF8ED",
   },
 
+  divider: {
+    height: 1,
+    backgroundColor: "#F0E2D8",
+    marginHorizontal: 8,
+  },
+
   dropdownText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
-    color: "#4B3500",
+    color: "#57423E",
   },
 });

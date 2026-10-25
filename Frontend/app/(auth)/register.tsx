@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   useWindowDimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -51,6 +52,7 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsError, setTermsError] = useState(false);
 
   // Password condition checks for dynamic hints
   const isLenValid = password.length >= 8 && password.length <= 20;
@@ -132,6 +134,16 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     setGeneralError(null);
 
+    if (!acceptedTerms) {
+      setTermsError(true);
+      setGeneralError('กรุณากดยอมรับเงื่อนไขและนโยบายความเป็นส่วนตัวก่อนสมัครบัญชี');
+      Alert.alert(
+        'เงื่อนไขการใช้งาน',
+        'กรุณากดยอมรับข้อกำหนดการใช้งานและรับทราบนโยบายความเป็นส่วนตัวก่อนสมัครบัญชี'
+      );
+      return;
+    }
+
     const formattedEmail = formatEmail(email);
     const displayNameError = validateDisplayName(displayName);
     const emailError = validateEmail(formattedEmail);
@@ -145,11 +157,6 @@ export default function RegisterScreen() {
         password: passwordError,
         confirmPassword: confirmPasswordError,
       });
-      return;
-    }
-
-    if (!acceptedTerms) {
-      setGeneralError('กรุณายอมรับข้อกำหนดการใช้งานและรับทราบนโยบายความเป็นส่วนตัวก่อนสมัครบัญชี');
       return;
     }
 
@@ -365,14 +372,26 @@ export default function RegisterScreen() {
               {/* Terms of Use & Privacy Policy Checkbox */}
               <Pressable
                 style={styles.termsRow}
-                onPress={() => setAcceptedTerms((prev) => !prev)}
+                onPress={() => {
+                  setAcceptedTerms((prev) => {
+                    const next = !prev;
+                    if (next) setTermsError(false);
+                    return next;
+                  });
+                }}
                 hitSlop={8}
               >
-                <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
+                <View
+                  style={[
+                    styles.checkbox,
+                    acceptedTerms && styles.checkboxChecked,
+                    termsError && !acceptedTerms && styles.checkboxError,
+                  ]}
+                >
                   {acceptedTerms && <Feather name="check" size={14} color="#FFFFFF" />}
                 </View>
                 <Text style={styles.termsText}>
-                  ฉันยอมรับ
+                  ฉันยอมรับ{' '}
                   <Text
                     style={styles.termsLink}
                     onPress={(e) => {
@@ -382,7 +401,7 @@ export default function RegisterScreen() {
                   >
                     ข้อกำหนดการใช้งาน
                   </Text>
-                  และรับทราบ
+                  {' '}และรับทราบ{' '}
                   <Text
                     style={styles.termsLink}
                     onPress={(e) => {
@@ -395,13 +414,19 @@ export default function RegisterScreen() {
                 </Text>
               </Pressable>
 
+              {termsError && !acceptedTerms && (
+                <Text style={styles.termsErrorText}>
+                  * กรุณากดยอมรับเงื่อนไขก่อนสมัครบัญชี
+                </Text>
+              )}
+
               <Pressable
                 onPress={handleRegister}
-                disabled={isLoading || !acceptedTerms}
+                disabled={isLoading}
                 style={({ pressed }) => [
                   styles.submitButton,
                   pressed && styles.buttonPressed,
-                  (isLoading || !acceptedTerms) && styles.buttonDisabled,
+                  isLoading && styles.buttonDisabled,
                 ]}
               >
                 {isLoading ? (
@@ -478,9 +503,9 @@ const styles = StyleSheet.create({
     color: '#A7392A',
     letterSpacing: 0.5,
     fontFamily: Platform.select({
-      ios: 'Plus Jakarta Sans',
-      android: 'PlusJakartaSans_700Bold',
-      default: 'PlusJakartaSans_700Bold, Inter_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter_700Bold, sans-serif',
     }),
   },
   headerRightSpacer: {
@@ -571,15 +596,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#A7392A',
     borderColor: '#A7392A',
   },
+  checkboxError: {
+    borderColor: '#D32F2F',
+    borderWidth: 2,
+    backgroundColor: '#FFF5F5',
+  },
+  termsErrorText: {
+    fontSize: 12,
+    color: '#D32F2F',
+    fontWeight: '600',
+    marginTop: -2,
+    marginBottom: 8,
+    marginLeft: 30,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
+  },
   termsText: {
     flex: 1,
     fontSize: 12,
     color: '#57423E',
     lineHeight: 18,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, NotoSansThai_400Regular, sans-serif',
     }),
   },
   termsLink: {

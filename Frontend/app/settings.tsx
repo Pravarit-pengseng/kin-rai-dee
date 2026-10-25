@@ -15,11 +15,13 @@ import { Feather } from '@expo/vector-icons';
 import { ChevronRight, ArrowLeft, ShieldAlert } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { deleteAccount, getBlockedUsers } from '@/services/safetyService';
+import DeleteAccountPopup from '@/components/DeleteAccountPopup';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { isLoggedIn, logout } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deletePopupVisible, setDeletePopupVisible] = useState(false);
   const [blockedCount, setBlockedCount] = useState<number>(0);
 
   useFocusEffect(
@@ -52,21 +54,7 @@ export default function SettingsScreen() {
       return;
     }
 
-    Alert.alert(
-      'ยืนยันการลบบัญชีผู้ใช้',
-      'การลบบัญชีจะมีผลถาวร! ข้อมูลโพสต์ รูปภาพอาหาร ความคิดเห็น รายการโปรด และข้อมูลส่วนตัวทั้งหมดของท่านจะถูกลบอย่างถาวรและไม่สามารถกู้คืนได้อีก\n\nท่านแน่ใจหรือไม่ว่าต้องการดำเนินการต่อ?',
-      [
-        {
-          text: 'ยกเลิก',
-          style: 'cancel',
-        },
-        {
-          text: 'ลบบัญชีถาวร',
-          style: 'destructive',
-          onPress: confirmDeleteAccount,
-        },
-      ]
-    );
+    setDeletePopupVisible(true);
   };
 
   const confirmDeleteAccount = async () => {
@@ -74,6 +62,7 @@ export default function SettingsScreen() {
     try {
       const res = await deleteAccount();
       setIsDeleting(false);
+      setDeletePopupVisible(false);
 
       if (res.success) {
         Alert.alert(
@@ -171,6 +160,13 @@ export default function SettingsScreen() {
           <Text style={styles.appCopyright}>&copy; 2026 KIN RAI DEE Community</Text>
         </View>
       </ScrollView>
+
+      <DeleteAccountPopup
+        visible={deletePopupVisible}
+        onCancel={() => setDeletePopupVisible(false)}
+        onConfirm={confirmDeleteAccount}
+        isDeleting={isDeleting}
+      />
     </SafeAreaView>
   );
 }

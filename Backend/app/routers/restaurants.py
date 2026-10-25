@@ -1,7 +1,7 @@
 import os
 import math
 import httpx
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
@@ -91,7 +91,7 @@ async def search_google_places(
 
             data = resp.json()
             places = data.get("places", [])
-            results: List[RestaurantResponse] = []
+            results: List[Tuple[float, RestaurantResponse]] = []
 
             for p in places:
                 p_id = p.get("id", "")

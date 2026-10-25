@@ -31,7 +31,7 @@ def login(data: LoginRequest):
             detail="Invalid email or password",
         )
 
-    if not response.session:
+    if not response.session or not response.user:
         raise HTTPException(
             status_code=401,
             detail="Login failed",

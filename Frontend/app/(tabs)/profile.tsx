@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   ScrollView,
+  type ScrollViewInstance,
   Pressable,
   StyleSheet,
   Alert,
@@ -44,7 +45,7 @@ export default function ProfileScreen() {
     refresh?: string;
   }>();
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   useEffect(() => {
     if (params.refresh) {

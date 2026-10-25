@@ -196,9 +196,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1A1A1A',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_600SemiBold',
-      default: 'NotoSansThai_600SemiBold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, NotoSansThai_600SemiBold, sans-serif',
     }),
   },
   headerRightSpacer: {
@@ -224,20 +224,30 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     marginBottom: 6,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, NotoSansThai_700Bold, sans-serif',
     }),
   },
   updatedDate: {
     fontSize: 13,
     color: '#8E8E93',
     marginBottom: 18,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   introParagraph: {
     fontSize: 15,
     color: '#3A3A3C',
     lineHeight: 24,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   divider: {
     height: 1,
@@ -253,9 +263,9 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     marginBottom: 10,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, NotoSansThai_700Bold, sans-serif',
     }),
   },
   paragraph: {
@@ -263,10 +273,20 @@ const styles = StyleSheet.create({
     color: '#3A3A3C',
     lineHeight: 24,
     marginBottom: 10,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   boldText: {
     fontWeight: '600',
     color: '#1A1A1A',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   bulletItem: {
     flexDirection: 'row',
@@ -285,10 +305,20 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     lineHeight: 22,
     color: '#3A3A3C',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   bulletBold: {
     fontWeight: '600',
     color: '#1A1A1A',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   contactCard: {
     backgroundColor: '#F7F7F8',
@@ -303,17 +333,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 6,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   contactText: {
     fontSize: 13.5,
     color: '#636366',
     lineHeight: 20,
     marginBottom: 6,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   contactEmail: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#A7392A',
+    color: '#FF6B00',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   footerNav: {
     flexDirection: 'row',
@@ -329,10 +374,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#8E8E93',
     fontWeight: '500',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   footerLinkActive: {
     color: '#A7392A',
     fontWeight: '700',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   footerDot: {
     fontSize: 13,
@@ -343,5 +398,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#8E8E93',
     marginTop: 14,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
 });

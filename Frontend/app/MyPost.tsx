@@ -7,6 +7,7 @@ import React, {
 import {
   View,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
 } from "react-native";
 import {
@@ -48,7 +49,7 @@ export default function MyPost() {
     post?: string;
   }>();
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
@@ -104,7 +105,7 @@ export default function MyPost() {
             if (saved && saved.length > 0) {
               setBookmarkedIds(saved.map((s) => s.id));
             }
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }).catch(() => {
         setLoading(false);
@@ -235,7 +236,7 @@ export default function MyPost() {
                   <PopupPost
                     visible={true}
                     post={post}
-                    onClose={() => {}}
+                    onClose={() => { }}
                     inline
                     isOwnPost={post.userId === user?.id}
                     isBookmarked={bookmarkedIds.includes(post.id)}

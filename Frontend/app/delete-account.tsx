@@ -223,20 +223,30 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     marginBottom: 6,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, NotoSansThai_700Bold, sans-serif',
     }),
   },
   updatedDate: {
     fontSize: 13,
     color: '#8E8E93',
     marginBottom: 18,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   introParagraph: {
     fontSize: 15,
     color: '#3A3A3C',
     lineHeight: 24,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   divider: {
     height: 1,
@@ -252,9 +262,9 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     marginBottom: 10,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, NotoSansThai_700Bold, sans-serif',
     }),
   },
   paragraph: {
@@ -262,14 +272,29 @@ const styles = StyleSheet.create({
     color: '#3A3A3C',
     lineHeight: 24,
     marginBottom: 10,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   boldText: {
     fontWeight: '600',
     color: '#1A1A1A',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   emailText: {
-    color: '#A7392A',
+    color: '#FF6B00',
     fontWeight: '600',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   cardBox: {
     backgroundColor: '#F7F7F8',
@@ -286,11 +311,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 6,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   cardBoxText: {
     fontSize: 14,
     color: '#3A3A3C',
     lineHeight: 22,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   bulletItem: {
     flexDirection: 'row',
@@ -309,10 +344,20 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     lineHeight: 22,
     color: '#3A3A3C',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   bulletBold: {
     fontWeight: '600',
     color: '#1A1A1A',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   formContainer: {
     backgroundColor: '#F7F7F8',
@@ -328,6 +373,11 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     marginBottom: 6,
     marginTop: 6,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   input: {
     backgroundColor: '#FFFFFF',
@@ -339,6 +389,11 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     color: '#1A1A1A',
     marginBottom: 12,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   textArea: {
     height: 84,
@@ -355,6 +410,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   successCard: {
     backgroundColor: '#F0F9F0',
@@ -371,11 +431,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#2E7D32',
     marginBottom: 6,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   successText: {
     fontSize: 14,
     color: '#3A3A3C',
     lineHeight: 22,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   footerNav: {
     flexDirection: 'row',
@@ -391,10 +461,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#8E8E93',
     fontWeight: '500',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_500Medium',
+      default: 'Inter, sans-serif',
+    }),
   },
   footerLinkActive: {
     color: '#A7392A',
     fontWeight: '700',
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   footerDot: {
     fontSize: 13,
@@ -405,5 +485,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#8E8E93',
     marginTop: 14,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
 });

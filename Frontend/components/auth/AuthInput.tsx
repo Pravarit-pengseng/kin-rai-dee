@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { AppFonts } from '@/constants/theme';
 
 interface AuthInputProps extends TextInputProps {
   iconName: keyof typeof Feather.glyphMap;
@@ -121,11 +122,7 @@ const styles = StyleSheet.create({
     height: '100%',
     color: '#57423E',
     fontSize: 15,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.regular,
     paddingVertical: 0,
   },
   eyeButton: {
@@ -144,10 +141,6 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#C0392B',
     fontSize: 12,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.regular,
   },
 });

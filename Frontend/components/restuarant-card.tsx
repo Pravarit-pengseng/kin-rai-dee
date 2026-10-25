@@ -1,5 +1,6 @@
 import { View, Text, Image, StyleSheet, TouchableOpacity, Linking, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { AppFonts } from '@/constants/theme';
 export type Restaurant = {
   id: string;
   name: string;
@@ -177,7 +178,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: 10,
     color: '#9CA3AF',
-    fontFamily: 'Inter_400Regular',
+    fontFamily: AppFonts.regular,
   },
 
   content: {
@@ -197,7 +198,7 @@ const styles = StyleSheet.create({
   name: {
     flex: 1,
     fontSize: 16,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: AppFonts.bold,
     color: '#1C1B1F',
     marginRight: 6,
   },
@@ -213,14 +214,14 @@ const styles = StyleSheet.create({
 
   distanceText: {
     fontSize: 13,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: AppFonts.bold,
     color: '#44403C',
   },
 
   description: {
     fontSize: 13,
     lineHeight: 16,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: AppFonts.regular,
     color: '#52525B',
     marginVertical: 3,
   },
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
   openTime: {
     flex: 1,
     fontSize: 13,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: AppFonts.semiBold,
     color: '#059669',
     marginRight: 6,
   },
@@ -262,7 +263,7 @@ const styles = StyleSheet.create({
 
   mapButtonText: {
     fontSize: 12,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: AppFonts.bold,
     color: '#1D4ED8',
   },
 });

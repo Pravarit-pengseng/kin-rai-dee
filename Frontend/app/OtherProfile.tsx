@@ -11,6 +11,7 @@ import { StatusBar } from "expo-status-bar";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
+import { AppFonts } from "@/constants/theme";
 import PostGrid, {
   Post,
 } from "@/components/post-grid";
@@ -427,7 +428,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 20,
     lineHeight: 30,
-    fontFamily: "Inter_700Bold",
+    fontFamily: AppFonts.bold,
     fontWeight: "800",
     color: "#241917",
     marginBottom: 3,

@@ -20,6 +20,7 @@ import { RestaurantCard, Restaurant } from '@/components/restuarant-card';
 import { SearchTabFilter, SearchTabType } from '@/components/search-tab-filter';
 import { SearchHistory } from '@/components/search-history';
 import { useAuth } from '@/context/AuthContext';
+import { AppFonts } from '@/constants/theme';
 import {
   searchPosts,
   fetchSearchHistory,
@@ -366,7 +367,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: AppFonts.regular,
     fontSize: 15,
     color: '#4B3500',
     height: '100%',

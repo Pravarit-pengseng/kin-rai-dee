@@ -26,6 +26,7 @@ import {
   validateConfirmPassword,
   formatEmail,
 } from '@/utils/authValidation';
+import { AppFonts } from '@/constants/theme';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -512,11 +513,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#A7392A',
     letterSpacing: 0.5,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter_700Bold, sans-serif',
-    }),
+    fontFamily: AppFonts.bold,
   },
   headerRightSpacer: {
     width: 40,
@@ -542,11 +539,7 @@ const styles = StyleSheet.create({
     color: '#57423E',
     textAlign: 'center',
     marginBottom: 6,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.bold,
   },
   mainTitleSmall: {
     fontSize: 17,
@@ -556,11 +549,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#57423E',
     textAlign: 'center',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.regular,
   },
   subTitleSmall: {
     fontSize: 12.5,
@@ -625,22 +614,14 @@ const styles = StyleSheet.create({
   termsErrorText: {
     color: '#C0392B',
     fontSize: 12,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.regular,
   },
   termsText: {
     flex: 1,
     fontSize: 12,
     color: '#57423E',
     lineHeight: 18,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.regular,
   },
   termsLink: {
     color: '#A7392A',
@@ -679,11 +660,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.bold,
   },
   footer: {
     flexDirection: 'row',
@@ -699,21 +676,13 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     color: '#57423E',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.regular,
   },
   footerLink: {
     fontWeight: '800',
     color: '#A7392A',
     textDecorationLine: 'underline',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.bold,
   },
   passwordRulesContainer: {
     backgroundColor: '#FAF5EE',
@@ -730,11 +699,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#57423E',
     marginBottom: 8,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.bold,
   },
   ruleItem: {
     flexDirection: 'row',
@@ -745,11 +710,7 @@ const styles = StyleSheet.create({
   ruleText: {
     fontSize: 12,
     color: '#7D6A66',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.regular,
   },
   ruleTextValid: {
     color: '#2E7D32',

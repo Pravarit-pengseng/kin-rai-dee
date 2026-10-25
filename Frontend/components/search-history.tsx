@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
+import { AppFonts } from '@/constants/theme';
 
 interface SearchHistoryProps {
   recentSearches: string[];
@@ -85,7 +86,7 @@ const styles = StyleSheet.create({
   },
   trendTitle: {
     fontSize: 18,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: AppFonts.bold,
     fontWeight: '800',
     color: '#4B3500',
   },
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
   },
   pillTextGreen: {
     fontSize: 14,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: AppFonts.bold,
     color: '#236F52',
   },
   pillBrown: {
@@ -113,7 +114,7 @@ const styles = StyleSheet.create({
   },
   pillTextBrown: {
     fontSize: 14,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: AppFonts.bold,
     color: '#4B3500',
   },
   historySection: {
@@ -127,13 +128,13 @@ const styles = StyleSheet.create({
   },
   historyTitle: {
     fontSize: 18,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: AppFonts.bold,
     fontWeight: '800',
     color: '#4B3500',
   },
   clearAllText: {
     fontSize: 13,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: AppFonts.bold,
     color: '#B63A26',
   },
   historyItem: {
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
   },
   historyText: {
     fontSize: 15,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: AppFonts.regular,
     color: '#57423E',
   },
 });

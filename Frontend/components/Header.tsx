@@ -35,8 +35,7 @@ export function Header({
   showBorder = true,
 }: HeaderProps) {
   const { isLoggedIn } = useAuth();
-  const isThai = /[\u0E00-\u0E7F]/.test(title);
-  const fontFamily = isThai ? 'NotoSansThai_700Bold' : 'Inter_700Bold';
+  const fontFamily = 'Inter_700Bold';
 
   const renderLeftIcon = () => {
     if (leftIcon === 'none') return null;

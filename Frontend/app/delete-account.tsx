@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({
       ios: 'Inter',
       android: 'Inter_700Bold',
-      default: 'Inter, NotoSansThai_700Bold, sans-serif',
+      default: 'Inter, sans-serif',
     }),
   },
   updatedDate: {
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({
       ios: 'Inter',
       android: 'Inter_700Bold',
-      default: 'Inter, NotoSansThai_700Bold, sans-serif',
+      default: 'Inter, sans-serif',
     }),
   },
   paragraph: {

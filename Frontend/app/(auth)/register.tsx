@@ -415,9 +415,12 @@ export default function RegisterScreen() {
               </Pressable>
 
               {termsError && !acceptedTerms && (
-                <Text style={styles.termsErrorText}>
-                  * กรุณากดยอมรับเงื่อนไขก่อนสมัครบัญชี
-                </Text>
+                <View style={styles.termsErrorContainer}>
+                  <Feather name="alert-circle" size={13} color="#C0392B" style={styles.termsErrorIcon} />
+                  <Text style={styles.termsErrorText}>
+                    กรุณากดยอมรับเงื่อนไขก่อนสมัครบัญชี
+                  </Text>
+                </View>
               )}
 
               <Pressable
@@ -533,9 +536,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 6,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
     }),
   },
   mainTitleSmall: {
@@ -547,9 +550,9 @@ const styles = StyleSheet.create({
     color: '#57423E',
     textAlign: 'center',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
     }),
   },
   subTitleSmall: {
@@ -597,20 +600,27 @@ const styles = StyleSheet.create({
     borderColor: '#A7392A',
   },
   checkboxError: {
-    borderColor: '#D32F2F',
-    borderWidth: 2,
-    backgroundColor: '#FFF5F5',
+    borderColor: '#C0392B',
+    borderWidth: 1.5,
+    backgroundColor: '#FFF8F7',
+  },
+  termsErrorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: -4,
+    marginBottom: 8,
+    paddingHorizontal: 6,
+    alignSelf: 'flex-start',
+  },
+  termsErrorIcon: {
+    marginRight: 4,
   },
   termsErrorText: {
+    color: '#C0392B',
     fontSize: 12,
-    color: '#D32F2F',
-    fontWeight: '600',
-    marginTop: -2,
-    marginBottom: 8,
-    marginLeft: 30,
     fontFamily: Platform.select({
       ios: 'Inter',
-      android: 'Inter_600SemiBold',
+      android: 'Inter_400Regular',
       default: 'Inter, sans-serif',
     }),
   },
@@ -622,7 +632,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({
       ios: 'Inter',
       android: 'Inter_400Regular',
-      default: 'Inter, NotoSansThai_400Regular, sans-serif',
+      default: 'Inter, sans-serif',
     }),
   },
   termsLink: {
@@ -663,9 +673,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
     }),
   },
   footer: {
@@ -683,9 +693,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#57423E',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
     }),
   },
   footerLink: {
@@ -693,9 +703,9 @@ const styles = StyleSheet.create({
     color: '#A7392A',
     textDecorationLine: 'underline',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
     }),
   },
   passwordRulesContainer: {
@@ -714,9 +724,9 @@ const styles = StyleSheet.create({
     color: '#57423E',
     marginBottom: 8,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
     }),
   },
   ruleItem: {
@@ -729,9 +739,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#7D6A66',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
     }),
   },
   ruleTextValid: {

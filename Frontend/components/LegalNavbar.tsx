@@ -198,9 +198,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#A7392A',
     fontFamily: Platform.select({
-      ios: 'Plus Jakarta Sans',
-      android: 'PlusJakartaSans_700Bold',
-      default: 'PlusJakartaSans_700Bold, NotoSansThai_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
     }),
   },
   desktopTabContainer: {
@@ -222,9 +222,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#636366',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_600SemiBold',
-      default: 'NotoSansThai_600SemiBold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
     }),
   },
   tabTextActive: {
@@ -258,9 +258,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#636366',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_600SemiBold',
-      default: 'NotoSansThai_600SemiBold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
     }),
   },
   mobileTabTextActive: {

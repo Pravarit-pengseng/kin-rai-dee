@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({
       ios: 'Inter',
       android: 'Inter_600SemiBold',
-      default: 'Inter, NotoSansThai_600SemiBold, sans-serif',
+      default: 'Inter, sans-serif',
     }),
   },
   headerRightSpacer: {
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({
       ios: 'Inter',
       android: 'Inter_700Bold',
-      default: 'Inter, NotoSansThai_700Bold, sans-serif',
+      default: 'Inter, sans-serif',
     }),
   },
   updatedDate: {
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({
       ios: 'Inter',
       android: 'Inter_700Bold',
-      default: 'Inter, NotoSansThai_700Bold, sans-serif',
+      default: 'Inter, sans-serif',
     }),
   },
   paragraph: {

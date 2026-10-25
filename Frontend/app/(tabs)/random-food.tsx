@@ -271,14 +271,14 @@ const styles = StyleSheet.create({
   },
   mainTitle: {
     fontSize: 24,
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
     color: '#241917',
     textAlign: 'center',
     marginBottom: 8,
   },
   subTitle: {
     fontSize: 14,
-    fontFamily: 'NotoSansThai_400Regular',
+    fontFamily: 'Inter_400Regular',
     color: '#57423E',
     textAlign: 'center',
     marginBottom: 24,
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   },
   foodTitle: {
     fontSize: 20,
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
     color: '#46302B',
     marginTop: 12,
     textAlign: 'center',
@@ -334,12 +334,12 @@ const styles = StyleSheet.create({
   },
   restaurantTitle: {
     fontSize: 17,
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
     color: '#241917',
   },
   restaurantSubtitle: {
     fontSize: 11,
-    fontFamily: 'NotoSansThai_400Regular',
+    fontFamily: 'Inter_400Regular',
     color: '#8A7772',
     marginLeft: 5,
   },
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 8,
     fontSize: 11,
-    fontFamily: 'NotoSansThai_400Regular',
+    fontFamily: 'Inter_400Regular',
     color: '#75625E',
   },
   locationWarning: {
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
   locationWarningText: {
     fontSize: 11,
     textAlign: 'center',
-    fontFamily: 'NotoSansThai_400Regular',
+    fontFamily: 'Inter_400Regular',
     color: '#8A7772',
   },
   emptyContainer: {
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 13,
-    fontFamily: 'NotoSansThai_400Regular',
+    fontFamily: 'Inter_400Regular',
     color: '#8A7772',
   },
 });

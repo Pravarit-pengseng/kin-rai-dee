@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   },
   trendTitle: {
     fontSize: 18,
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontWeight: '800',
     color: '#4B3500',
   },
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   },
   pillTextGreen: {
     fontSize: 14,
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
     color: '#236F52',
   },
   pillBrown: {
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   },
   pillTextBrown: {
     fontSize: 14,
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
     color: '#4B3500',
   },
   historySection: {
@@ -125,13 +125,13 @@ const styles = StyleSheet.create({
   },
   historyTitle: {
     fontSize: 18,
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
     fontWeight: '800',
     color: '#4B3500',
   },
   clearAllText: {
     fontSize: 13,
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
     color: '#B63A26',
   },
   historyItem: {
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   },
   historyText: {
     fontSize: 15,
-    fontFamily: 'NotoSansThai_400Regular',
+    fontFamily: 'Inter_400Regular',
     color: '#57423E',
   },
 });

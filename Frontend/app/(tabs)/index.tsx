@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 22,
     lineHeight: 34,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: "#46302B",
   },
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   },
   fabText: {
     fontSize: 16,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: "#721209",
   },

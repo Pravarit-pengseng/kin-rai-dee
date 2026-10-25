@@ -194,9 +194,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1C1B1F',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
     }),
   },
   content: {
@@ -240,9 +240,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#1C1B1F',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_500Medium',
-      default: 'NotoSansThai_500Medium, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
     }),
   },
   deleteText: {

@@ -189,9 +189,9 @@ const styles = StyleSheet.create({
     color: '#1C1B1F',
     flex: 1,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
     }),
   },
   headerRight: {

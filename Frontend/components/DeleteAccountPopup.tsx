@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({
       ios: "Inter",
       android: "Inter_700Bold",
-      default: "Inter, NotoSansThai_700Bold, sans-serif",
+      default: "Inter, sans-serif",
     }),
     fontWeight: "700",
     color: "#241917",
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({
       ios: "Inter",
       android: "Inter_400Regular",
-      default: "Inter, NotoSansThai_400Regular, sans-serif",
+      default: "Inter, sans-serif",
     }),
     color: "#4A3E39",
     lineHeight: 18,
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({
       ios: "Inter",
       android: "Inter_700Bold",
-      default: "Inter, NotoSansThai_700Bold, sans-serif",
+      default: "Inter, sans-serif",
     }),
     fontWeight: "700",
     color: "#241917",
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({
       ios: "Inter",
       android: "Inter_700Bold",
-      default: "Inter, NotoSansThai_700Bold, sans-serif",
+      default: "Inter, sans-serif",
     }),
     fontWeight: "700",
     color: "#8B2519",

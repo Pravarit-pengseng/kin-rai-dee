@@ -85,11 +85,11 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
   },
   tabTextActive: {
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
     color: '#236F52',
   },
   tabTextInactive: {
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
     color: '#6B7280',
   },
 });

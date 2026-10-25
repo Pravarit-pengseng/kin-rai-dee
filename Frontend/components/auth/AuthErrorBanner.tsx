@@ -38,9 +38,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
     }),
   },
 });

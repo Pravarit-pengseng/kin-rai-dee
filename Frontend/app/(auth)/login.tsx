@@ -298,9 +298,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 6,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
     }),
   },
   mainTitleSmall: {
@@ -312,9 +312,9 @@ const styles = StyleSheet.create({
     color: '#57423E',
     textAlign: 'center',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
     }),
   },
   subTitleSmall: {
@@ -366,9 +366,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
     }),
   },
   footer: {
@@ -386,9 +386,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#57423E',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
     }),
   },
   footerLink: {
@@ -396,9 +396,9 @@ const styles = StyleSheet.create({
     color: '#A7392A',
     textDecorationLine: 'underline',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
     }),
   },
 });

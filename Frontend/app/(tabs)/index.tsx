@@ -21,7 +21,6 @@ import DeletePopup from "@/components/DeletePopup";
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/context/AuthContext";
 import { fetchFeedPosts, bookmarkPost, unbookmarkPost, deletePost, getSavedPosts } from "@/services/postService";
-import { AppFonts } from "@/constants/theme";
 
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
@@ -142,11 +141,8 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-
       <StatusBar style="dark" />
-      
-      <Header 
-        titleStyle={styles.headerTitle}
+      <Header
         title="KIN RAI DEE"
         leftIcon="none"
         rightIcon="search"
@@ -246,16 +242,9 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 22,
     lineHeight: 34,
-    fontFamily: AppFonts.bold,
+    fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: "#46302B",
-  },
-    headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#A7392A',
-    letterSpacing: 0.5,
-    fontFamily: AppFonts.bold,
   },
   postWrapper: { marginBottom: 16 },
   fab: {
@@ -282,7 +271,7 @@ const styles = StyleSheet.create({
   },
   fabText: {
     fontSize: 16,
-    fontFamily: AppFonts.bold,
+    fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: "#721209",
   },

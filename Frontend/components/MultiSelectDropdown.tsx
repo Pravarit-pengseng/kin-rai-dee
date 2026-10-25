@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { AppFonts } from '@/constants/theme';
 
 interface Option {
   id: string;
@@ -115,7 +114,7 @@ const styles = StyleSheet.create({
   dropdownText: {
     fontSize: 16,
     color: '#5A4A42',
-    fontFamily: AppFonts.semiBold,
+    fontFamily: 'Inter_600SemiBold',
     flex: 1,
     marginRight: 8,
   },
@@ -164,7 +163,7 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 16,
     color: '#5A4A42',
-    fontFamily: AppFonts.semiBold,
+    fontFamily: 'Inter_600SemiBold',
   },
   buttonPressed: {
     opacity: 0.8,

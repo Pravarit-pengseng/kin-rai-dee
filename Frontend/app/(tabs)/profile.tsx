@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { AppFonts } from '@/constants/theme';
+import React, { useEffect, useState } from "react";
 import {
   View,
   ScrollView,
@@ -224,7 +223,7 @@ export default function ProfileScreen() {
         ? prev.filter((id) => id !== postId)
         : [...prev, postId],
     );
-
+    
     if (user?.id) {
       if (isCurrentlyBookmarked) {
         await unbookmarkPost(postId);
@@ -263,7 +262,7 @@ export default function ProfileScreen() {
     setPosts((prev) =>
       prev.filter((post) => post.id !== idToDelete),
     );
-
+    
     // ลบออกจาก savedPosts ด้วย
     setSavedPosts((prev) =>
       prev.filter((post) => post.id !== idToDelete),
@@ -338,27 +337,20 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
-
       <Header
         title="KIN RAI DEE"
         leftIcon={isLoggedIn ? "logout" : "none"}
         onLeftPress={() => setLogoutPopupVisible(true)}
         rightIcon="settings"
         onRightPress={() => router.push('/settings' as any)}
-        titleStyle={{
-          fontSize: 20,
-          fontWeight: 'bold',
-          color: '#A7392A',
-          letterSpacing: 0.5,
-        }}
       />
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
+          <RefreshControl 
+            refreshing={refreshing} 
             onRefresh={onRefresh}
             colors={["#DCA64E"]}
             tintColor="#DCA64E"
@@ -475,14 +467,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 105,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#A7392A',
-    letterSpacing: 0.5,
-    fontFamily: AppFonts.bold,
-  },
-
 
   tabsContainer: {
     height: 48,

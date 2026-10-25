@@ -1,14 +1,8 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  StyleProp,
-  TextStyle,
-} from 'react-native'; import { Feather } from '@expo/vector-icons';
+import React from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { StatusBar, StatusBarStyle } from 'expo-status-bar';
 import { useAuth } from '@/context/AuthContext';
-import { AppFonts } from '@/constants/theme';
 
 export type HeaderLeftIcon = 'back' | 'close' | 'logout' | 'none';
 export type HeaderRightIcon = 'search' | 'settings' | 'none';
@@ -25,7 +19,6 @@ interface HeaderProps {
   onSearchPress?: () => void; // Alias for onRightPress
   statusBarStyle?: StatusBarStyle;
   showBorder?: boolean;
-  titleStyle?: StyleProp<TextStyle>;
 }
 
 export function Header({
@@ -39,11 +32,10 @@ export function Header({
   onRightPress,
   onSearchPress,
   statusBarStyle = 'dark',
-  titleStyle,
   showBorder = true,
 }: HeaderProps) {
   const { isLoggedIn } = useAuth();
-  const fontFamily = AppFonts.bold;
+  const fontFamily = 'Inter_700Bold';
 
   const renderLeftIcon = () => {
     if (leftIcon === 'none') return null;
@@ -91,14 +83,7 @@ export function Header({
       <View style={styles.leftSide}>{renderLeftIcon()}</View>
 
       {/* Center Title */}
-      <Text
-        style={[
-          styles.title,
-          { color: textColor, fontFamily },
-          titleStyle,
-        ]}
-        numberOfLines={1}
-      >
+      <Text style={[styles.title, { color: textColor, fontFamily }]} numberOfLines={1}>
         {title}
       </Text>
 

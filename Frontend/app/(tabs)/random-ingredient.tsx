@@ -19,7 +19,6 @@ import {
   IngredientItem,
 } from '@/constants/ingredientData';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { AppFonts } from '@/constants/theme';
 
 export default function RandomIngredientScreen() {
   const { width } = useWindowDimensions();
@@ -128,13 +127,7 @@ export default function RandomIngredientScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
 
-      <Header
-        titleStyle={styles.headerTitle}
-        title="KIN RAI DEE"
-        leftIcon="none"
-        rightIcon="search"
-        onSearchPress={() => router.push('/(tabs)/search?from=/')}
-      />
+      <Header onSearchPress={handleSearch} />
 
       <ScrollView
         contentContainerStyle={[
@@ -308,13 +301,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFF8F6',
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#A7392A',
-    letterSpacing: 0.5,
-    fontFamily: AppFonts.bold,
-  },
+
   container: {
     paddingHorizontal: 20,
     paddingTop: 18,
@@ -323,17 +310,15 @@ const styles = StyleSheet.create({
 
   mainTitle: {
     fontSize: 22,
-    fontFamily: AppFonts.bold,
+    fontFamily: 'Inter_700Bold',
     color: '#241917',
     textAlign: 'center',
     marginBottom: 8,
-    fontWeight: 'bold',
-    paddingTop: 15,
   },
 
   subTitle: {
     fontSize: 14,
-    fontFamily: AppFonts.regular,
+    fontFamily: 'Inter_400Regular',
     color: '#57423E',
     textAlign: 'center',
     marginBottom: 24,
@@ -402,7 +387,7 @@ const styles = StyleSheet.create({
 
   toggleText: {
     fontSize: 18,
-    fontFamily: AppFonts.bold,
+    fontFamily: 'Inter_700Bold',
   },
 
   unselectedText: {

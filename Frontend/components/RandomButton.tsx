@@ -1,6 +1,7 @@
 import React from 'react';
-import { Text, StyleSheet, Pressable, View } from 'react-native';
+import { Text, StyleSheet, Pressable, View, StyleProp, ViewStyle, TextStyle } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { AppFonts } from '@/constants/theme';
 
 export interface RandomButtonProps {
   onPress: () => void;
@@ -16,6 +17,11 @@ export interface RandomButtonProps {
   borderWidth?: number;
   borderBottomWidth?: number;
   paddingVertical?: number;
+  paddingHorizontal?: number;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
+  fontSize?: number;
+  iconSize?: number;
 }
 
 export function RandomButton({
@@ -32,6 +38,11 @@ export function RandomButton({
   borderWidth,
   borderBottomWidth,
   paddingVertical,
+  paddingHorizontal,
+  style,
+  textStyle,
+  fontSize,
+  iconSize,
 }: RandomButtonProps) {
   const isRerandom = variant === 'rerandom';
 
@@ -54,17 +65,26 @@ export function RandomButton({
         styles.button,
         { backgroundColor: finalBgColor },
         paddingVertical !== undefined && { paddingVertical },
+        paddingHorizontal !== undefined && { paddingHorizontal },
         finalBorderWidth !== undefined && { borderWidth: finalBorderWidth },
         finalBorderColor !== undefined && { borderColor: finalBorderColor },
         finalBorderBottomWidth !== undefined && { borderBottomWidth: finalBorderBottomWidth },
         finalBorderBottomColor !== undefined && { borderBottomColor: finalBorderBottomColor },
+        style,
         pressed && !disabled && styles.buttonPressed,
         disabled && styles.buttonDisabled,
       ]}
     >
       <View style={styles.content}>
-        <FontAwesome5 name={finalIconName} size={20} color={finalIconColor} style={styles.icon} />
-        <Text style={[styles.text, { color: finalTextColor }]}>{finalTitle}</Text>
+        <FontAwesome5
+          name={finalIconName}
+          size={iconSize ?? (fontSize ? fontSize + 2 : 18)}
+          color={finalIconColor}
+          style={styles.icon}
+        />
+        <Text style={[styles.text, { color: finalTextColor }, fontSize !== undefined && { fontSize }, textStyle]}>
+          {finalTitle}
+        </Text>
       </View>
     </Pressable>
   );
@@ -101,6 +121,6 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 18,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: AppFonts.bold,
   },
 });

@@ -6,6 +6,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { ThemedText } from "@/components/themed-text";
+import { AppFonts } from "@/constants/theme";
 
 export type DeletePostPopupProps = {
   visible: boolean;
@@ -95,7 +96,7 @@ const styles = StyleSheet.create({
   title: {
     textAlign: "center",
     fontSize: 18,
-    fontFamily: "Inter_700Bold",
+    fontFamily: AppFonts.bold,
     fontWeight: "700",
     color: "#241917",
     marginBottom: 20,
@@ -145,7 +146,7 @@ const styles = StyleSheet.create({
 
   cancelText: {
     fontSize: 16,
-    fontFamily: "Inter_700Bold",
+    fontFamily: AppFonts.bold,
     fontWeight: "700",
     color: "#57423E",
     textAlign: "center",
@@ -153,7 +154,7 @@ const styles = StyleSheet.create({
 
   deleteText: {
     fontSize: 16,
-    fontFamily: "Inter_700Bold",
+    fontFamily: AppFonts.bold,
     fontWeight: "700",
     color: "#9B2C24",
     textAlign: "center",

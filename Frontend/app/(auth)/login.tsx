@@ -23,6 +23,7 @@ import {
   formatEmail,
   AUTH_ERROR_MESSAGES,
 } from '@/utils/authValidation';
+import { AppFonts } from '@/constants/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -287,11 +288,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#A7392A',
     letterSpacing: 0.5,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter_700Bold, sans-serif',
-    }),
+    fontFamily: AppFonts.bold,
   },
   headerRightSpacer: {
     width: 40,
@@ -317,11 +314,7 @@ const styles = StyleSheet.create({
     color: '#57423E',
     textAlign: 'center',
     marginBottom: 6,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.bold,
   },
   mainTitleSmall: {
     fontSize: 18,
@@ -331,11 +324,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#57423E',
     textAlign: 'center',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.regular,
   },
   subTitleSmall: {
     fontSize: 13,
@@ -368,11 +357,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#A7392A',
     fontWeight: '600',
-    fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_600SemiBold',
-      default: 'NotoSansThai_600SemiBold, Inter_600SemiBold, sans-serif',
-    }),
+    fontFamily: AppFonts.semiBold,
   },
   submitButton: {
     backgroundColor: '#A7392A',
@@ -401,11 +386,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.bold,
   },
   footer: {
     flexDirection: 'row',
@@ -421,20 +402,12 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     color: '#57423E',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_400Regular',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.regular,
   },
   footerLink: {
     fontWeight: '800',
     color: '#A7392A',
     textDecorationLine: 'underline',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.bold,
   },
 });

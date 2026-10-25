@@ -12,6 +12,7 @@ import {
   Refrigerator,
   UserRound,
 } from "lucide-react-native";
+import { AppFonts } from "@/constants/theme";
 
 type MenuItem = {
   id: string;
@@ -164,11 +165,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#57423E",
     fontWeight: "500",
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: AppFonts.semiBold,
   },
 
   activeLabel: {
-    fontFamily: "Inter_700Bold",
+    fontFamily: AppFonts.bold,
   },
 
   buttonPressed: {

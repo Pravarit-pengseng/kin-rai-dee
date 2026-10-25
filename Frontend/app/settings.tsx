@@ -16,6 +16,7 @@ import { ChevronRight, ArrowLeft, ShieldAlert } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { deleteAccount, getBlockedUsers } from '@/services/safetyService';
 import DeleteAccountPopup from '@/components/DeleteAccountPopup';
+import { AppFonts } from '@/constants/theme';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -216,11 +217,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#1C1B1F',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.bold,
   },
   content: {
     flex: 1,
@@ -257,16 +254,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#A7392A',
+    fontFamily: AppFonts.bold,
   },
   menuText: {
     fontSize: 17,
     fontWeight: '500',
     color: '#1C1B1F',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_600SemiBold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: AppFonts.semiBold,
   },
   deleteText: {
     color: '#1C1B1F',

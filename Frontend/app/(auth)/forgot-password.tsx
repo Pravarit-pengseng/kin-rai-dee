@@ -27,6 +27,7 @@ import {
   validateConfirmPassword,
   AUTH_ERROR_MESSAGES,
 } from '@/utils/authValidation';
+import { AppFonts } from '@/constants/theme';
 
 type RecoveryStep = 'email' | 'otp' | 'new-password';
 
@@ -515,11 +516,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 28,
-    fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
-    }),
+    fontFamily: AppFonts.regular,
   },
   actionButton: {
     marginTop: 8,
@@ -532,21 +529,13 @@ const styles = StyleSheet.create({
   cooldownText: {
     fontSize: 14,
     color: '#9CA3AF',
-    fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
-    }),
+    fontFamily: AppFonts.regular,
   },
   resendLink: {
     fontSize: 14,
     color: '#A63826',
     fontWeight: '600',
-    fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_600SemiBold',
-      default: 'NotoSansThai_600SemiBold, Inter_600SemiBold, sans-serif',
-    }),
+    fontFamily: AppFonts.semiBold,
   },
   passwordRulesContainer: {
     backgroundColor: '#FAF5EE',
@@ -560,11 +549,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#57423E',
     marginBottom: 8,
-    fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_600SemiBold',
-      default: 'NotoSansThai_600SemiBold, Inter_600SemiBold, sans-serif',
-    }),
+    fontFamily: AppFonts.semiBold,
   },
   ruleItem: {
     flexDirection: 'row',
@@ -575,11 +560,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#8C7A75',
     marginLeft: 8,
-    fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
-    }),
+    fontFamily: AppFonts.regular,
   },
   ruleTextValid: {
     color: '#2E7D32',

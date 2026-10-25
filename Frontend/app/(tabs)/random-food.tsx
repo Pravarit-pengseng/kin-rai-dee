@@ -25,6 +25,7 @@ import {
 import { FOOD_CATEGORIES, FoodCategory } from '@/constants/categories';
 import { FOOD_LIST, FoodItem } from '@/constants/foodData';
 import { fetchNearbyRestaurants } from '@/services/restaurantService';
+import { AppFonts } from '@/constants/theme';
 
 export default function RandomFoodScreen() {
   const [categories] = useState<FoodCategory[]>(FOOD_CATEGORIES);
@@ -94,8 +95,8 @@ export default function RandomFoodScreen() {
     const pool =
       selectedCategories.length > 0
         ? FOOD_LIST.filter((item) =>
-            selectedCategories.includes(String(item.categoryId))
-          )
+          selectedCategories.includes(String(item.categoryId))
+        )
         : FOOD_LIST;
 
     if (pool.length === 0) return;
@@ -148,7 +149,13 @@ export default function RandomFoodScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
 
-      <Header onSearchPress={handleSearch} />
+      <Header
+        titleStyle={styles.headerTitle}
+        title="KIN RAI DEE"
+        leftIcon="none"
+        rightIcon="search"
+        onSearchPress={() => router.push('/(tabs)/search?from=/')}
+      />
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -183,26 +190,25 @@ export default function RandomFoodScreen() {
               />
             </View>
           )}
-        </View>
-
-        {/* Random Button */}
-        <View style={styles.randomButtonContainer}>
-          {!hasRandomized ? (
-            <RandomButton
-              onPress={handleRandomize}
-              title="สุ่มอาหาร"
-              iconName="dice"
-              paddingVertical={12}
-              disabled={isRandomizing}
-            />
-          ) : (
-            <RandomButton
-              onPress={handleRandomize}
-              variant="rerandom"
-              paddingVertical={12}
-              disabled={isRandomizing}
-            />
-          )}
+          {/* Random Button */}
+          <View style={styles.randomButtonContainer}>
+            {!hasRandomized ? (
+              <RandomButton
+                onPress={handleRandomize}
+                title="สุ่มอาหาร"
+                iconName="dice"
+                paddingVertical={12}
+                disabled={isRandomizing}
+              />
+            ) : (
+              <RandomButton
+                onPress={handleRandomize}
+                variant="rerandom"
+                paddingVertical={12}
+                disabled={isRandomizing}
+              />
+            )}
+          </View>
         </View>
 
         {/* Nearby Restaurants */}
@@ -264,6 +270,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFF8F6',
   },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#A7392A',
+    letterSpacing: 0.5,
+    fontFamily: AppFonts.bold,
+  },
   container: {
     paddingHorizontal: 20,
     paddingTop: 8,
@@ -271,14 +284,16 @@ const styles = StyleSheet.create({
   },
   mainTitle: {
     fontSize: 24,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: AppFonts.bold,
     color: '#241917',
     textAlign: 'center',
     marginBottom: 8,
+    fontWeight: 'bold',
+    paddingTop: 15,
   },
   subTitle: {
     fontSize: 14,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: AppFonts.regular,
     color: '#57423E',
     textAlign: 'center',
     marginBottom: 24,
@@ -314,14 +329,14 @@ const styles = StyleSheet.create({
   },
   foodTitle: {
     fontSize: 20,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: AppFonts.bold,
     color: '#46302B',
     marginTop: 12,
     textAlign: 'center',
   },
   randomButtonContainer: {
     width: '100%',
-    marginBottom: 16,
+    marginBottom: 0,
   },
   restaurantSection: {
     marginTop: 16,
@@ -334,12 +349,12 @@ const styles = StyleSheet.create({
   },
   restaurantTitle: {
     fontSize: 17,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: AppFonts.bold,
     color: '#241917',
   },
   restaurantSubtitle: {
     fontSize: 11,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: AppFonts.regular,
     color: '#8A7772',
     marginLeft: 5,
   },
@@ -354,7 +369,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 8,
     fontSize: 11,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: AppFonts.regular,
     color: '#75625E',
   },
   locationWarning: {
@@ -366,7 +381,7 @@ const styles = StyleSheet.create({
   locationWarningText: {
     fontSize: 11,
     textAlign: 'center',
-    fontFamily: 'Inter_400Regular',
+    fontFamily: AppFonts.regular,
     color: '#8A7772',
   },
   emptyContainer: {
@@ -380,7 +395,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 13,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: AppFonts.regular,
     color: '#8A7772',
   },
-});
+});

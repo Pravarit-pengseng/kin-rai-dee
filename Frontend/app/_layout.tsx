@@ -11,17 +11,18 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/context/AuthContext';
+import { AppFonts } from '@/constants/theme';
 
 // Set global default font family for Text & TextInput across the app
 if ((Text as any).defaultProps == null) {
   (Text as any).defaultProps = {};
 }
-(Text as any).defaultProps.style = { fontFamily: 'Inter_400Regular' };
+(Text as any).defaultProps.style = { fontFamily: AppFonts.regular };
 
 if ((TextInput as any).defaultProps == null) {
   (TextInput as any).defaultProps = {};
 }
-(TextInput as any).defaultProps.style = { fontFamily: 'Inter_400Regular' };
+(TextInput as any).defaultProps.style = { fontFamily: AppFonts.regular };
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',

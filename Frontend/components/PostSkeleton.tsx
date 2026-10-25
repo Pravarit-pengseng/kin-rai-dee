@@ -51,8 +51,6 @@ export default function PostSkeleton({ count = 2 }: { count?: number }) {
 }
 
 export function PostGridSkeleton({ count = 9 }: { count?: number }) {
-  const { width } = useWindowDimensions();
-  const imageSize = width / 3;
   const shimmer = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -73,7 +71,7 @@ export function PostGridSkeleton({ count = 9 }: { count?: number }) {
           key={i}
           style={[
             gridStyles.item,
-            { width: imageSize, height: imageSize, opacity },
+            { opacity },
           ]}
         />
       ))}
@@ -87,8 +85,13 @@ const gridStyles = StyleSheet.create({
   container: {
     flexDirection: "row",
     flexWrap: "wrap",
+    width: "100%",
+    maxWidth: 600,
+    alignSelf: "center",
   },
   item: {
+    width: "33.333%",
+    aspectRatio: 1,
     borderWidth: 0.5,
     borderColor: "#FFF9F6",
     backgroundColor: "#EADBD6",

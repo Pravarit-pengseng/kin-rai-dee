@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Pressable,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 
 interface OtpInputBoxesProps {
@@ -19,8 +20,17 @@ export function OtpInputBoxes({
   onChangeCode,
   disabled = false,
 }: OtpInputBoxesProps) {
-  const inputRef = useRef<TextInput | null>(null);
+  const { width } = useWindowDimensions();
+  const inputRef = useRef<any>(null);
   const digits = Array.from({ length: 6 }, (_, index) => code[index] || '');
+
+  // Calculate box width dynamically so 6 boxes + 5 gaps always fit within screen width
+  const isSuperNarrow = width < 340;
+  const isNarrow = width < 380;
+  const boxGap = isSuperNarrow ? 4 : isNarrow ? 6 : 8;
+  const availableWidth = Math.min(360, width - (isSuperNarrow ? 32 : 48));
+  const boxWidth = Math.min(46, Math.max(34, Math.floor((availableWidth - 5 * boxGap) / 6)));
+  const boxHeight = Math.round(boxWidth * 1.38);
 
   // Auto-focus keyboard on mount
   useEffect(() => {
@@ -37,7 +47,7 @@ export function OtpInputBoxes({
   return (
     <Pressable
       onPress={handlePress}
-      style={styles.container}
+      style={[styles.container, { gap: boxGap }]}
       accessibilityRole="button"
       accessibilityLabel="กรอกรหัส OTP 6 หลัก"
     >
@@ -69,11 +79,12 @@ export function OtpInputBoxes({
             key={index}
             style={[
               styles.box,
+              { width: boxWidth, height: boxHeight, borderRadius: isSuperNarrow ? 12 : 16 },
               isFilled && styles.boxFilled,
               isCurrentSlot && styles.boxFocused,
             ]}
           >
-            <Text style={styles.digitText}>{digit}</Text>
+            <Text style={[styles.digitText, isSuperNarrow && { fontSize: 18 }]}>{digit}</Text>
           </View>
         );
       })}

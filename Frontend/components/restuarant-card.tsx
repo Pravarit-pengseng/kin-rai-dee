@@ -1,6 +1,5 @@
-import {  View,  Text,  Image,  StyleSheet,  TouchableOpacity,  Linking,} from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Linking, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { AppFonts } from '@/constants/theme';
 export type Restaurant = {
   id: string;
   name: string;
@@ -24,6 +23,9 @@ export function RestaurantCard({
   onPress,
   onMapPress,
 }: RestaurantCardProps) {
+  const { width } = useWindowDimensions();
+  const isNarrow = width < 360;
+
   const handleOpenMap = () => {
     if (onMapPress) {
       onMapPress();
@@ -42,7 +44,7 @@ export function RestaurantCard({
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, isNarrow && styles.cardNarrow]}
       activeOpacity={0.85}
       onPress={onPress}
     >
@@ -52,7 +54,7 @@ export function RestaurantCard({
           source={{
             uri: restaurant.image,
           }}
-          style={styles.image}
+          style={[styles.image, isNarrow && styles.imageNarrow]}
           resizeMode="cover"
         />
       ) : (
@@ -60,6 +62,7 @@ export function RestaurantCard({
           style={[
             styles.image,
             styles.imagePlaceholder,
+            isNarrow && styles.imageNarrow,
           ]}
         >
           <Text style={styles.placeholderText}>
@@ -69,11 +72,11 @@ export function RestaurantCard({
       )}
 
       {/* Restaurant Information */}
-      <View style={styles.content}>
+      <View style={[styles.content, isNarrow && styles.contentNarrow]}>
         {/* Row 1: Name + Distance */}
         <View style={styles.headerRow}>
           <Text
-            style={styles.name}
+            style={[styles.name, isNarrow && styles.nameNarrow]}
             numberOfLines={1}
           >
             {restaurant.name}
@@ -81,7 +84,7 @@ export function RestaurantCard({
 
           {restaurant.distance && (
             <View style={styles.distanceBadge}>
-              <Text style={styles.distanceText}>
+              <Text style={[styles.distanceText, isNarrow && { fontSize: 11.5 }]}>
                 {restaurant.distance}
               </Text>
             </View>
@@ -91,14 +94,14 @@ export function RestaurantCard({
         {/* Row 2: Description */}
         {restaurant.description ? (
           <Text
-            style={styles.description}
+            style={[styles.description, isNarrow && { fontSize: 12, lineHeight: 15 }]}
             numberOfLines={2}
           >
             {restaurant.description}
           </Text>
         ) : restaurant.address ? (
           <Text
-            style={styles.description}
+            style={[styles.description, isNarrow && { fontSize: 12, lineHeight: 15 }]}
             numberOfLines={2}
           >
             {restaurant.address}
@@ -107,22 +110,22 @@ export function RestaurantCard({
 
         {/* Row 3: Open Time + Map Button */}
         <View style={styles.footerRow}>
-          <Text style={styles.openTime} numberOfLines={1}>
+          <Text style={[styles.openTime, isNarrow && { fontSize: 11.5 }]} numberOfLines={1}>
             {restaurant.openTime || 'เปิดตั้งแต่ 10.00 น. - 20.00 น.'}
           </Text>
 
           <TouchableOpacity
-            style={styles.mapButton}
+            style={[styles.mapButton, isNarrow && styles.mapButtonNarrow]}
             activeOpacity={0.7}
             onPress={handleOpenMap}
           >
             <Ionicons
               name="location-sharp"
-              size={13}
+              size={isNarrow ? 11 : 13}
               color="#2563EB"
               style={styles.mapIcon}
             />
-            <Text style={styles.mapButtonText}>
+            <Text style={[styles.mapButtonText, isNarrow && { fontSize: 11 }]}>
               ดูแผนที่
             </Text>
           </TouchableOpacity>
@@ -150,14 +153,22 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-
+  cardNarrow: {
+    borderRadius: 16,
+    padding: 9,
+    marginBottom: 10,
+  },
   image: {
     width: 88,
     height: 88,
     borderRadius: 14,
     backgroundColor: '#F3F4F6',
   },
-
+  imageNarrow: {
+    width: 72,
+    height: 72,
+    borderRadius: 11,
+  },
   imagePlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -166,7 +177,7 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: 10,
     color: '#9CA3AF',
-    fontFamily: AppFonts.regular,
+    fontFamily: 'Inter_400Regular',
   },
 
   content: {
@@ -174,7 +185,9 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     justifyContent: 'space-between',
   },
-
+  contentNarrow: {
+    marginLeft: 9,
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -184,11 +197,13 @@ const styles = StyleSheet.create({
   name: {
     flex: 1,
     fontSize: 16,
-    fontFamily: AppFonts.bold,
+    fontFamily: 'Inter_700Bold',
     color: '#1C1B1F',
     marginRight: 6,
   },
-
+  nameNarrow: {
+    fontSize: 14,
+  },
   distanceBadge: {
     backgroundColor: '#F5F5F4',
     borderRadius: 6,
@@ -198,14 +213,14 @@ const styles = StyleSheet.create({
 
   distanceText: {
     fontSize: 13,
-    fontFamily: AppFonts.bold,
+    fontFamily: 'Inter_700Bold',
     color: '#44403C',
   },
 
   description: {
     fontSize: 13,
     lineHeight: 16,
-    fontFamily: AppFonts.regular,
+    fontFamily: 'Inter_400Regular',
     color: '#52525B',
     marginVertical: 3,
   },
@@ -214,13 +229,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 1,
+    flexWrap: 'wrap',
+    rowGap: 4,
+    marginTop: 2,
   },
 
   openTime: {
     flex: 1,
     fontSize: 13,
-    fontFamily: AppFonts.semiBold,
+    fontFamily: 'Inter_600SemiBold',
     color: '#059669',
     marginRight: 6,
   },
@@ -234,16 +251,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    marginTop: -5,
   },
-
+  mapButtonNarrow: {
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+  },
   mapIcon: {
     marginRight: 3,
   },
 
   mapButtonText: {
     fontSize: 12,
-    fontFamily: AppFonts.bold,
+    fontFamily: 'Inter_700Bold',
     color: '#1D4ED8',
   },
 });

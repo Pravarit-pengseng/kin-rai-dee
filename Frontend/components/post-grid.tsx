@@ -30,9 +30,6 @@ export default function PostGrid({
   onPressPost,
   onLongPressPost,
 }: PostGridProps) {
-  const { width } = useWindowDimensions();
-  const imageSize = width / 3;
-
   return (
     <View style={styles.container}>
       {posts.map((post) => (
@@ -42,13 +39,7 @@ export default function PostGrid({
           onLongPress={() =>
             onLongPressPost?.(post)
           }
-          style={[
-            styles.post,
-            {
-              width: imageSize,
-              height: imageSize,
-            },
-          ]}
+          style={styles.post}
         >
           <Image
             source={post.image}
@@ -66,9 +57,14 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     flexWrap: "wrap",
+    width: "100%",
+    maxWidth: 600,
+    alignSelf: "center",
   },
 
   post: {
+    width: "33.333%",
+    aspectRatio: 1,
     borderWidth: 0.5,
     borderColor: "#FFF9F6",
     backgroundColor: "#EADBD6",

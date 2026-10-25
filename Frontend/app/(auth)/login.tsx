@@ -23,20 +23,20 @@ import {
   formatEmail,
   AUTH_ERROR_MESSAGES,
 } from '@/utils/authValidation';
-import { AppFonts } from '@/constants/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { returnTo, from } = useLocalSearchParams<{ returnTo?: string; from?: string }>();
   const { login } = useAuth();
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   // Responsive scale factors
   const isSmallScreen = windowHeight < 720;
   const isMediumScreen = windowHeight >= 720 && windowHeight < 840;
-  const logoSize = isSmallScreen ? 100 : isMediumScreen ? 125 : 150;
+  const isSuperNarrow = windowWidth < 340;
+  const logoSize = isSuperNarrow ? 85 : isSmallScreen ? 100 : isMediumScreen ? 125 : 150;
 
   const [errors, setErrors] = useState<{
     email?: string | null;
@@ -129,7 +129,12 @@ export default function LoginScreen() {
           overScrollMode="never"
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.screenContainer}>
+          <View
+            style={[
+              styles.screenContainer,
+              isSuperNarrow && { paddingHorizontal: 12 },
+            ]}
+          >
             {/* Top Navigation Bar */}
             <View style={styles.header}>
               <Pressable
@@ -288,7 +293,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#A7392A',
     letterSpacing: 0.5,
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter_700Bold, sans-serif',
+    }),
   },
   headerRightSpacer: {
     width: 40,
@@ -314,7 +323,11 @@ const styles = StyleSheet.create({
     color: '#57423E',
     textAlign: 'center',
     marginBottom: 6,
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   mainTitleSmall: {
     fontSize: 18,
@@ -324,7 +337,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#57423E',
     textAlign: 'center',
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   subTitleSmall: {
     fontSize: 13,
@@ -357,7 +374,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#A7392A',
     fontWeight: '600',
-    fontFamily: AppFonts.semiBold,
+    fontFamily: Platform.select({
+      ios: 'Noto Sans Thai',
+      android: 'NotoSansThai_600SemiBold',
+      default: 'NotoSansThai_600SemiBold, Inter_600SemiBold, sans-serif',
+    }),
   },
   submitButton: {
     backgroundColor: '#A7392A',
@@ -386,7 +407,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   footer: {
     flexDirection: 'row',
@@ -402,12 +427,20 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     color: '#57423E',
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   footerLink: {
     fontWeight: '800',
     color: '#A7392A',
     textDecorationLine: 'underline',
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
 });

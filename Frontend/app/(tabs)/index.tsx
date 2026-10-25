@@ -13,11 +13,10 @@ import DeletePopup from "@/components/DeletePopup";
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/context/AuthContext";
 import { fetchFeedPosts, bookmarkPost, unbookmarkPost, deletePost, getSavedPosts } from "@/services/postService";
-import { AppFonts } from "@/constants/theme";
-
-
 
 export default function HomeScreen() {
+  const { width } = useWindowDimensions();
+  const isSuperNarrow = width < 340;
   const { isLoggedIn, user } = useAuth();
   const [posts, setPosts] = useState<PopupPostData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +24,7 @@ export default function HomeScreen() {
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const params = useLocalSearchParams<{ refresh?: string }>();
   const postsRef = useRef<PopupPostData[]>([]);
 
@@ -134,11 +133,8 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-
       <StatusBar style="dark" />
-      
-      <Header 
-        titleStyle={styles.headerTitle}
+      <Header
         title="KIN RAI DEE"
         leftIcon="none"
         rightIcon="search"
@@ -148,7 +144,10 @@ export default function HomeScreen() {
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isSuperNarrow && { paddingHorizontal: 10 },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -217,7 +216,14 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#FFF8F6" },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 110 },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 110,
+    maxWidth: 600,
+    width: "100%",
+    alignSelf: "center",
+  },
   titleContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -228,16 +234,9 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 22,
     lineHeight: 34,
-    fontFamily: AppFonts.bold,
+    fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: "#46302B",
-  },
-    headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#A7392A',
-    letterSpacing: 0.5,
-    fontFamily: AppFonts.bold,
   },
   postWrapper: { marginBottom: 16 },
   fab: {
@@ -264,7 +263,7 @@ const styles = StyleSheet.create({
   },
   fabText: {
     fontSize: 16,
-    fontFamily: AppFonts.bold,
+    fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: "#721209",
   },

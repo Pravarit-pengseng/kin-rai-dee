@@ -248,7 +248,10 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 14,
     paddingTop: 16,
-    paddingBottom: 40,
+    paddingBottom: 110,
+    maxWidth: 600,
+    width: "100%",
+    alignSelf: "center",
   },
 
   avatarContainer: {

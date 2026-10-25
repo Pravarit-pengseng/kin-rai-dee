@@ -5,17 +5,27 @@ import {
   Pressable,
   ScrollView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import LegalNavbar from '../components/LegalNavbar';
-import { AppFonts } from '@/constants/theme';
 
 const isWeb = Platform.OS === 'web';
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isSmallScreen = width < 480;
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/' as any);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -26,7 +36,7 @@ export default function PrivacyPolicyScreen() {
         <LegalNavbar activeTab="privacy" />
       ) : (
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+          <Pressable onPress={handleBack} style={styles.backBtn} hitSlop={12}>
             <ArrowLeft size={22} color="#1A1A1A" />
           </Pressable>
           <Text style={styles.headerTitle}>นโยบายความเป็นส่วนตัว</Text>
@@ -36,10 +46,14 @@ export default function PrivacyPolicyScreen() {
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={[styles.scrollContent, isWeb && styles.webScrollContent]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isWeb && styles.webScrollContent,
+          isSmallScreen && styles.mobileScrollContent,
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.mainTitle}>นโยบายความเป็นส่วนตัว</Text>
+        <Text style={[styles.mainTitle, isSmallScreen && styles.mobileMainTitle]}>นโยบายความเป็นส่วนตัว</Text>
         <Text style={styles.updatedDate}>อัปเดตล่าสุด 21 ตุลาคม 2569</Text>
 
         <Text style={styles.introParagraph}>
@@ -153,13 +167,23 @@ export default function PrivacyPolicyScreen() {
         {isWeb && (
           <>
             <View style={styles.footerNav}>
-              <Text style={[styles.footerLink, styles.footerLinkActive]}>นโยบายความเป็นส่วนตัว</Text>
+              <View style={styles.footerLinkPressable}>
+                <Text style={[styles.footerLink, styles.footerLinkActive]}>นโยบายความเป็นส่วนตัว</Text>
+              </View>
               <Text style={styles.footerDot}>•</Text>
-              <Pressable onPress={() => router.push('/terms-of-use' as any)}>
+              <Pressable
+                onPress={() => router.push('/terms-of-use' as any)}
+                style={({ pressed }) => [styles.footerLinkPressable, pressed && styles.btnPressed]}
+                hitSlop={8}
+              >
                 <Text style={styles.footerLink}>ข้อกำหนดการใช้งาน</Text>
               </Pressable>
               <Text style={styles.footerDot}>•</Text>
-              <Pressable onPress={() => router.push('/delete-account' as any)}>
+              <Pressable
+                onPress={() => router.push('/delete-account' as any)}
+                style={({ pressed }) => [styles.footerLinkPressable, pressed && styles.btnPressed]}
+                hitSlop={8}
+              >
                 <Text style={styles.footerLink}>คำขอลบบัญชี</Text>
               </Pressable>
             </View>
@@ -195,7 +219,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: '#1A1A1A',
-    fontFamily: AppFonts.semiBold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   headerRightSpacer: {
     width: 32,
@@ -209,6 +237,11 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 48,
   },
+  mobileScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 40,
+  },
   webScrollContent: {
     width: '100%',
     maxWidth: 960,
@@ -219,19 +252,35 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 6,
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
+  },
+  mobileMainTitle: {
+    fontSize: 21,
+    lineHeight: 28,
   },
   updatedDate: {
     fontSize: 13,
     color: '#8E8E93',
     marginBottom: 18,
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   introParagraph: {
     fontSize: 15,
     color: '#3A3A3C',
     lineHeight: 24,
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   divider: {
     height: 1,
@@ -246,19 +295,31 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 10,
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   paragraph: {
     fontSize: 15,
     color: '#3A3A3C',
     lineHeight: 24,
     marginBottom: 10,
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   boldText: {
     fontWeight: '600',
     color: '#1A1A1A',
-    fontFamily: AppFonts.semiBold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   bulletItem: {
     flexDirection: 'row',
@@ -277,12 +338,20 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     lineHeight: 22,
     color: '#3A3A3C',
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   bulletBold: {
     fontWeight: '600',
     color: '#1A1A1A',
-    fontFamily: AppFonts.semiBold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   contactCard: {
     backgroundColor: '#F7F7F8',
@@ -297,41 +366,70 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 6,
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   contactText: {
     fontSize: 13.5,
     color: '#636366',
     lineHeight: 20,
     marginBottom: 6,
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   contactEmail: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FF6B00',
-    fontFamily: AppFonts.semiBold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
+    }),
   },
   footerNav: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 36,
+    flexWrap: 'wrap',
+    marginTop: 32,
     paddingTop: 18,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
-    gap: 10,
+    rowGap: 8,
+    columnGap: 10,
+  },
+  footerLinkPressable: {
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  btnPressed: {
+    opacity: 0.6,
   },
   footerLink: {
     fontSize: 13,
     color: '#8E8E93',
     fontWeight: '500',
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
   footerLinkActive: {
     color: '#A7392A',
     fontWeight: '700',
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   footerDot: {
     fontSize: 13,
@@ -342,6 +440,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#8E8E93',
     marginTop: 14,
-    fontFamily: AppFonts.regular,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
+    }),
   },
 });

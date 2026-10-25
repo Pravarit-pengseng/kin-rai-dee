@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { X, AlertTriangle, CheckCircle2 } from 'lucide-react-native';
 import { DEFAULT_REPORT_REASONS, ReportReason, submitReport } from '@/services/safetyService';
-import { AppFonts } from '@/constants/theme';
 
 export interface ReportModalProps {
   visible: boolean;
@@ -250,7 +249,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#57423E',
-    fontFamily: AppFonts.bold,
+    fontFamily: Platform.select({
+      ios: 'Inter',
+      android: 'Inter_700Bold',
+      default: 'Inter, sans-serif',
+    }),
   },
   closeBtn: {
     padding: 4,

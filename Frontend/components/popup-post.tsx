@@ -34,7 +34,6 @@ import ReportModal from "@/components/ReportModal";
 
 import PostDropdown from "./post-dropdown";
 import { ThemedText } from "@/components/themed-text";
-import { AppFonts } from "@/constants/theme";
 
 function formatBreakableText(text?: string): string {
   if (!text) return "";
@@ -1011,7 +1010,7 @@ const styles = StyleSheet.create({
 
   userName: {
     fontSize: 14,
-    fontFamily: AppFonts.bold,
+    fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: "#4B3500",
     lineHeight: 20,
@@ -1057,7 +1056,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     lineHeight: 28,
-    fontFamily: AppFonts.bold,
+    fontFamily: "Inter_700Bold",
     fontWeight: "900",
     color: "#4B3500",
     marginBottom: 6,
@@ -1090,7 +1089,7 @@ const styles = StyleSheet.create({
 
   readMoreText: {
     fontSize: 14,
-    fontFamily: AppFonts.semiBold,
+    fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
     color: "#8B5A2B",
   },
@@ -1212,7 +1211,7 @@ const styles = StyleSheet.create({
 
   sheetTitle: {
     fontSize: 16,
-    fontFamily: AppFonts.bold,
+    fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: "#241917",
     textAlign: "center",
@@ -1249,7 +1248,7 @@ const styles = StyleSheet.create({
 
   emptyCommentsText: {
     fontSize: 14,
-    fontFamily: AppFonts.regular,
+    fontFamily: "Inter_400Regular",
     color: "#8C7B75",
     textAlign: "center",
   },
@@ -1292,7 +1291,7 @@ const styles = StyleSheet.create({
 
   commentUsername: {
     fontSize: 14,
-    fontFamily: AppFonts.bold,
+    fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: "#241917",
     marginBottom: 2,
@@ -1300,7 +1299,7 @@ const styles = StyleSheet.create({
 
   commentText: {
     fontSize: 13.5,
-    fontFamily: AppFonts.regular,
+    fontFamily: "Inter_400Regular",
     color: "#4B3500",
     lineHeight: 20,
   },
@@ -1345,7 +1344,7 @@ const styles = StyleSheet.create({
   commentTextInput: {
     flex: 1,
     fontSize: 13.5,
-    fontFamily: AppFonts.regular,
+    fontFamily: "Inter_400Regular",
     color: "#241917",
     paddingVertical: 0,
   },
@@ -1357,7 +1356,7 @@ const styles = StyleSheet.create({
 
   postCommentText: {
     fontSize: 14,
-    fontFamily: AppFonts.bold,
+    fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: "#8A3E2D",
   },
@@ -1391,7 +1390,7 @@ const styles = StyleSheet.create({
   blockSuccessText: {
     textAlign: "center",
     fontSize: 18,
-    fontFamily: AppFonts.bold,
+    fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: "#1C1B1F",
   },

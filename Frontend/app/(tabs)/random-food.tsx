@@ -7,6 +7,7 @@ import {
   Image,
   ActivityIndicator,
   Linking,
+  useWindowDimensions,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,9 +26,14 @@ import {
 import { FOOD_CATEGORIES, FoodCategory } from '@/constants/categories';
 import { FOOD_LIST, FoodItem } from '@/constants/foodData';
 import { fetchNearbyRestaurants } from '@/services/restaurantService';
-import { AppFonts } from '@/constants/theme';
 
 export default function RandomFoodScreen() {
+  const { width } = useWindowDimensions();
+  const isSuperNarrow = width < 340; // e.g. 300px width
+  const isNarrow = width < 380; // e.g. 360px (realme 9 pro+)
+  const logoSize = Math.min(230, Math.max(140, width - (isSuperNarrow ? 60 : isNarrow ? 76 : 96)));
+  const foodImageHeight = isSuperNarrow ? 170 : isNarrow ? 200 : 230;
+
   const [categories] = useState<FoodCategory[]>(FOOD_CATEGORIES);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [hasRandomized, setHasRandomized] = useState(false);
@@ -95,8 +101,8 @@ export default function RandomFoodScreen() {
     const pool =
       selectedCategories.length > 0
         ? FOOD_LIST.filter((item) =>
-          selectedCategories.includes(String(item.categoryId))
-        )
+            selectedCategories.includes(String(item.categoryId))
+          )
         : FOOD_LIST;
 
     if (pool.length === 0) return;
@@ -149,21 +155,38 @@ export default function RandomFoodScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
 
-      <Header
-        titleStyle={styles.headerTitle}
-        title="KIN RAI DEE"
-        leftIcon="none"
-        rightIcon="search"
-        onSearchPress={() => router.push('/(tabs)/search?from=/')}
-      />
+      <Header onSearchPress={handleSearch} />
 
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[
+          styles.container,
+          {
+            paddingHorizontal: isSuperNarrow ? 12 : isNarrow ? 16 : 20,
+            maxWidth: 560,
+            width: '100%',
+            alignSelf: 'center',
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Title */}
-        <Text style={styles.mainTitle}>วันนี้กินอะไรดี?</Text>
-        <Text style={styles.subTitle}>คิดไม่ออกใช่ไหม? ให้เราช่วยเลือก!</Text>
+        <Text
+          style={[
+            styles.mainTitle,
+            isSuperNarrow && { fontSize: 20 },
+            isNarrow && !isSuperNarrow && { fontSize: 22 },
+          ]}
+        >
+          วันนี้กินอะไรดี?
+        </Text>
+        <Text
+          style={[
+            styles.subTitle,
+            isSuperNarrow && { fontSize: 12.5, marginBottom: 14 },
+          ]}
+        >
+          คิดไม่ออกใช่ไหม? ให้เราช่วยเลือก!
+        </Text>
 
         {/* Food Category */}
         <MultiSelectDropdown
@@ -174,41 +197,57 @@ export default function RandomFoodScreen() {
         />
 
         {/* Random Food Result */}
-        <View style={styles.resultCard}>
+        <View
+          style={[
+            styles.resultCard,
+            isSuperNarrow && { padding: 14, borderRadius: 18 },
+            isNarrow && !isSuperNarrow && { padding: 18, borderRadius: 20 },
+          ]}
+        >
           {(!hasRandomized && !isRandomizing) || !randomFood ? (
             <Image
               source={require('@/assets/images/kinraidee-logo.png')}
-              style={styles.logoImage}
+              style={{ width: logoSize, height: logoSize }}
               resizeMode="contain"
             />
           ) : (
             <View style={styles.foodContainer}>
               <Image
                 source={randomFood.image}
-                style={styles.foodImage}
+                style={[styles.foodImage, { height: foodImageHeight }]}
                 resizeMode="contain"
               />
+              <Text
+                style={[
+                  styles.foodTitle,
+                  isSuperNarrow && { fontSize: 17, marginTop: 8 },
+                ]}
+                numberOfLines={1}
+              >
+                {randomFood.name}
+              </Text>
             </View>
           )}
-          {/* Random Button */}
-          <View style={styles.randomButtonContainer}>
-            {!hasRandomized ? (
-              <RandomButton
-                onPress={handleRandomize}
-                title="สุ่มอาหาร"
-                iconName="dice"
-                paddingVertical={12}
-                disabled={isRandomizing}
-              />
-            ) : (
-              <RandomButton
-                onPress={handleRandomize}
-                variant="rerandom"
-                paddingVertical={12}
-                disabled={isRandomizing}
-              />
-            )}
-          </View>
+        </View>
+
+        {/* Random Button */}
+        <View style={styles.randomButtonContainer}>
+          {!hasRandomized ? (
+            <RandomButton
+              onPress={handleRandomize}
+              title="สุ่มอาหาร"
+              iconName="dice"
+              paddingVertical={isSuperNarrow ? 10 : 12}
+              disabled={isRandomizing}
+            />
+          ) : (
+            <RandomButton
+              onPress={handleRandomize}
+              variant="rerandom"
+              paddingVertical={isSuperNarrow ? 10 : 12}
+              disabled={isRandomizing}
+            />
+          )}
         </View>
 
         {/* Nearby Restaurants */}
@@ -270,13 +309,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFF8F6',
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#A7392A',
-    letterSpacing: 0.5,
-    fontFamily: AppFonts.bold,
-  },
   container: {
     paddingHorizontal: 20,
     paddingTop: 8,
@@ -284,16 +316,14 @@ const styles = StyleSheet.create({
   },
   mainTitle: {
     fontSize: 24,
-    fontFamily: AppFonts.bold,
+    fontFamily: 'Inter_700Bold',
     color: '#241917',
     textAlign: 'center',
     marginBottom: 8,
-    fontWeight: 'bold',
-    paddingTop: 15,
   },
   subTitle: {
     fontSize: 14,
-    fontFamily: AppFonts.regular,
+    fontFamily: 'Inter_400Regular',
     color: '#57423E',
     textAlign: 'center',
     marginBottom: 24,
@@ -329,14 +359,14 @@ const styles = StyleSheet.create({
   },
   foodTitle: {
     fontSize: 20,
-    fontFamily: AppFonts.bold,
+    fontFamily: 'Inter_700Bold',
     color: '#46302B',
     marginTop: 12,
     textAlign: 'center',
   },
   randomButtonContainer: {
     width: '100%',
-    marginBottom: 0,
+    marginBottom: 16,
   },
   restaurantSection: {
     marginTop: 16,
@@ -349,12 +379,12 @@ const styles = StyleSheet.create({
   },
   restaurantTitle: {
     fontSize: 17,
-    fontFamily: AppFonts.bold,
+    fontFamily: 'Inter_700Bold',
     color: '#241917',
   },
   restaurantSubtitle: {
     fontSize: 11,
-    fontFamily: AppFonts.regular,
+    fontFamily: 'Inter_400Regular',
     color: '#8A7772',
     marginLeft: 5,
   },
@@ -369,7 +399,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 8,
     fontSize: 11,
-    fontFamily: AppFonts.regular,
+    fontFamily: 'Inter_400Regular',
     color: '#75625E',
   },
   locationWarning: {
@@ -381,7 +411,7 @@ const styles = StyleSheet.create({
   locationWarningText: {
     fontSize: 11,
     textAlign: 'center',
-    fontFamily: AppFonts.regular,
+    fontFamily: 'Inter_400Regular',
     color: '#8A7772',
   },
   emptyContainer: {
@@ -395,7 +425,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 13,
-    fontFamily: AppFonts.regular,
+    fontFamily: 'Inter_400Regular',
     color: '#8A7772',
   },
-});
+});

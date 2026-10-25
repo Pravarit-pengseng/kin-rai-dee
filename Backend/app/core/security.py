@@ -37,6 +37,21 @@ def get_current_user(
             detail="Invalid or expired access token",
         )
 
+    # Check if user is suspended in profiles
+    try:
+        prof_res = supabase.table("profiles").select("is_suspended").eq("id", user.id).execute()
+        if prof_res.data and len(prof_res.data) > 0:
+            if prof_res.data[0].get("is_suspended"):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="บัญชีของคุณถูกระงับการใช้งาน หากคิดว่าเป็นข้อผิดพลาด สามารถติดต่อฝ่ายสนับสนุนได้ที่ phatsachon25488@gmail.com",
+                )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.warning(f"Error checking user suspension in get_current_user: {e}")
+
     return {
         "id": user.id,
         "email": user.email,

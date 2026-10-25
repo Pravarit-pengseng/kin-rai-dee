@@ -174,9 +174,11 @@ export const adminApi = {
   },
 
   // 4. Comments Management
-  getComments: (params?: { post_id?: number; limit?: number; offset?: number }) => {
+  getComments: (params?: { post_id?: number; search?: string; status?: string; limit?: number; offset?: number }) => {
     const q = new URLSearchParams();
     if (params?.post_id) q.set('post_id', String(params.post_id));
+    if (params?.search) q.set('search', params.search);
+    if (params?.status) q.set('status', params.status);
     if (params?.limit) q.set('limit', String(params.limit));
     if (params?.offset) q.set('offset', String(params.offset));
 

@@ -79,7 +79,9 @@ export default function LoginScreen() {
       const { error } = await login(formattedEmail, password);
       if (error) {
         // Map Supabase error messages to user-facing messages
-        if (error.toLowerCase().includes('invalid') || error.toLowerCase().includes('credentials')) {
+        if (error.includes('ระงับ') || error.toLowerCase().includes('suspend')) {
+          setGeneralError(error);
+        } else if (error.toLowerCase().includes('invalid') || error.toLowerCase().includes('credentials')) {
           setGeneralError(AUTH_ERROR_MESSAGES.INVALID_CREDENTIALS);
         } else if (error.toLowerCase().includes('too many')) {
           setGeneralError(AUTH_ERROR_MESSAGES.TOO_MANY_ATTEMPTS);

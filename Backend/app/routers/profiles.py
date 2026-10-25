@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from app.db import supabase
 from app.core.security import get_current_user
-from app.routers.posts import attach_profiles_to_posts, normalize_avatar_url
+from app.routers.posts import attach_profiles_to_posts, normalize_avatar_url, to_records
 
 router = APIRouter(prefix="/api/profiles", tags=["Profiles"])
 
@@ -133,10 +133,11 @@ def get_user_posts(user_id: str):
             supabase.table("posts")
             .select("*, post_categories(categories(id, name))")
             .eq("user_id", user_id)
+            .or_("is_hidden.is.null,is_hidden.eq.false")
             .order("created_at", desc=True)
             .execute()
         )
-        posts = response.data or []
+        posts = [p for p in to_records(response.data) if not p.get("is_hidden")]
         return attach_profiles_to_posts(posts)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

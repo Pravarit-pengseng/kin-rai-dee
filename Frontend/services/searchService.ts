@@ -22,18 +22,20 @@ export async function searchPosts(query: string): Promise<PopupPostData[]> {
   }
 
   if (data && Array.isArray(data) && data.length > 0) {
-    result = data.map(mapPostToPopup);
+    result = data.filter((p: any) => !p.is_hidden).map(mapPostToPopup);
   } else {
     // Supabase fallback
     try {
       const { data: posts, error } = await supabase
         .from('posts')
         .select('*, post_categories(categories(id, name))')
+        .or('is_hidden.is.null,is_hidden.eq.false')
         .ilike('food_name', `%${query}%`)
         .order('created_at', { ascending: false });
 
       if (!error && posts && posts.length > 0) {
-        const populated = await attachProfilesToPosts(posts);
+        const nonHidden = posts.filter((p: any) => !p.is_hidden);
+        const populated = await attachProfilesToPosts(nonHidden);
         result = populated.map(mapPostToPopup);
       }
     } catch (e) {

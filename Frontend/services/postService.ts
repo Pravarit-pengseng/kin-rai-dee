@@ -111,18 +111,22 @@ export async function fetchFeedPosts(
   );
 
   if (data && data.length > 0) {
-    posts = data.map(mapPostToPopup);
+    posts = data
+      .filter((p: any) => !p.is_hidden)
+      .map(mapPostToPopup);
   } else {
     // Supabase fallback
     try {
       const { data: supaData } = await supabase
         .from('posts')
         .select('*, post_categories(categories(id, name))')
+        .or('is_hidden.is.null,is_hidden.eq.false')
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (supaData && supaData.length > 0) {
-        const populated = await attachProfilesToPosts(supaData);
+        const nonHidden = supaData.filter((p: any) => !p.is_hidden);
+        const populated = await attachProfilesToPosts(nonHidden);
         posts = populated.map(mapPostToPopup);
       }
     } catch (e) {
@@ -158,6 +162,7 @@ export async function getPostDetail(
   );
 
   if (data) {
+    if (data.is_hidden) return null;
     return mapPostToPopup(data);
   }
 
@@ -167,9 +172,10 @@ export async function getPostDetail(
       .from('posts')
       .select('*, post_categories(categories(id, name))')
       .eq('id', postId)
+      .or('is_hidden.is.null,is_hidden.eq.false')
       .maybeSingle();
 
-    if (supaData) {
+    if (supaData && !supaData.is_hidden) {
       const [populated] = await attachProfilesToPosts([supaData]);
       return mapPostToPopup(populated);
     }
@@ -581,6 +587,7 @@ export async function getPostComments(postId: string | number): Promise<CommentD
         .from('comments')
         .select('*, profiles(id, username, display_name, avatar_url)')
         .eq('post_id', postId)
+        .or('is_hidden.is.null,is_hidden.eq.false')
         .order('created_at', { ascending: true });
 
       if (supaComments && supaComments.length > 0) {
@@ -590,6 +597,9 @@ export async function getPostComments(postId: string | number): Promise<CommentD
   } catch (error) {
     console.warn(`Error fetching comments for post ${postId}:`, error);
   }
+
+  // กรองคอมเมนต์ที่ถูกซ่อนโดยแอดมินออก
+  comments = comments.filter((c: any) => !c.is_hidden);
 
   // ซ่อนคอมเมนต์จากผู้ใช้ที่ถูกบล็อก
   try {

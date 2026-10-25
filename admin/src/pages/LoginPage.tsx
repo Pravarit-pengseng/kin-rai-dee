@@ -103,6 +103,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onShowToas
 
       const user = data.user;
 
+      // Check if profile is suspended
+      const { data: profileRecord } = await supabase
+        .from('profiles')
+        .select('is_suspended')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profileRecord?.is_suspended) {
+        await supabase.auth.signOut();
+        setErrorMsg('บัญชีของคุณถูกระงับการใช้งาน หากคิดว่าเป็นข้อผิดพลาด สามารถติดต่อฝ่ายสนับสนุนได้ที่ phatsachon25488@gmail.com');
+        onShowToast('บัญชีของคุณถูกระงับการใช้งาน', 'error');
+        return;
+      }
+
       // 2. Strict condition check: User MUST exist in public.admins table and be active
       const { data: adminRecord } = await supabase
         .from('admins')

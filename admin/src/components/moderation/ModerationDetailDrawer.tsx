@@ -15,6 +15,7 @@ import { ModerationReport, ModerationActionType, ReasonCode } from '../../types/
 import { Badge } from '../common/Badge';
 import { COMMUNITY_RULES, moderationService } from '../../services/moderationService';
 import { adminApi } from '../../services/adminApi';
+import { supabase } from '../../services/supabaseClient';
 import { ConfirmActionModal } from './ConfirmActionModal';
 
 interface ModerationDetailDrawerProps {
@@ -47,6 +48,7 @@ export const ModerationDetailDrawer: React.FC<ModerationDetailDrawerProps> = ({
   };
 
   const commitAction = async (actionType: ModerationActionType) => {
+    let apiSuccess = false;
     try {
       const match = String(report.id).match(/\d+/);
       if (match) {
@@ -58,9 +60,61 @@ export const ModerationDetailDrawer: React.FC<ModerationDetailDrawerProps> = ({
           moderator_id: 'admin',
           moderator_name: 'ผู้ดูแลระบบ',
         });
+        apiSuccess = true;
       }
     } catch (err) {
-      console.warn('adminApi applyReportDecision error, applying locally:', err);
+      console.warn('adminApi applyReportDecision error, applying fallback:', err);
+    }
+
+    if (!apiSuccess) {
+      try {
+        const tId = Number(report.targetId);
+        if (actionType === 'hide') {
+          if (report.targetType === 'post' && tId) {
+            await supabase.from('posts').update({ is_hidden: true }).eq('id', tId);
+          } else if (report.targetType === 'comment' && tId) {
+            await supabase.from('comments').update({ is_hidden: true }).eq('id', tId);
+          }
+        } else if (actionType === 'remove') {
+          if (report.targetType === 'post' && tId) {
+            await supabase.from('post_categories').delete().eq('post_id', tId);
+            await supabase.from('saved_posts').delete().eq('post_id', tId);
+            await supabase.from('comments').delete().eq('post_id', tId);
+            await supabase.from('posts').delete().eq('id', tId);
+          } else if (report.targetType === 'comment' && tId) {
+            await supabase.from('comments').delete().eq('id', tId);
+          }
+        } else if (actionType === 'restrict') {
+          if (content.author?.id && content.author.id !== 'unknown') {
+            await supabase.from('profiles').update({ is_suspended: true }).eq('id', content.author.id);
+          }
+          if (report.targetType === 'post' && tId) {
+            await supabase.from('posts').update({ is_hidden: true }).eq('id', tId);
+          } else if (report.targetType === 'comment' && tId) {
+            await supabase.from('comments').update({ is_hidden: true }).eq('id', tId);
+          }
+        }
+
+        const rawReportId = parseInt(String(report.id).replace(/\D/g, ''), 10);
+        if (rawReportId) {
+          const newStatus = actionType === 'keep' ? 'dismissed' : 'action_taken';
+          await supabase.from('reports').update({
+            status: newStatus,
+            resolved_at: new Date().toISOString(),
+          }).eq('id', rawReportId);
+        }
+
+        await supabase.from('audit_logs').insert({
+          actor_id: 'admin',
+          actor_name: 'ผู้ดูแลระบบ',
+          event_type: `MODERATION_${actionType.toUpperCase()}`,
+          target_type: report.targetType,
+          target_id: String(report.targetId),
+          metadata: { report_id: report.id, action: actionType, note: `ดำเนินการ ${actionType} โดยผู้ดูแลระบบ` },
+        });
+      } catch (fallbackErr) {
+        console.warn('Direct supabase fallback error:', fallbackErr);
+      }
     }
 
     const res = moderationService.applyDecision({

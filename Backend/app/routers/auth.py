@@ -37,6 +37,27 @@ def login(data: LoginRequest):
             detail="Login failed",
         )
 
+    # Check is_suspended in profiles
+    try:
+        from app.db.supabase import supabase
+        if supabase:
+            prof_res = supabase.table("profiles").select("is_suspended").eq("id", response.user.id).execute()
+            if prof_res.data and len(prof_res.data) > 0:
+                if prof_res.data[0].get("is_suspended"):
+                    try:
+                        supabase_auth.auth.sign_out()
+                    except Exception:
+                        pass
+                    raise HTTPException(
+                        status_code=403,
+                        detail="บัญชีของคุณถูกระงับการใช้งาน หากคิดว่าเป็นข้อผิดพลาด สามารถติดต่อฝ่ายสนับสนุนได้ที่ phatsachon25488@gmail.com",
+                    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.warning(f"Error checking user suspension during login: {e}")
+
     return {
         "success": True,
         "access_token": response.session.access_token,

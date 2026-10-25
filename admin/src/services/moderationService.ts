@@ -1,4 +1,5 @@
 import { adminApi, AdminStats } from './adminApi';
+import { supabase } from './supabaseClient';
 import {
   ModerationReport,
   ModerationDecision,
@@ -65,11 +66,60 @@ class ModerationService {
         reportCount: this.reportsCache.length,
       };
     } catch (err) {
-      console.error('Failed to initialize moderation data from backend API:', err);
-      this.reportsCache = [];
-      this.auditLogsCache = [];
-      this.hasInitialized = true;
-      return { isLive: false, reportCount: 0 };
+      console.warn('Failed to initialize moderation data from backend API, falling back to direct Supabase:', err);
+      try {
+        const [repRes, profRes, auditRes] = await Promise.all([
+          supabase.from('reports').select('*').order('created_at', { ascending: false }).limit(100),
+          supabase.from('profiles').select('*', { count: 'exact', head: true }),
+          supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        ]);
+
+        const rawReports = repRes.data || [];
+        const postIds = rawReports.filter(r => r.target_type === 'post').map(r => Number(r.target_id)).filter(Boolean);
+        const commentIds = rawReports.filter(r => r.target_type === 'comment').map(r => Number(r.target_id)).filter(Boolean);
+
+        let postsMap: Record<number, any> = {};
+        let commentsMap: Record<number, any> = {};
+
+        if (postIds.length > 0) {
+          const { data: pData } = await supabase.from('posts').select('*').in('id', postIds);
+          (pData || []).forEach(p => { postsMap[p.id] = p; });
+        }
+        if (commentIds.length > 0) {
+          const { data: cData } = await supabase.from('comments').select('*').in('id', commentIds);
+          (cData || []).forEach(c => { commentsMap[c.id] = c; });
+        }
+
+        const enrichedReports = rawReports.map(r => {
+          let tc = null;
+          if (r.target_type === 'post') tc = postsMap[Number(r.target_id)];
+          else if (r.target_type === 'comment') tc = commentsMap[Number(r.target_id)];
+          return { ...r, target_content: tc };
+        });
+
+        this.reportsCache = this.mapLiveReports(enrichedReports);
+        this.userCount = profRes.count || 5;
+        this.auditLogsCache = (auditRes.data || []).map((l: any) => ({
+          id: String(l.id),
+          timestamp: l.created_at,
+          actorId: String(l.actor_id || 'admin'),
+          actorName: l.actor_name || 'ผู้ดูแลระบบ',
+          actionType: l.event_type || 'MODERATION',
+          targetType: l.target_type || 'content',
+          targetId: String(l.target_id || ''),
+          reasonCode: l.metadata?.action || 'MODERATION',
+          note: l.metadata?.note || '',
+        }));
+        this.isLiveConnected = true;
+        this.hasInitialized = true;
+        return { isLive: true, reportCount: this.reportsCache.length };
+      } catch (fallbackErr) {
+        console.error('Supabase fallback error in initialize:', fallbackErr);
+        this.reportsCache = [];
+        this.auditLogsCache = [];
+        this.hasInitialized = true;
+        return { isLive: false, reportCount: 0 };
+      }
     }
   }
 
@@ -240,10 +290,18 @@ class ModerationService {
       const match = reportId.match(/\d+/);
       if (match) {
         const numId = parseInt(match[0], 10);
-        await adminApi.assignReport(numId, {
-          moderator_id: moderatorId || undefined,
-          moderator_name: moderatorId ? 'ผู้ดูแลระบบ' : undefined,
-        });
+        try {
+          await adminApi.assignReport(numId, {
+            moderator_id: moderatorId || undefined,
+            moderator_name: moderatorId ? 'ผู้ดูแลระบบ' : undefined,
+          });
+        } catch (apiErr) {
+          console.warn('API assignReport failed, falling back to direct Supabase:', apiErr);
+          await supabase.from('reports').update({
+            assigned_to: moderatorId,
+            status: moderatorId ? 'in_review' : 'pending',
+          }).eq('id', numId);
+        }
       }
     } catch (e) {
       console.warn('API assignReport warning:', e);

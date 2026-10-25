@@ -82,7 +82,7 @@ def log_audit_event(
             "actor_name": actor_name or "ผู้ดูแลระบบ",
             "event_type": event_type,
             "target_type": target_type,
-            "target_id": int(target_id) if str(target_id).isdigit() else 0,
+            "target_id": str(target_id) if target_id is not None else "0",
             "metadata": metadata or {},
         }).execute()
     except Exception as e:
@@ -313,7 +313,7 @@ def apply_report_decision(report_id: int, payload: DecisionPayload):
         try:
             supabase.table("moderation_actions").insert({
                 "target_type": target_type,
-                "target_id": int(target_id) if str(target_id).isdigit() else 0,
+                "target_id": str(target_id) if target_id is not None else "0",
                 "action_type": action,
                 "reason_code": payload.reason_code,
                 "internal_note": payload.internal_note or f"คำตัดสิน {action}",
@@ -431,10 +431,12 @@ def delete_post_as_admin(
 @router.get("/comments")
 def get_admin_comments(
     post_id: Optional[int] = None,
-    limit: int = 50,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 100,
     offset: int = 0,
 ):
-    """Fetch comments for admin review."""
+    """Fetch comments for admin review with post and author enrichment."""
     if not supabase:
         return {"success": True, "data": []}
 
@@ -442,20 +444,49 @@ def get_admin_comments(
         query = supabase.table("comments").select("*")
         if post_id:
             query = query.eq("post_id", post_id)
+        if status == "hidden":
+            query = query.eq("is_hidden", True)
+        elif status == "published":
+            query = query.eq("is_hidden", False)
 
         resp = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
         comments = to_records(resp.data)
 
-        # Enrich profiles
+        # Enrich profiles and post details
         if comments:
             user_ids = list(set([c["user_id"] for c in comments if c.get("user_id")]))
             if user_ids:
-                prof_resp = supabase.table("profiles").select("id, username, display_name, avatar_url").in_("id", user_ids).execute()
-                prof_map = {p["id"]: p for p in to_records(prof_resp.data)}
-                for c in comments:
-                    uid = c.get("user_id")
-                    p_profiles = prof_map.get(uid, {"username": "user", "display_name": "ผู้ใช้งาน"})
-                    c["profiles"] = p_profiles
+                try:
+                    prof_resp = supabase.table("profiles").select("id, username, display_name, avatar_url").in_("id", user_ids).execute()
+                    prof_map = {p["id"]: p for p in to_records(prof_resp.data)}
+                    for c in comments:
+                        uid = c.get("user_id")
+                        c["profiles"] = prof_map.get(uid, {"username": "user", "display_name": "ผู้ใช้งาน"})
+                except Exception as p_err:
+                    print("Error enriching profiles:", p_err)
+
+            post_ids = list(set([c["post_id"] for c in comments if c.get("post_id")]))
+            if post_ids:
+                try:
+                    post_resp = supabase.table("posts").select("id, food_name, image_url").in_("id", post_ids).execute()
+                    post_map = {p["id"]: p for p in to_records(post_resp.data)}
+                    for c in comments:
+                        pid = c.get("post_id")
+                        c["post"] = post_map.get(pid, {"id": pid, "food_name": f"โพสต์ #{pid}"})
+                except Exception as post_err:
+                    print("Error enriching posts:", post_err)
+
+        if search:
+            q = search.strip().lower()
+            comments = [
+                c for c in comments
+                if q in str(c.get("id", "")).lower()
+                or q in str(c.get("content", "")).lower()
+                or q in str(c.get("post_id", "")).lower()
+                or q in str(c.get("post", {}).get("food_name", "")).lower()
+                or q in str(c.get("profiles", {}).get("username", "")).lower()
+                or q in str(c.get("profiles", {}).get("display_name", "")).lower()
+            ]
 
         return {"success": True, "data": comments}
     except Exception as e:
@@ -559,13 +590,32 @@ def toggle_user_status(user_id: str, payload: UserStatusPayload):
         is_suspended = payload.status == "suspended"
         supabase.table("profiles").update({"is_suspended": is_suspended}).eq("id", user_id).execute()
 
+        # Enrich metadata with human-readable user details
+        u_name = "ผู้ใช้"
+        u_handle = ""
+        try:
+            p_res = supabase.table("profiles").select("username, display_name").eq("id", user_id).limit(1).execute()
+            p_records = to_records(p_res.data)
+            if p_records:
+                u_handle = p_records[0].get("username") or ""
+                u_name = p_records[0].get("display_name") or u_handle or "ผู้ใช้"
+        except Exception:
+            pass
+
         log_audit_event(
             actor_id=payload.moderator_id,
             actor_name=payload.moderator_name,
             event_type="SUSPEND_USER" if is_suspended else "ACTIVATE_USER",
             target_type="user",
             target_id=user_id,
-            metadata={"status": payload.status, "reason": payload.reason},
+            metadata={
+                "status": payload.status,
+                "reason": payload.reason,
+                "user_id": user_id,
+                "username": u_handle,
+                "display_name": u_name,
+                "user_name": u_name,
+            },
         )
 
         msg = "ระงับบัญชีผู้ใช้เรียบร้อยแล้ว" if is_suspended else "ปลดการระงับบัญชีเรียบร้อยแล้ว"
@@ -578,7 +628,7 @@ def toggle_user_status(user_id: str, payload: UserStatusPayload):
 
 @router.get("/audit-logs")
 def get_audit_logs(limit: int = 100, offset: int = 0):
-    """Fetch recent admin audit logs."""
+    """Fetch recent admin audit logs with target enrichment."""
     if not supabase:
         return {"success": True, "data": []}
 
@@ -586,20 +636,56 @@ def get_audit_logs(limit: int = 100, offset: int = 0):
         resp = supabase.table("audit_logs").select("*").order("created_at", desc=True).range(offset, offset + limit - 1).execute()
         logs = to_records(resp.data)
 
+        # Enrich user targets
+        user_ids = list(set([
+            str(l.get("target_id"))
+            for l in logs
+            if l.get("target_type") == "user" and l.get("target_id") and str(l.get("target_id")) != "0"
+        ]))
+        user_map = {}
+        if user_ids:
+            try:
+                p_resp = supabase.table("profiles").select("id, username, display_name").in_("id", user_ids).execute()
+                for p in to_records(p_resp.data):
+                    user_map[str(p.get("id"))] = p
+            except Exception as pe:
+                print("Enrich audit user error:", pe)
+
         # Convert to admin dashboard friendly structure
         formatted_logs = []
         for l in logs:
+            t_id = str(l.get("target_id") or "")
+            t_type = l.get("target_type")
+            meta = l.get("metadata") or {}
+
+            # Fallback if t_id was "0" but user_id was stored in metadata
+            if t_type == "user" and (t_id == "0" or not t_id) and meta.get("user_id"):
+                t_id = str(meta.get("user_id"))
+
+            target_display = None
+            if t_type == "user":
+                u_info = user_map.get(t_id, {})
+                display_name = u_info.get("display_name") or meta.get("display_name") or meta.get("user_name")
+                username = u_info.get("username") or meta.get("username")
+                if username and display_name:
+                    target_display = f"{display_name} (@{username})"
+                elif username:
+                    target_display = f"@{username}"
+                elif display_name:
+                    target_display = str(display_name)
+
             formatted_logs.append({
                 "id": str(l.get("id")),
                 "timestamp": l.get("created_at"),
                 "actorId": str(l.get("actor_id") or "admin"),
                 "actorName": l.get("actor_name") or "ผู้ดูแลระบบ",
                 "actionType": l.get("event_type"),
-                "targetType": l.get("target_type"),
-                "targetId": str(l.get("target_id")),
-                "reasonCode": l.get("metadata", {}).get("action") or "MODERATION",
-                "note": l.get("metadata", {}).get("note") or f"{l.get('event_type')} on {l.get('target_type')}",
-                "metadata": l.get("metadata", {}),
+                "targetType": t_type,
+                "targetId": t_id,
+                "targetName": target_display,
+                "reasonCode": meta.get("action") or meta.get("reason") or "MODERATION",
+                "note": meta.get("note") or f"{l.get('event_type')} on {t_type}",
+                "metadata": meta,
             })
 
         return {"success": True, "data": formatted_logs}

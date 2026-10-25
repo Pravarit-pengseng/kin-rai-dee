@@ -9,10 +9,14 @@ import {
   X, 
   User, 
   ArrowRight,
-  Layers
+  Layers,
+  Copy,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  Filter
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
-import { moderationService } from '../services/moderationService';
 import { adminApi } from '../services/adminApi';
 
 interface PostsPageProps {
@@ -29,6 +33,15 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'hidden'>('all');
+  const [filterPostId, setFilterPostId] = useState<string>('');
+
+  // Pagination for posts
+  const [postPage, setPostPage] = useState(1);
+  const [postPageSize, setPostPageSize] = useState(15);
+
+  // Pagination for comments
+  const [commentPage, setCommentPage] = useState(1);
+  const [commentPageSize, setCommentPageSize] = useState(15);
 
   // Selected post for drawer view (showing post + its full comment thread)
   const [selectedPost, setSelectedPost] = useState<any | null>(null);
@@ -37,8 +50,8 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
     setLoading(true);
     try {
       const [postsRes, commentsRes] = await Promise.all([
-        adminApi.getPosts({ limit: 100 }),
-        adminApi.getComments({ limit: 100 })
+        adminApi.getPosts({ limit: 300 }),
+        adminApi.getComments({ limit: 500 })
       ]);
 
       const loadedPosts = (postsRes.data || []).map((p: any) => ({
@@ -70,9 +83,9 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
       console.error('API fetch failed, falling back to Supabase client directly:', e);
       try {
         const [postsRes, commentsRes, profilesRes] = await Promise.all([
-          supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(50),
-          supabase.from('comments').select('*').order('created_at', { ascending: false }),
-          supabase.from('profiles').select('*').limit(50)
+          supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(200),
+          supabase.from('comments').select('*').order('created_at', { ascending: false }).limit(500),
+          supabase.from('profiles').select('*').limit(200)
         ]);
         setPosts((postsRes.data || []).map((p: any) => ({ ...p, _hidden: p.is_hidden ?? false })));
         setAllComments((commentsRes.data || []).map((c: any) => ({ ...c, _hidden: c.is_hidden ?? false })));
@@ -93,6 +106,12 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
     fetchData();
   }, []);
 
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setPostPage(1);
+    setCommentPage(1);
+  }, [search, statusFilter, filterPostId, activeSubTab]);
+
   // Compute comment counts map
   const commentCountsMap: Record<number, number> = {};
   allComments.forEach(c => {
@@ -101,11 +120,22 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
     }
   });
 
+  const handleCopy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    onShowToast(`คัดลอก ${label} #${text} เรียบร้อยแล้ว`, 'info');
+  };
+
   // Post Actions
   const handleToggleHidePost = async (postId: number, currentHidden: boolean) => {
     const nextHidden = !currentHidden;
     try {
-      await adminApi.setPostVisibility(postId, nextHidden);
+      try {
+        await adminApi.setPostVisibility(postId, nextHidden);
+      } catch (apiErr) {
+        console.warn('adminApi setPostVisibility failed, falling back to direct Supabase:', apiErr);
+        const { error } = await supabase.from('posts').update({ is_hidden: nextHidden }).eq('id', postId);
+        if (error) throw error;
+      }
       setPosts(prev => prev.map(p => {
         if (p.id === postId) {
           return { ...p, is_hidden: nextHidden, _hidden: nextHidden };
@@ -125,7 +155,16 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
   const handleRemovePost = async (postId: number) => {
     if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบโพสต์ #${postId}? การลบนี้จะไม่สามารถกู้คืนได้`)) {
       try {
-        await adminApi.deletePost(postId);
+        try {
+          await adminApi.deletePost(postId);
+        } catch (apiErr) {
+          console.warn('adminApi deletePost failed, falling back to direct Supabase:', apiErr);
+          await supabase.from('post_categories').delete().eq('post_id', postId);
+          await supabase.from('saved_posts').delete().eq('post_id', postId);
+          await supabase.from('comments').delete().eq('post_id', postId);
+          const { error } = await supabase.from('posts').delete().eq('id', postId);
+          if (error) throw error;
+        }
         setPosts(prev => prev.filter(p => p.id !== postId));
         if (selectedPost && selectedPost.id === postId) {
           setSelectedPost(null);
@@ -142,14 +181,20 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
   const handleToggleHideComment = async (commentId: number, currentHidden: boolean) => {
     const nextHidden = !currentHidden;
     try {
-      await adminApi.setCommentVisibility(commentId, nextHidden);
+      try {
+        await adminApi.setCommentVisibility(commentId, nextHidden);
+      } catch (apiErr) {
+        console.warn('adminApi setCommentVisibility failed, falling back to direct Supabase:', apiErr);
+        const { error } = await supabase.from('comments').update({ is_hidden: nextHidden }).eq('id', commentId);
+        if (error) throw error;
+      }
       setAllComments(prev => prev.map(c => {
         if (c.id === commentId) {
           return { ...c, is_hidden: nextHidden, _hidden: nextHidden };
         }
         return c;
       }));
-      onShowToast(`อัปเดตสถานะความคิดเห็น #${commentId} แล้ว`, 'success');
+      onShowToast(`อัปเดตสถานะความคิดเห็น #${commentId} เรียบร้อยแล้ว`, 'success');
     } catch (err: any) {
       console.error(err);
       onShowToast(`เกิดข้อผิดพลาดในการอัปเดตความคิดเห็น: ${err.message}`, 'error');
@@ -157,9 +202,15 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
   };
 
   const handleRemoveComment = async (commentId: number) => {
-    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบความคิดเห็น #${commentId}?`)) {
+    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบความคิดเห็น #${commentId}? การลบนี้จะไม่สามารถกู้คืนได้`)) {
       try {
-        await adminApi.deleteComment(commentId);
+        try {
+          await adminApi.deleteComment(commentId);
+        } catch (apiErr) {
+          console.warn('adminApi deleteComment failed, falling back to direct Supabase:', apiErr);
+          const { error } = await supabase.from('comments').delete().eq('id', commentId);
+          if (error) throw error;
+        }
         setAllComments(prev => prev.filter(c => c.id !== commentId));
         onShowToast(`ลบความคิดเห็น #${commentId} เรียบร้อยแล้ว`, 'success');
       } catch (err: any) {
@@ -169,7 +220,8 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
     }
   };
 
-  const getAuthorDisplay = (userId: string) => {
+  const getAuthorDisplay = (userId?: string) => {
+    if (!userId) return { username: 'anon', name: 'ผู้ใช้ทั่วไป' };
     const profile = profileMap[userId];
     if (profile) {
       return {
@@ -185,7 +237,7 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
 
   // Filtered Posts
   const filteredPosts = posts.filter(p => {
-    const q = search.toLowerCase();
+    const q = search.trim().toLowerCase().replace(/^#/, '');
     const matchSearch = !search || 
       (p.food_name && p.food_name.toLowerCase().includes(q)) ||
       (p.description && p.description.toLowerCase().includes(q)) ||
@@ -196,22 +248,48 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
     return matchSearch;
   });
 
-  // Filtered Comments with Parent Post Context
+  // Filtered Comments with Parent Post Context & Scalable Filter
   const filteredComments = allComments
     .filter(c => !c._removed)
     .filter(c => {
+      // Check Post ID filter if specified
+      if (filterPostId) {
+        const cleanTargetPostId = filterPostId.trim().replace(/^#/, '');
+        if (String(c.post_id) !== cleanTargetPostId) {
+          return false;
+        }
+      }
+
       const parentPost = posts.find(p => p.id === c.post_id);
-      const q = search.toLowerCase();
+      const author = getAuthorDisplay(c.user_id);
+      const q = search.trim().toLowerCase().replace(/^#/, '');
+
       const matchSearch = !search || 
+        String(c.id).includes(q) ||
+        String(c.post_id).includes(q) ||
         (c.content && c.content.toLowerCase().includes(q)) ||
         (parentPost?.food_name && parentPost.food_name.toLowerCase().includes(q)) ||
-        String(c.id).includes(q) ||
-        String(c.post_id).includes(q);
+        (author.username && author.username.toLowerCase().includes(q)) ||
+        (author.name && author.name.toLowerCase().includes(q));
 
       if (statusFilter === 'hidden') return matchSearch && c._hidden;
       if (statusFilter === 'published') return matchSearch && !c._hidden;
       return matchSearch;
     });
+
+  // Pagination calculation for comments
+  const totalComments = filteredComments.length;
+  const totalCommentPages = Math.max(1, Math.ceil(totalComments / commentPageSize));
+  const safeCommentPage = Math.min(commentPage, totalCommentPages);
+  const commentStartIndex = (safeCommentPage - 1) * commentPageSize;
+  const paginatedComments = filteredComments.slice(commentStartIndex, commentStartIndex + commentPageSize);
+
+  // Pagination calculation for posts
+  const totalPosts = filteredPosts.length;
+  const totalPostPages = Math.max(1, Math.ceil(totalPosts / postPageSize));
+  const safePostPage = Math.min(postPage, totalPostPages);
+  const postStartIndex = (safePostPage - 1) * postPageSize;
+  const paginatedPosts = filteredPosts.slice(postStartIndex, postStartIndex + postPageSize);
 
   const postComments = selectedPost 
     ? allComments.filter(c => c.post_id === selectedPost.id && !c._removed)
@@ -220,7 +298,7 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
   return (
     <div>
       {/* Sub-tabs Header: Switch between Posts and Comments */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
         <div className="tab-group" style={{ borderBottom: 'none' }}>
           <button 
             className={`tab-btn ${activeSubTab === 'posts' ? 'active' : ''}`}
@@ -255,18 +333,47 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
 
       {/* Search & Filter Bar */}
       <div className="filter-card">
-        <div className="filter-row">
-          <input 
-            type="text"
-            className="search-input-field"
-            placeholder={
-              activeSubTab === 'posts'
-                ? "ค้นหาชื่ออาหาร, รหัสโพสต์, คำบรรยาย..."
-                : "ค้นหาข้อความความคิดเห็น, ชื่ออาหารโพสต์ต้นทาง, รหัส..."
-            }
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="filter-row" style={{ flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ position: 'relative', flex: '1 1 240px' }}>
+            <Search size={14} color="#98a2b3" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+            <input 
+              type="text"
+              className="search-input-field"
+              style={{ paddingLeft: '32px', width: '100%' }}
+              placeholder={
+                activeSubTab === 'posts'
+                  ? "ค้นหาชื่ออาหาร, รหัสโพสต์ (เช่น 38), คำบรรยาย..."
+                  : "ค้นหารหัสความคิดเห็น, ข้อความ, ผู้เขียน, ชื่ออาหาร หรือรหัสโพสต์..."
+              }
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          {/* Quick filter by post ID in comments tab */}
+          {activeSubTab === 'comments' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <input 
+                type="text"
+                className="search-input-field"
+                style={{ width: '130px', fontSize: '12px' }}
+                placeholder="รหัสโพสต์..."
+                value={filterPostId}
+                onChange={(e) => setFilterPostId(e.target.value)}
+              />
+              {filterPostId && (
+                <button 
+                  className="btn btn-outline btn-sm"
+                  style={{ padding: '4px 8px', fontSize: '11.5px', color: '#d92d20' }}
+                  onClick={() => setFilterPostId('')}
+                  title="ล้างตัวกรองรหัสโพสต์"
+                >
+                  <X size={12} />
+                  <span>ล้าง</span>
+                </button>
+              )}
+            </div>
+          )}
 
           <select 
             className="filter-select"
@@ -278,6 +385,25 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
             <option value="hidden">ถูกซ่อน</option>
           </select>
         </div>
+
+        {/* Active Filter Chips */}
+        {activeSubTab === 'comments' && filterPostId && (
+          <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: '#667085' }}>ตัวกรองที่ใช้งาน:</span>
+            <span 
+              className="badge badge-content-type" 
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', backgroundColor: '#eff8ff', color: '#175cd3' }}
+            >
+              <span>กำลังแสดงเฉพาะความคิดเห็นของ โพสต์ #{filterPostId}</span>
+              <button 
+                onClick={() => setFilterPostId('')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: '#175cd3' }}
+              >
+                <X size={12} />
+              </button>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* VIEW 1: POSTS TABLE */}
@@ -291,7 +417,7 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
                   <th style={{ width: '60px' }}>รูปภาพ</th>
                   <th>ชื่ออาหาร</th>
                   <th>คำบรรยาย</th>
-                  <th style={{ width: '130px' }}>ความคิดเห็น</th>
+                  <th style={{ width: '150px' }}>ความคิดเห็น</th>
                   <th style={{ width: '120px' }}>วันที่สร้าง</th>
                   <th style={{ width: '100px' }}>สถานะ</th>
                   <th style={{ width: '110px' }}>จัดการ</th>
@@ -304,14 +430,14 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
                       กำลังโหลดข้อมูลโพสต์...
                     </td>
                   </tr>
-                ) : filteredPosts.length === 0 ? (
+                ) : paginatedPosts.length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ textAlign: 'center', padding: '36px', color: '#667085' }}>
                       ไม่พบโพสต์ที่ตรงกับคำค้นหา
                     </td>
                   </tr>
                 ) : (
-                  filteredPosts.map(p => {
+                  paginatedPosts.map(p => {
                     const commentsCount = commentCountsMap[p.id] || 0;
                     return (
                       <tr 
@@ -342,10 +468,15 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
                         <td style={{ maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#475467', fontSize: '12px' }}>
                           {p.description || '-'}
                         </td>
-                        <td>
+                        <td onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveSubTab('comments');
+                          setFilterPostId(String(p.id));
+                        }}>
                           <span 
                             className="badge badge-content-type"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                            title="คลิกเพื่อดูกรองเฉพาะความคิดเห็นของโพสต์นี้"
                           >
                             <MessageSquare size={12} color="#2563eb" />
                             <span>{commentsCount} รายการ</span>
@@ -386,22 +517,89 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
               </tbody>
             </table>
           </div>
+
+          {/* Posts Pagination Footer */}
+          {totalPosts > 0 && (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              padding: '12px 16px', 
+              borderTop: '1px solid #eaecf0',
+              fontSize: '12.5px',
+              color: '#475467',
+              flexWrap: 'wrap',
+              gap: '8px'
+            }}>
+              <div>
+                แสดง <strong>{postStartIndex + 1}</strong> ถึง <strong>{Math.min(postStartIndex + postPageSize, totalPosts)}</strong> จากทั้งหมด <strong>{totalPosts}</strong> โพสต์
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ fontSize: '12px', color: '#667085' }}>จำนวนต่อหน้า:</span>
+                  <select 
+                    className="filter-select"
+                    style={{ padding: '4px 8px', fontSize: '12px', height: '28px' }}
+                    value={postPageSize}
+                    onChange={(e) => {
+                      setPostPageSize(Number(e.target.value));
+                      setPostPage(1);
+                    }}
+                  >
+                    <option value={10}>10</option>
+                    <option value={15}>15</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <button 
+                    className="btn btn-outline btn-sm"
+                    style={{ padding: '4px 8px', height: '28px' }}
+                    onClick={() => setPostPage(p => Math.max(1, p - 1))}
+                    disabled={safePostPage <= 1}
+                  >
+                    <ChevronLeft size={14} />
+                    <span>ก่อนหน้า</span>
+                  </button>
+
+                  <span style={{ padding: '0 8px', fontWeight: 600, color: '#101828' }}>
+                    {safePostPage} / {totalPostPages}
+                  </span>
+
+                  <button 
+                    className="btn btn-outline btn-sm"
+                    style={{ padding: '4px 8px', height: '28px' }}
+                    onClick={() => setPostPage(p => Math.min(totalPostPages, p + 1))}
+                    disabled={safePostPage >= totalPostPages}
+                  >
+                    <span>ถัดไป</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* VIEW 2: COMMENTS WITH PARENT POST CONTEXT */}
+      {/* VIEW 2: COMMENTS WITH PARENT POST CONTEXT & SCALABLE PAGINATION */}
       {activeSubTab === 'comments' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {loading ? (
             <div className="table-card" style={{ textAlign: 'center', padding: '36px', color: '#667085' }}>
               กำลังโหลดข้อมูลความคิดเห็น...
             </div>
-          ) : filteredComments.length === 0 ? (
+          ) : paginatedComments.length === 0 ? (
             <div className="table-card" style={{ textAlign: 'center', padding: '36px', color: '#667085' }}>
-              ไม่พบความคิดเห็นที่ตรงกับคำค้นหา
+              {search || filterPostId || statusFilter !== 'all' 
+                ? 'ไม่พบความคิดเห็นที่ตรงกับคำค้นหาหรือตัวกรอง' 
+                : 'ยังไม่มีความคิดเห็นในระบบ'}
             </div>
           ) : (
-            filteredComments.map(c => {
+            paginatedComments.map(c => {
               const parentPost = posts.find(p => p.id === c.post_id);
               const author = getAuthorDisplay(c.user_id);
 
@@ -418,20 +616,69 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
                   }}
                 >
                   {/* Top Bar: Comment Meta & Action Buttons */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-                      <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#101828' }}>
-                        ความคิดเห็น #{c.id}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', flexWrap: 'wrap' }}>
+                      {/* Exact Comment ID Badge with Copy button */}
+                      <span 
+                        className="badge badge-content-type"
+                        style={{ 
+                          fontFamily: 'monospace', 
+                          fontWeight: 700, 
+                          color: '#027a48', 
+                          backgroundColor: '#ecfdf3', 
+                          borderColor: '#a6f4c5',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <span>ความคิดเห็น #{c.id}</span>
+                        <button 
+                          onClick={() => handleCopy(String(c.id), 'รหัสความคิดเห็น')}
+                          title="คัดลอกรหัสความคิดเห็น"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: '#027a48' }}
+                        >
+                          <Copy size={11} />
+                        </button>
                       </span>
+
                       <span style={{ color: '#d0d5dd' }}>|</span>
+
+                      {/* Parent Post Link Badge */}
+                      <span 
+                        className="badge badge-content-type"
+                        style={{ 
+                          backgroundColor: '#eff8ff', 
+                          color: '#175cd3', 
+                          borderColor: '#b2ddff',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                        onClick={() => {
+                          setFilterPostId(String(c.post_id));
+                          onShowToast(`กรองเฉพาะความคิดเห็นของโพสต์ #${c.post_id}`, 'info');
+                        }}
+                        title="คลิกเพื่อกรองเฉพาะความคิดเห็นในโพสต์นี้"
+                      >
+                        <span>โพสต์ #{c.post_id}</span>
+                        <Filter size={10} />
+                      </span>
+
+                      <span style={{ color: '#d0d5dd' }}>|</span>
+
                       <span style={{ color: '#475467', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                         <User size={13} color="#667085" />
                         <strong>{author.name}</strong> (@{author.username})
                       </span>
+
                       <span style={{ color: '#d0d5dd' }}>|</span>
+
                       <span style={{ color: '#667085' }}>
                         {new Date(c.created_at).toLocaleString('th-TH')}
                       </span>
+
                       {c._hidden ? (
                         <span className="badge badge-pending">ถูกซ่อนอยู่</span>
                       ) : (
@@ -475,7 +722,7 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
                     {c.content}
                   </div>
 
-                  {/* PARENT POST CONTEXT BOX (แอดมินรู้บริบทโพสต์ต้นทางทันที) */}
+                  {/* PARENT POST CONTEXT BOX */}
                   <div style={{ 
                     background: '#f9fafb', 
                     borderRadius: '6px', 
@@ -515,21 +762,102 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
                       </div>
                     </div>
 
-                    {parentPost && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                       <button 
                         className="btn btn-outline btn-sm"
-                        style={{ flexShrink: 0, fontSize: '11.5px', padding: '4px 8px' }}
-                        onClick={() => setSelectedPost(parentPost)}
-                        title="เปิดดูโพสต์เต็มและกระทู้ความคิดเห็นทั้งหมด"
+                        style={{ fontSize: '11px', padding: '4px 8px' }}
+                        onClick={() => {
+                          setFilterPostId(String(c.post_id));
+                          onShowToast(`กรองความคิดเห็นเฉพาะโพสต์ #${c.post_id}`, 'info');
+                        }}
+                        title="กรองแสดงเฉพาะความคิดเห็นในโพสต์นี้"
                       >
-                        <span>ดูบริบทโพสต์เต็ม</span>
-                        <ArrowRight size={11} />
+                        <Filter size={11} />
+                        <span>กรองเฉพาะโพสต์นี้</span>
                       </button>
-                    )}
+
+                      {parentPost && (
+                        <button 
+                          className="btn btn-outline btn-sm"
+                          style={{ fontSize: '11px', padding: '4px 8px' }}
+                          onClick={() => setSelectedPost(parentPost)}
+                          title="เปิดดูโพสต์เต็มและกระทู้ความคิดเห็นทั้งหมด"
+                        >
+                          <span>ดูบริบทโพสต์เต็ม</span>
+                          <ArrowRight size={11} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
             })
+          )}
+
+          {/* Comments Pagination Controls */}
+          {totalComments > 0 && (
+            <div className="table-card" style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              padding: '12px 16px', 
+              fontSize: '12.5px',
+              color: '#475467',
+              flexWrap: 'wrap',
+              gap: '8px'
+            }}>
+              <div>
+                แสดงความคิดเห็นที่ <strong>{commentStartIndex + 1}</strong> ถึง <strong>{Math.min(commentStartIndex + commentPageSize, totalComments)}</strong> จากทั้งหมด <strong>{totalComments}</strong> รายการ
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ fontSize: '12px', color: '#667085' }}>จำนวนต่อหน้า:</span>
+                  <select 
+                    className="filter-select"
+                    style={{ padding: '4px 8px', fontSize: '12px', height: '28px' }}
+                    value={commentPageSize}
+                    onChange={(e) => {
+                      setCommentPageSize(Number(e.target.value));
+                      setCommentPage(1);
+                    }}
+                  >
+                    <option value={10}>10</option>
+                    <option value={15}>15</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <button 
+                    className="btn btn-outline btn-sm"
+                    style={{ padding: '4px 8px', height: '28px' }}
+                    onClick={() => setCommentPage(p => Math.max(1, p - 1))}
+                    disabled={safeCommentPage <= 1}
+                    title="หน้าก่อนหน้า"
+                  >
+                    <ChevronLeft size={14} />
+                    <span>ก่อนหน้า</span>
+                  </button>
+
+                  <span style={{ padding: '0 8px', fontWeight: 600, color: '#101828' }}>
+                    {safeCommentPage} / {totalCommentPages}
+                  </span>
+
+                  <button 
+                    className="btn btn-outline btn-sm"
+                    style={{ padding: '4px 8px', height: '28px' }}
+                    onClick={() => setCommentPage(p => Math.min(totalCommentPages, p + 1))}
+                    disabled={safeCommentPage >= totalCommentPages}
+                    title="หน้าถัดไป"
+                  >
+                    <span>ถัดไป</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -630,7 +958,7 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {postComments.map((c, index) => {
+                    {postComments.map((c) => {
                       const author = getAuthorDisplay(c.user_id);
                       return (
                         <div 
@@ -647,8 +975,31 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
                         >
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                              <span 
+                                className="badge badge-content-type" 
+                                style={{ 
+                                  fontFamily: 'monospace', 
+                                  fontWeight: 700, 
+                                  color: '#027a48', 
+                                  backgroundColor: '#ecfdf3', 
+                                  padding: '1px 6px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px'
+                                }}
+                              >
+                                <span>ความคิดเห็น #{c.id}</span>
+                                <button 
+                                  onClick={() => handleCopy(String(c.id), 'รหัสความคิดเห็น')}
+                                  title="คัดลอกรหัสความคิดเห็น"
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: '#027a48' }}
+                                >
+                                  <Copy size={10} />
+                                </button>
+                              </span>
+
                               <span style={{ fontWeight: 600, color: '#101828' }}>
-                                #{index + 1} {author.name} (@{author.username})
+                                {author.name} (@{author.username})
                               </span>
                               <span style={{ color: '#667085' }}>•</span>
                               <span style={{ color: '#667085' }}>

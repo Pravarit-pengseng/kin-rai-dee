@@ -100,6 +100,7 @@ export interface AuditLogItem {
   actionType: string;
   targetType: ContentType;
   targetId: string | number;
+  targetName?: string;
   reasonCode?: string;
   note?: string;
   metadata?: Record<string, any>;

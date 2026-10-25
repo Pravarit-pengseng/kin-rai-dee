@@ -343,17 +343,16 @@ export default function PopupPost({
   useEffect(() => {
     if (showComments && post?.id) {
       getPostComments(post.id).then((apiComments) => {
-        if (apiComments && apiComments.length > 0) {
-          setComments(
-            apiComments.map((c) => ({
-              id: String(c.id),
-              username: c.username || c.profiles?.display_name || c.profiles?.username || 'ผู้ใช้งาน',
-              text: c.content || c.text || '',
-              avatarUrl: c.profiles?.avatar_url,
-              isCurrentUser: Boolean(user?.id && String(c.user_id) === String(user.id)),
-            }))
-          );
-        }
+        const visibleComments = (apiComments || []).filter((c: any) => !c.is_hidden);
+        setComments(
+          visibleComments.map((c) => ({
+            id: String(c.id),
+            username: c.username || c.profiles?.display_name || c.profiles?.username || 'ผู้ใช้งาน',
+            text: c.content || c.text || '',
+            avatarUrl: c.profiles?.avatar_url,
+            isCurrentUser: Boolean(user?.id && String(c.user_id) === String(user.id)),
+          }))
+        );
       });
     }
   }, [showComments, post?.id, user?.id]);

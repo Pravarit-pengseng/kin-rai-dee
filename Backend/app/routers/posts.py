@@ -145,11 +145,13 @@ def get_feed_posts(
         posts_resp = (
             supabase.table("posts")
             .select("*, post_categories(categories(id, name))")
+            .or_("is_hidden.is.null,is_hidden.eq.false")
             .order("created_at", desc=True)
             .range(offset, offset + limit - 1)
             .execute()
         )
         posts = to_records(posts_resp.data)
+        posts = [p for p in posts if not p.get("is_hidden")]
 
         # Filter out blocked users if user is authenticated
         if user and user.get("id"):
@@ -169,10 +171,12 @@ def get_posts(user: dict = Depends(get_current_user)):
         response = (
             supabase.table("posts")
             .select("*, post_categories(categories(id, name))")
+            .or_("is_hidden.is.null,is_hidden.eq.false")
             .order("created_at", desc=True)
             .execute()
         )
         posts = to_records(response.data)
+        posts = [p for p in posts if not p.get("is_hidden")]
         return {"success": True, "data": attach_profiles_to_posts(posts)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -195,7 +199,9 @@ def get_user_saved_posts(
         posts = [
             item["posts"]
             for item in (response.data or [])
-            if isinstance(item, dict) and isinstance(item.get("posts"), dict)
+            if isinstance(item, dict)
+            and isinstance(item.get("posts"), dict)
+            and not item["posts"].get("is_hidden")
         ]
 
         return {
@@ -226,7 +232,7 @@ def get_post_detail(post_id: int):
 
         posts = to_records(response.data)
 
-        if not posts:
+        if not posts or posts[0].get("is_hidden"):
             raise HTTPException(
                 status_code=404,
                 detail="Post not found",
@@ -524,10 +530,12 @@ def get_post_comments(
             supabase.table("comments")
             .select("*")
             .eq("post_id", post_id)
+            .or_("is_hidden.is.null,is_hidden.eq.false")
             .order("created_at", desc=False)
             .execute()
         )
         comments = to_records(resp.data)
+        comments = [c for c in comments if not c.get("is_hidden")]
 
         # Filter out comments from blocked users
         if user and user.get("id"):

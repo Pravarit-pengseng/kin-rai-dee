@@ -47,7 +47,13 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast }) => {
   const handleToggleSuspend = async (userId: string, currentSuspended: boolean) => {
     const nextSuspended = !currentSuspended;
     try {
-      await adminApi.setUserStatus(userId, nextSuspended ? 'suspended' : 'active');
+      try {
+        await adminApi.setUserStatus(userId, nextSuspended ? 'suspended' : 'active');
+      } catch (apiErr) {
+        console.warn('adminApi setUserStatus failed, falling back to direct Supabase:', apiErr);
+        const { error } = await supabase.from('profiles').update({ is_suspended: nextSuspended }).eq('id', userId);
+        if (error) throw error;
+      }
       setUsers(prev => prev.map(u => {
         if (u.id === userId) {
           return { ...u, is_suspended: nextSuspended, _suspended: nextSuspended };

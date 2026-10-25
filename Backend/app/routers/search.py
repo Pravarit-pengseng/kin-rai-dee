@@ -39,12 +39,14 @@ def search_posts(
                 supabase
                 .table("posts")
                 .select("*, post_categories(categories(id, name))")
+                .or_("is_hidden.is.null,is_hidden.eq.false")
                 .order("created_at", desc=True)
                 .range(offset, offset + limit - 1)
                 .execute()
             )
 
             posts = to_records(response.data)
+            posts = [p for p in posts if not p.get("is_hidden")]
 
             if user and user.get("id"):
                 blocked_ids = get_blocked_user_ids(user["id"])
@@ -90,12 +92,14 @@ def search_posts(
             .table("posts")
             .select("*, post_categories(categories(id, name))")
             .or_(or_query)
+            .or_("is_hidden.is.null,is_hidden.eq.false")
             .order("created_at", desc=True)
             .range(offset, offset + limit - 1)
             .execute()
         )
 
         posts = to_records(response.data)
+        posts = [p for p in posts if not p.get("is_hidden")]
 
         if user and user.get("id"):
             blocked_ids = get_blocked_user_ids(user["id"])

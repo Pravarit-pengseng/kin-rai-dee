@@ -7,6 +7,7 @@ import React, {
 import {
   View,
   ScrollView,
+  type ScrollViewInstance,
   StyleSheet,
 } from "react-native";
 import {
@@ -48,7 +49,7 @@ export default function MyPost() {
     post?: string;
   }>();
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
@@ -70,31 +71,14 @@ export default function MyPost() {
   // If posts are empty initially, we need to load from API
   const [loading, setLoading] = useState(() => posts.length === 0);
 
-  // Check if target post is the first one or further down
+  // Scroll tracker for initial jump to postId
   const targetIndex = posts.findIndex((p) => p.id === postId);
-  // If targetIndex is 0 (or not found yet), no jump needed; otherwise wait until scrolled
-  const [ready, setReady] = useState(() => targetIndex <= 0);
   const hasScrolledRef = useRef(targetIndex <= 0);
 
-  // Reset scroll tracker on postId change
   useEffect(() => {
     const idx = posts.findIndex((p) => p.id === postId);
-    if (idx > 0) {
-      hasScrolledRef.current = false;
-      setReady(false);
-    } else {
-      hasScrolledRef.current = true;
-      setReady(true);
-    }
-  }, [postId]);
-
-  // Fallback timer so screen never stays stuck on skeleton
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setReady(true);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [postId]);
+    hasScrolledRef.current = idx <= 0;
+  }, [postId, posts]);
 
   // ---- Sync posts & bookmarks from API in background ----
   useEffect(() => {
@@ -115,14 +99,14 @@ export default function MyPost() {
         if (apiPosts && apiPosts.length > 0) {
           setPosts(apiPosts.map(mapPostToPopup));
         }
+        setLoading(false);
         if (user?.id) {
           getSavedPosts().then((saved) => {
             if (saved && saved.length > 0) {
               setBookmarkedIds(saved.map((s) => s.id));
             }
-          }).catch(() => {});
+          }).catch(() => { });
         }
-        setLoading(false);
       }).catch(() => {
         setLoading(false);
       });
@@ -148,9 +132,6 @@ export default function MyPost() {
       if (id === postId && !hasScrolledRef.current) {
         hasScrolledRef.current = true;
         scrollRef.current?.scrollTo({ y, animated: false });
-        requestAnimationFrame(() => {
-          setReady(true);
-        });
       }
     },
     [postId]
@@ -231,7 +212,7 @@ export default function MyPost() {
           }
         />
 
-        {loading ? (
+        {loading && posts.length === 0 ? (
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -241,24 +222,10 @@ export default function MyPost() {
           </ScrollView>
         ) : (
           <View style={styles.container}>
-            {/* Show skeleton while scrolling to target post (prevents post 0 flash) */}
-            {!ready && (
-              <View style={styles.skeletonOverlay}>
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
-                  contentContainerStyle={styles.scrollContent}
-                  scrollEnabled={false}
-                >
-                  <PostSkeleton count={1} />
-                </ScrollView>
-              </View>
-            )}
-
             <ScrollView
               ref={scrollRef}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scrollContent}
-              style={!ready ? styles.hidden : styles.visible}
             >
               {posts.map((post) => (
                 <View
@@ -269,7 +236,7 @@ export default function MyPost() {
                   <PopupPost
                     visible={true}
                     post={post}
-                    onClose={() => {}}
+                    onClose={() => { }}
                     inline
                     isOwnPost={post.userId === user?.id}
                     isBookmarked={bookmarkedIds.includes(post.id)}

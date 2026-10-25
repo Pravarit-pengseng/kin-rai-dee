@@ -9,6 +9,7 @@ import {
   Alert,
   TextInput,
   ScrollView,
+  type ScrollViewInstance,
   Platform,
   Keyboard,
   Animated,
@@ -20,13 +21,17 @@ import { Image } from "expo-image";
 import {
   X,
   Bookmark,
+  AlignRight,
   AlignLeft,
   MessageCircle,
+  Flag,
 } from "lucide-react-native";
 import { useRouter, usePathname } from "expo-router";
 import { useAuth } from "@/context/AuthContext";
 import { getPostComments, addPostComment } from "@/services/postService";
 import { getMyProfile } from "@/services/profileService";
+import { blockUser } from "@/services/safetyService";
+import ReportModal from "@/components/ReportModal";
 
 import PostDropdown from "./post-dropdown";
 import { ThemedText } from "@/components/themed-text";
@@ -85,6 +90,8 @@ export type PopupPostProps = {
   inline?: boolean;
 
   onUserPress?: (userId: string) => void;
+
+  onBlockUser?: (userId: string) => void;
 };
 
 export default function PopupPost({
@@ -98,6 +105,7 @@ export default function PopupPost({
   onRequestDelete,
   inline = false,
   onUserPress,
+  onBlockUser,
 }: PopupPostProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -109,10 +117,6 @@ export default function PopupPost({
     setAvatarError(false);
   }, [post?.avatarUrl]);
 
-  if (!post) {
-    return null;
-  }
-
   const handleBookmarkPress = () => {
     setShowMenu(false);
     if (!isLoggedIn) {
@@ -123,8 +127,17 @@ export default function PopupPost({
       });
       return;
     }
-    onBookmark?.(post.id);
+    if (post) {
+      onBookmark?.(post.id);
+    }
   };
+
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{
+    type: 'post' | 'comment';
+    id: string;
+    title?: string;
+  }>({ type: 'post', id: '' });
 
   const handleMenuPress = () => {
     setShowMenu((prev) => !prev);
@@ -133,12 +146,95 @@ export default function PopupPost({
   // Send the selected post to the parent.
   const handleEditPress = () => {
     setShowMenu(false);
-    onEdit?.(post);
+    if (post) onEdit?.(post);
   };
 
   const handleDeletePress = () => {
     setShowMenu(false);
-    onRequestDelete?.(post.id);
+    if (post) onRequestDelete?.(post.id);
+  };
+
+  const handleReportPostPress = () => {
+    setShowMenu(false);
+    if (!isLoggedIn) {
+      onClose();
+      router.push({
+        pathname: '/(auth)/login',
+        params: { returnTo: pathname || '/', from: pathname || '/' },
+      });
+      return;
+    }
+    if (!post) return;
+    setReportTarget({
+      type: 'post',
+      id: String(post.id),
+      title: post.title || 'โพสต์นี้',
+    });
+    setReportModalVisible(true);
+  };
+
+  const [blockSuccessVisible, setBlockSuccessVisible] = useState(false);
+
+  const handleDismissBlockSuccess = () => {
+    setBlockSuccessVisible(false);
+    setShowMenu(false);
+    if (post?.userId) {
+      onBlockUser?.(post.userId);
+    }
+    if (!inline) {
+      onClose();
+    }
+  };
+
+  const handleBlockUserPress = async () => {
+    if (!isLoggedIn) {
+      setShowMenu(false);
+      onClose();
+      router.push({
+        pathname: '/(auth)/login',
+        params: { returnTo: pathname || '/', from: pathname || '/' },
+      });
+      return;
+    }
+    if (!post?.userId) return;
+
+    try {
+      const res = await blockUser(
+        post.userId,
+        post.displayName || post.username,
+        post.avatarUrl,
+        post.username
+      );
+      if (res.success) {
+        setBlockSuccessVisible(true);
+        setTimeout(() => {
+          handleDismissBlockSuccess();
+        }, 1500);
+      } else {
+        setShowMenu(false);
+        Alert.alert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถบล็อกผู้ใช้ได้');
+      }
+    } catch {
+      setShowMenu(false);
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถบล็อกผู้ใช้ได้');
+    }
+  };
+
+  const handleReportComment = (item: CommentItem) => {
+    if (!isLoggedIn) {
+      onClose();
+      router.push({
+        pathname: '/(auth)/login',
+        params: { returnTo: pathname || '/', from: pathname || '/' },
+      });
+      return;
+    }
+    setReportTarget({
+      type: 'comment',
+      id: String(item.id),
+      title: item.text ? (item.text.length > 35 ? item.text.substring(0, 35) + '...' : item.text) : 'ความคิดเห็น',
+    });
+    setReportModalVisible(true);
   };
 
   const handleClose = () => {
@@ -158,22 +254,22 @@ export default function PopupPost({
     }
   }, [user?.avatarUrl, isLoggedIn]);
 
-  const title = post.title || "กะเพราไข่ดาว";
+  const title = post?.title || "กะเพราไข่ดาว";
   const description =
-    post.description ||
+    post?.description ||
     "มื้อเที่ยงง่ายๆ แต่อร่อยมาก 🌶️🍳 ฟินสุดๆ ไปเลยจ้า";
   const breakableDescription = formatBreakableText(description);
-  const tags = post.tags && post.tags.length > 0 ? post.tags.map(t => t.replace(/^#+/, "")) : ["อาหารทั่วไป"];
-  const location = post.location || "";
-  const timeAgo = post.timeAgo || "เมื่อเร็วๆ นี้";
-  const displayUserName = post.displayName || post.username || 'ผู้ใช้งาน';
+  const tags = post?.tags && post.tags.length > 0 ? post.tags.map(t => t.replace(/^#+/, "")) : ["อาหารทั่วไป"];
+  const location = post?.location || "";
+  const timeAgo = post?.timeAgo || "เมื่อเร็วๆ นี้";
+  const displayUserName = post?.displayName || post?.username || 'ผู้ใช้งาน';
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentText, setCommentText] = useState("");
-  const commentsScrollRef = useRef<ScrollView>(null);
+  const commentsScrollRef = useRef<ScrollViewInstance>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const slideAnim = useRef(new Animated.Value(600)).current;
 
@@ -218,7 +314,7 @@ export default function PopupPost({
   useEffect(() => {
     setIsExpanded(false);
     setIsTruncated(false);
-  }, [post.id, description]);
+  }, [post?.id, description]);
 
   const handleTextLayout = (e: any) => {
     const lines = e.nativeEvent?.lines;
@@ -247,17 +343,16 @@ export default function PopupPost({
   useEffect(() => {
     if (showComments && post?.id) {
       getPostComments(post.id).then((apiComments) => {
-        if (apiComments && apiComments.length > 0) {
-          setComments(
-            apiComments.map((c) => ({
-              id: String(c.id),
-              username: c.username || c.profiles?.display_name || c.profiles?.username || 'ผู้ใช้งาน',
-              text: c.content || c.text || '',
-              avatarUrl: c.profiles?.avatar_url,
-              isCurrentUser: Boolean(user?.id && String(c.user_id) === String(user.id)),
-            }))
-          );
-        }
+        const visibleComments = (apiComments || []).filter((c: any) => !c.is_hidden);
+        setComments(
+          visibleComments.map((c) => ({
+            id: String(c.id),
+            username: c.username || c.profiles?.display_name || c.profiles?.username || 'ผู้ใช้งาน',
+            text: c.content || c.text || '',
+            avatarUrl: c.profiles?.avatar_url,
+            isCurrentUser: Boolean(user?.id && String(c.user_id) === String(user.id)),
+          }))
+        );
       });
     }
   }, [showComments, post?.id, user?.id]);
@@ -266,7 +361,7 @@ export default function PopupPost({
 
   const handleAddComment = async () => {
     const trimmed = commentText.trim();
-    if (!trimmed) return;
+    if (!trimmed || !post) return;
     if (isPostingRef.current) return;
 
     if (!isLoggedIn) {
@@ -312,7 +407,7 @@ export default function PopupPost({
 
   const handleUserClick = () => {
     setShowMenu(false);
-    if (post.userId) {
+    if (post?.userId) {
       onUserPress?.(post.userId);
     }
   };
@@ -343,6 +438,10 @@ export default function PopupPost({
       Alert.alert("ไม่สามารถเปิดลิงก์ได้", "โปรดตรวจสอบ URL หรือลองใหม่อีกครั้ง");
     }
   };
+
+  if (!post) {
+    return null;
+  }
 
   const card = (
     <View style={styles.card}>
@@ -386,22 +485,21 @@ export default function PopupPost({
 
         {/* Header actions */}
         <View style={styles.headerActions}>
-          {/* Edit / Delete menu */}
-          {isOwnPost && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.iconButton,
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={handleMenuPress}
-            >
-              <AlignLeft
-                size={20}
-                color="#57423E"
-                strokeWidth={2}
-              />
-            </Pressable>
-          )}
+          {/* Menu button */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.iconButton,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={handleMenuPress}
+            hitSlop={8}
+          >
+            <AlignRight
+              size={20}
+              color="#57423E"
+              strokeWidth={2}
+            />
+          </Pressable>
 
           {/* Close button */}
           {!inline && (
@@ -423,11 +521,14 @@ export default function PopupPost({
       </Pressable>
 
       {/* Dropdown */}
-      {isOwnPost && showMenu && (
+      {showMenu && (
         <View style={styles.dropdownWrapper}>
           <PostDropdown
+            isOwnPost={isOwnPost}
             onEdit={handleEditPress}
             onDelete={handleDeletePress}
+            onReport={handleReportPostPress}
+            onBlock={handleBlockUserPress}
           />
         </View>
       )}
@@ -621,6 +722,19 @@ export default function PopupPost({
                   {item.text}
                 </ThemedText>
               </View>
+
+              {!item.isCurrentUser && (
+                <Pressable
+                  onPress={() => handleReportComment(item)}
+                  style={({ pressed }) => [
+                    styles.commentReportBtn,
+                    pressed && styles.buttonPressed,
+                  ]}
+                  hitSlop={8}
+                >
+                  <Flag size={14} color="#9E9693" />
+                </Pressable>
+              )}
             </View>
           ))
         )}
@@ -698,18 +812,64 @@ export default function PopupPost({
           presentationStyle="overFullScreen"
           onRequestClose={handleCloseComments}
         >
-          <ScrollView
-            style={styles.commentModalOverlay}
-            contentContainerStyle={styles.commentModalOverlayContent}
-            keyboardShouldPersistTaps="always"
-            bounces={false}
+          <View style={StyleSheet.absoluteFill}>
+            <ScrollView
+              style={styles.commentModalOverlay}
+              contentContainerStyle={styles.commentModalOverlayContent}
+              keyboardShouldPersistTaps="always"
+              bounces={false}
+            >
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={handleCloseComments}
+              />
+              {commentSheetContent}
+            </ScrollView>
+
+            {/* When comment modal is open, render ReportModal directly inside it */}
+            {reportModalVisible && (
+              <ReportModal
+                visible={reportModalVisible}
+                targetType={reportTarget.type}
+                targetId={reportTarget.id}
+                targetTitle={reportTarget.title}
+                onClose={() => setReportModalVisible(false)}
+                useNativeModal={false}
+              />
+            )}
+          </View>
+        </Modal>
+
+        {/* When comments are NOT open (e.g. reporting post in inline mode) */}
+        {!showComments && (
+          <ReportModal
+            visible={reportModalVisible}
+            targetType={reportTarget.type}
+            targetId={reportTarget.id}
+            targetTitle={reportTarget.title}
+            onClose={() => setReportModalVisible(false)}
+          />
+        )}
+
+        {/* Block Success Modal (matches Image 2) */}
+        <Modal
+          transparent
+          visible={blockSuccessVisible}
+          animationType="fade"
+          statusBarTranslucent
+          presentationStyle="overFullScreen"
+          onRequestClose={handleDismissBlockSuccess}
+        >
+          <Pressable
+            style={styles.blockSuccessOverlay}
+            onPress={handleDismissBlockSuccess}
           >
-            <Pressable
-              style={StyleSheet.absoluteFill}
-              onPress={handleCloseComments}
-            />
-            {commentSheetContent}
-          </ScrollView>
+            <View style={styles.blockSuccessPopup}>
+              <ThemedText style={styles.blockSuccessText}>
+                บล็อกผู้ใช้สำเร็จ
+              </ThemedText>
+            </View>
+          </Pressable>
         </Modal>
       </>
     );
@@ -748,12 +908,46 @@ export default function PopupPost({
             {commentSheetContent}
           </ScrollView>
         )}
+
+        {/* Report Modal inside the Post Modal */}
+        {reportModalVisible && (
+          <ReportModal
+            visible={reportModalVisible}
+            targetType={reportTarget.type}
+            targetId={reportTarget.id}
+            targetTitle={reportTarget.title}
+            onClose={() => setReportModalVisible(false)}
+            useNativeModal={false}
+          />
+        )}
+
+        {/* Block Success Modal inside Post Modal */}
+        {blockSuccessVisible && (
+          <View style={StyleSheet.absoluteFill}>
+            <Pressable
+              style={styles.blockSuccessOverlay}
+              onPress={handleDismissBlockSuccess}
+            >
+              <View style={styles.blockSuccessPopup}>
+                <ThemedText style={styles.blockSuccessText}>
+                  บล็อกผู้ใช้สำเร็จ
+                </ThemedText>
+              </View>
+            </Pressable>
+          </View>
+        )}
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  commentReportBtn: {
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6,
+  },
   modalRoot: {
     flex: 1,
   },
@@ -817,7 +1011,7 @@ const styles = StyleSheet.create({
 
   userName: {
     fontSize: 14,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: "#4B3500",
     lineHeight: 20,
@@ -863,7 +1057,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     lineHeight: 28,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "900",
     color: "#4B3500",
     marginBottom: 6,
@@ -896,7 +1090,7 @@ const styles = StyleSheet.create({
 
   readMoreText: {
     fontSize: 14,
-    fontFamily: "NotoSansThai_600SemiBold",
+    fontFamily: "Inter_600SemiBold",
     fontWeight: "600",
     color: "#8B5A2B",
   },
@@ -1016,7 +1210,7 @@ const styles = StyleSheet.create({
 
   sheetTitle: {
     fontSize: 16,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: "#241917",
     textAlign: "center",
@@ -1053,7 +1247,7 @@ const styles = StyleSheet.create({
 
   emptyCommentsText: {
     fontSize: 14,
-    fontFamily: "NotoSansThai_400Regular",
+    fontFamily: "Inter_400Regular",
     color: "#8C7B75",
     textAlign: "center",
   },
@@ -1096,7 +1290,7 @@ const styles = StyleSheet.create({
 
   commentUsername: {
     fontSize: 14,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: "#241917",
     marginBottom: 2,
@@ -1104,7 +1298,7 @@ const styles = StyleSheet.create({
 
   commentText: {
     fontSize: 13.5,
-    fontFamily: "NotoSansThai_400Regular",
+    fontFamily: "Inter_400Regular",
     color: "#4B3500",
     lineHeight: 20,
   },
@@ -1149,7 +1343,7 @@ const styles = StyleSheet.create({
   commentTextInput: {
     flex: 1,
     fontSize: 13.5,
-    fontFamily: "NotoSansThai_400Regular",
+    fontFamily: "Inter_400Regular",
     color: "#241917",
     paddingVertical: 0,
   },
@@ -1161,8 +1355,41 @@ const styles = StyleSheet.create({
 
   postCommentText: {
     fontSize: 14,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: "#8A3E2D",
+  },
+
+  blockSuccessOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  blockSuccessPopup: {
+    width: 290,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    paddingVertical: 36,
+    paddingHorizontal: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+
+  blockSuccessText: {
+    textAlign: "center",
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    fontWeight: "700",
+    color: "#1C1B1F",
   },
 });

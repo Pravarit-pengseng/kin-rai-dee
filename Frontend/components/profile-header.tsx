@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 20,
     lineHeight: 30,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "900",
     color: "#241917",
     marginBottom: 3,

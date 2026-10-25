@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from app.db import supabase
 from app.core.security import get_current_user
-from app.routers.posts import attach_profiles_to_posts, normalize_avatar_url
+from app.routers.posts import attach_profiles_to_posts, normalize_avatar_url, to_records
 
 router = APIRouter(prefix="/api/profiles", tags=["Profiles"])
 
@@ -133,10 +133,55 @@ def get_user_posts(user_id: str):
             supabase.table("posts")
             .select("*, post_categories(categories(id, name))")
             .eq("user_id", user_id)
+            .or_("is_hidden.is.null,is_hidden.eq.false")
             .order("created_at", desc=True)
             .execute()
         )
-        posts = response.data or []
+        posts = [p for p in to_records(response.data) if not p.get("is_hidden")]
         return attach_profiles_to_posts(posts)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/me")
+def delete_my_account(user: dict = Depends(get_current_user)):
+    """Permanently delete user account, avatars from storage, and cascade DB records."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database connection uninitialized")
+
+    user_id = user["id"]
+    try:
+        # 1. Clean up avatar files from Supabase Storage
+        try:
+            files = supabase.storage.from_("avatars").list(user_id)
+            if files and isinstance(files, list):
+                file_paths = [
+                    f"{user_id}/{f['name']}"
+                    for f in files
+                    if isinstance(f, dict) and "name" in f and f["name"]
+                ]
+                if file_paths:
+                    supabase.storage.from_("avatars").remove(file_paths)
+        except Exception as storage_err:
+            import logging
+            logging.warning(f"Error removing avatar files for user {user_id}: {storage_err}")
+
+        # 2. Delete user from Supabase Auth (triggers ON DELETE CASCADE in PostgreSQL)
+        try:
+            supabase.auth.admin.delete_user(user_id)
+        except Exception as auth_err:
+            import logging
+            logging.error(f"Error deleting user from auth.admin: {auth_err}", exc_info=True)
+            supabase.table("profiles").delete().eq("id", user_id).execute()
+
+        return {
+            "success": True,
+            "message": "Account and all associated data have been permanently deleted",
+        }
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to delete account for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete account: {str(e)}",
+        )

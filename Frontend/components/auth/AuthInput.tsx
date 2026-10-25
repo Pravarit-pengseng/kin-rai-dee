@@ -122,9 +122,9 @@ const styles = StyleSheet.create({
     color: '#57423E',
     fontSize: 15,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
     }),
     paddingVertical: 0,
   },
@@ -145,9 +145,9 @@ const styles = StyleSheet.create({
     color: '#C0392B',
     fontSize: 12,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
     }),
   },
 });

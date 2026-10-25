@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
 
   mainTitle: {
     fontSize: 22,
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
     color: '#241917',
     textAlign: 'center',
     marginBottom: 8,
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
 
   subTitle: {
     fontSize: 14,
-    fontFamily: 'NotoSansThai_400Regular',
+    fontFamily: 'Inter_400Regular',
     color: '#57423E',
     textAlign: 'center',
     marginBottom: 24,
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
 
   toggleText: {
     fontSize: 18,
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
   },
 
   unselectedText: {

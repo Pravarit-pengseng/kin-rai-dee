@@ -101,6 +101,6 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 18,
-    fontFamily: 'NotoSansThai_700Bold',
+    fontFamily: 'Inter_700Bold',
   },
 });

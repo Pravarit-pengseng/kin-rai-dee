@@ -1,7 +1,8 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from app.db import supabase
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_optional_current_user
+from app.services.safety_service import get_blocked_user_ids, is_blocked_between
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/posts", tags=["Posts & Bookmarks"])
@@ -32,10 +33,18 @@ class CommentUpdate(BaseModel):
 
 from app.core.config import SUPABASE_URL
 
-def normalize_avatar_url(url: Optional[str]) -> Optional[str]:
+def to_records(data: Any) -> List[Dict[str, Any]]:
+    """Type-safe helper to narrow Supabase JSON responses to a list of dicts."""
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    return []
+
+def normalize_avatar_url(url: Any) -> Optional[str]:
     """Ensure Supabase storage avatar URLs point to the current SUPABASE_URL."""
-    if not url:
+    if not url or not isinstance(url, str):
         return None
+    if not SUPABASE_URL:
+        return url
     marker = "/storage/v1/object/public/avatars/"
     if marker in url:
         idx = url.find(marker)
@@ -43,13 +52,14 @@ def normalize_avatar_url(url: Optional[str]) -> Optional[str]:
         return f"{SUPABASE_URL.rstrip('/')}{path}"
     return url
 
-def attach_profiles_to_posts(posts: List[dict]) -> List[dict]:
+def attach_profiles_to_posts(posts: Any) -> List[Dict[str, Any]]:
     """Helper to attach user profiles to posts safely."""
-    if not posts or not supabase:
-        return posts
+    post_list = to_records(posts) if not isinstance(posts, list) else [p for p in posts if isinstance(p, dict)]
+    if not post_list or not supabase:
+        return post_list
 
-    user_ids = list(set([p["user_id"] for p in posts if p.get("user_id")]))
-    profiles_map = {}
+    user_ids = list(set([p["user_id"] for p in post_list if p.get("user_id")]))
+    profiles_map: Dict[str, Dict[str, Any]] = {}
 
     if user_ids:
         try:
@@ -59,35 +69,36 @@ def attach_profiles_to_posts(posts: List[dict]) -> List[dict]:
                 .in_("id", user_ids)
                 .execute()
             )
-            if prof_resp.data:
-                for prof in prof_resp.data:
+            for prof in to_records(prof_resp.data):
+                if "id" in prof:
                     prof["avatar_url"] = normalize_avatar_url(prof.get("avatar_url"))
-                profiles_map = {prof["id"]: prof for prof in prof_resp.data}
+                    profiles_map[str(prof["id"])] = prof
         except Exception as e:
             print("Failed to fetch profiles for posts:", e)
 
-    for post in posts:
+    for post in post_list:
         uid = post.get("user_id")
-        post["profiles"] = profiles_map.get(
-            uid,
-            {
+        prof = profiles_map.get(str(uid)) if uid else None
+        if not isinstance(prof, dict):
+            prof = {
                 "id": uid,
                 "username": "user",
                 "display_name": "User",
                 "avatar_url": None,
-            },
-        )
+            }
+        post["profiles"] = prof
 
-    return posts
+    return post_list
 
 
-def attach_profiles_to_comments(comments: List[dict]) -> List[dict]:
+def attach_profiles_to_comments(comments: Any) -> List[Dict[str, Any]]:
     """Helper to attach user profiles and friendly fields to comments."""
-    if not comments or not supabase:
-        return comments
+    comment_list = to_records(comments) if not isinstance(comments, list) else [c for c in comments if isinstance(c, dict)]
+    if not comment_list or not supabase:
+        return comment_list
 
-    user_ids = list(set([c["user_id"] for c in comments if c.get("user_id")]))
-    profiles_map = {}
+    user_ids = list(set([c["user_id"] for c in comment_list if c.get("user_id")]))
+    profiles_map: Dict[str, Dict[str, Any]] = {}
 
     if user_ids:
         try:
@@ -97,45 +108,57 @@ def attach_profiles_to_comments(comments: List[dict]) -> List[dict]:
                 .in_("id", user_ids)
                 .execute()
             )
-            if prof_resp.data:
-                for prof in prof_resp.data:
+            for prof in to_records(prof_resp.data):
+                if "id" in prof:
                     prof["avatar_url"] = normalize_avatar_url(prof.get("avatar_url"))
-                profiles_map = {prof["id"]: prof for prof in prof_resp.data}
+                    profiles_map[str(prof["id"])] = prof
         except Exception as e:
             print("Failed to fetch profiles for comments:", e)
 
-    for comment in comments:
+    for comment in comment_list:
         uid = comment.get("user_id")
-        prof = profiles_map.get(
-            uid,
-            {
+        prof = profiles_map.get(str(uid)) if uid else None
+        if not isinstance(prof, dict):
+            prof = {
                 "id": uid,
                 "username": "user",
                 "display_name": "User",
                 "avatar_url": None,
-            },
-        )
+            }
         comment["profiles"] = prof
         comment["username"] = prof.get("display_name") or prof.get("username") or "ผู้ใช้งาน"
         comment["text"] = comment.get("content", "")
 
-    return comments
+    return comment_list
 
 
 @router.get("/feed")
-def get_feed_posts(limit: int = 20, offset: int = 0):
-    """Fetch recent feed posts with user profiles and categories."""
+def get_feed_posts(
+    limit: int = 20,
+    offset: int = 0,
+    user: Optional[dict] = Depends(get_optional_current_user),
+):
+    """Fetch recent feed posts with user profiles and categories, filtering blocked users."""
     if not supabase:
         return []
     try:
         posts_resp = (
             supabase.table("posts")
             .select("*, post_categories(categories(id, name))")
+            .or_("is_hidden.is.null,is_hidden.eq.false")
             .order("created_at", desc=True)
             .range(offset, offset + limit - 1)
             .execute()
         )
-        posts = posts_resp.data or []
+        posts = to_records(posts_resp.data)
+        posts = [p for p in posts if not p.get("is_hidden")]
+
+        # Filter out blocked users if user is authenticated
+        if user and user.get("id"):
+            blocked_ids = get_blocked_user_ids(user["id"])
+            if blocked_ids:
+                posts = [p for p in posts if str(p.get("user_id")) not in blocked_ids]
+
         return attach_profiles_to_posts(posts)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -148,10 +171,12 @@ def get_posts(user: dict = Depends(get_current_user)):
         response = (
             supabase.table("posts")
             .select("*, post_categories(categories(id, name))")
+            .or_("is_hidden.is.null,is_hidden.eq.false")
             .order("created_at", desc=True)
             .execute()
         )
-        posts = response.data or []
+        posts = to_records(response.data)
+        posts = [p for p in posts if not p.get("is_hidden")]
         return {"success": True, "data": attach_profiles_to_posts(posts)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -174,7 +199,9 @@ def get_user_saved_posts(
         posts = [
             item["posts"]
             for item in (response.data or [])
-            if item.get("posts")
+            if isinstance(item, dict)
+            and isinstance(item.get("posts"), dict)
+            and not item["posts"].get("is_hidden")
         ]
 
         return {
@@ -203,9 +230,9 @@ def get_post_detail(post_id: int):
             .execute()
         )
 
-        posts = response.data or []
+        posts = to_records(response.data)
 
-        if not posts:
+        if not posts or posts[0].get("is_hidden"):
             raise HTTPException(
                 status_code=404,
                 detail="Post not found",
@@ -243,6 +270,9 @@ def create_post(
             raise HTTPException(status_code=400, detail="Failed to create post")
 
         new_post = res.data[0]
+        if not isinstance(new_post, dict):
+            raise HTTPException(status_code=400, detail="Failed to create post")
+
         new_post_id = new_post["id"]
 
         if payload.category_ids:
@@ -402,15 +432,25 @@ def save_post(
         # Check whether the post exists
         post_response = (
             supabase.table("posts")
-            .select("id")
+            .select("id, user_id")
             .eq("id", post_id)
             .execute()
         )
 
-        if not post_response or not getattr(post_response, "data", None):
+        posts = to_records(post_response.data)
+        if not posts:
             raise HTTPException(
                 status_code=404,
                 detail="Post not found",
+            )
+
+        post_data = posts[0]
+        post_owner_id = str(post_data.get("user_id") or "")
+        # Check block status
+        if post_owner_id and is_blocked_between(str(user["id"]), post_owner_id):
+            raise HTTPException(
+                status_code=403,
+                detail="ไม่สามารถบันทึกโพสต์นี้ได้เนื่องจากมีสถานะการบล็อกระหว่างผู้ใช้",
             )
 
         # Check whether already bookmarked
@@ -448,9 +488,8 @@ def save_post(
         raise
 
     except Exception as e:
-        import traceback
-        with open("bookmark_error.log", "w") as f:
-            f.write(traceback.format_exc())
+        import logging
+        logging.error("Failed to bookmark post", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=str(e),
@@ -473,8 +512,11 @@ def unsave_post(post_id: int, user: dict = Depends(get_current_user)):
 # ── Comment endpoints ───────────────────────────────────────────────────────
 
 @router.get("/{post_id}/comments")
-def get_post_comments(post_id: int):
-    """Fetch comments for a post ordered by created_at ascending."""
+def get_post_comments(
+    post_id: int,
+    user: Optional[dict] = Depends(get_optional_current_user),
+):
+    """Fetch comments for a post ordered by created_at ascending, filtering blocked users."""
     if not supabase:
         return {"success": True, "data": []}
 
@@ -488,10 +530,19 @@ def get_post_comments(post_id: int):
             supabase.table("comments")
             .select("*")
             .eq("post_id", post_id)
+            .or_("is_hidden.is.null,is_hidden.eq.false")
             .order("created_at", desc=False)
             .execute()
         )
-        comments = resp.data or []
+        comments = to_records(resp.data)
+        comments = [c for c in comments if not c.get("is_hidden")]
+
+        # Filter out comments from blocked users
+        if user and user.get("id"):
+            blocked_ids = get_blocked_user_ids(user["id"])
+            if blocked_ids:
+                comments = [c for c in comments if str(c.get("user_id")) not in blocked_ids]
+
         return {"success": True, "data": attach_profiles_to_comments(comments)}
     except HTTPException:
         raise
@@ -505,7 +556,7 @@ def create_comment(
     payload: CommentCreate,
     user: dict = Depends(get_current_user),
 ):
-    """Add a new comment to a post (auth required)."""
+    """Add a new comment to a post (auth required, checks block status)."""
     if not supabase:
         raise HTTPException(status_code=500, detail="Database connection uninitialized")
 
@@ -514,10 +565,20 @@ def create_comment(
         raise HTTPException(status_code=400, detail="Comment content cannot be empty")
 
     try:
-        # Check post existence
-        post_check = supabase.table("posts").select("id").eq("id", post_id).execute()
-        if not getattr(post_check, "data", None):
+        # Check post existence and owner
+        post_check = supabase.table("posts").select("id, user_id").eq("id", post_id).execute()
+        posts = to_records(post_check.data)
+        if not posts:
             raise HTTPException(status_code=404, detail="Post not found")
+
+        post_data = posts[0]
+        post_owner_id = str(post_data.get("user_id") or "")
+        # Check block status between commenter and post owner
+        if post_owner_id and is_blocked_between(str(user["id"]), post_owner_id):
+            raise HTTPException(
+                status_code=403,
+                detail="ไม่สามารถแสดงความคิดเห็นได้เนื่องจากมีสถานะการบล็อกระหว่างผู้ใช้",
+            )
 
         insert_data = {
             "post_id": post_id,
@@ -525,10 +586,11 @@ def create_comment(
             "content": content,
         }
         res = supabase.table("comments").insert(insert_data).execute()
-        if not res.data:
+        res_records = to_records(res.data)
+        if not res_records:
             raise HTTPException(status_code=400, detail="Failed to create comment")
 
-        attached = attach_profiles_to_comments([res.data[0]])[0]
+        attached = attach_profiles_to_comments([res_records[0]])[0]
         return {"success": True, "data": attached}
     except HTTPException:
         raise
@@ -560,11 +622,12 @@ def update_comment(
             .eq("post_id", post_id)
             .execute()
         )
-        if not getattr(comment_check, "data", None):
+        comments = to_records(comment_check.data)
+        if not comments:
             raise HTTPException(status_code=404, detail="Comment not found")
 
-        comment = comment_check.data[0]
-        if str(comment["user_id"]) != str(user["id"]):
+        comment = comments[0]
+        if str(comment.get("user_id")) != str(user["id"]):
             raise HTTPException(
                 status_code=403,
                 detail="Not authorized to edit this comment",
@@ -576,7 +639,8 @@ def update_comment(
             .eq("id", comment_id)
             .execute()
         )
-        attached = attach_profiles_to_comments([res.data[0]])[0] if res.data else None
+        res_records = to_records(res.data)
+        attached = attach_profiles_to_comments([res_records[0]])[0] if res_records else None
         return {
             "success": True,
             "message": "Comment updated successfully",
@@ -607,11 +671,12 @@ def delete_comment(
             .eq("post_id", post_id)
             .execute()
         )
-        if not getattr(comment_check, "data", None):
+        comments = to_records(comment_check.data)
+        if not comments:
             raise HTTPException(status_code=404, detail="Comment not found")
 
-        comment = comment_check.data[0]
-        if str(comment["user_id"]) != str(user["id"]):
+        comment = comments[0]
+        if str(comment.get("user_id")) != str(user["id"]):
             raise HTTPException(
                 status_code=403,
                 detail="Not authorized to delete this comment",

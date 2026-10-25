@@ -21,6 +21,10 @@ import { bookmarkPost, unbookmarkPost, getSavedPosts, mapPostToPopup } from "@/s
 import { PostGridSkeleton } from "@/components/PostSkeleton";
 import { setCachedPostList } from "@/services/postCache";
 import { useAuth } from "@/context/AuthContext";
+import { blockUser, unblockUser, checkBlockStatus } from "@/services/safetyService";
+import ReportModal from "@/components/ReportModal";
+import { ShieldAlert, UserX, Flag, UserCheck } from "lucide-react-native";
+import { Pressable, Alert } from "react-native";
 
 const DEFAULT_AVATAR = require("../assets/images/ProfilePicture.png");
 const DEFAULT_IMAGE = require("../assets/images/StirFriedHolyBasil.png");
@@ -48,11 +52,23 @@ export default function OtherProfileScreen() {
   const [bookmarkedIds, setBookmarkedIds] =
     useState<string[]>([]);
 
+  const [isBlockedByMe, setIsBlockedByMe] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+
   useEffect(() => {
     if (!userId) {
       setLoadingProfile(false);
       setLoadingPosts(false);
       return;
+    }
+
+    // ตรวจสอบสถานะการบล็อก
+    if (user?.id) {
+      checkBlockStatus(userId).then(status => {
+        setIsBlocked(status.isBlocked);
+        setIsBlockedByMe(status.blockedByMe);
+      });
     }
 
     // โหลด profile
@@ -78,6 +94,61 @@ export default function OtherProfileScreen() {
       setLoadingPosts(false);
     });
   }, [userId, user?.id]);
+
+  const handleToggleBlock = () => {
+    if (!user?.id || !userId) {
+      router.push({ pathname: '/(auth)/login' });
+      return;
+    }
+
+    const targetName = profile?.display_name || profile?.username || 'ผู้ใช้นี้';
+
+    if (isBlockedByMe) {
+      Alert.alert(
+        'ปลดบล็อกผู้ใช้',
+        `ท่านต้องการปลดบล็อก "${targetName}" หรือไม่?`,
+        [
+          { text: 'ยกเลิก', style: 'cancel' },
+          {
+            text: 'ปลดบล็อก',
+            onPress: async () => {
+              const res = await unblockUser(userId);
+              if (res.success) {
+                setIsBlockedByMe(false);
+                setIsBlocked(false);
+                Alert.alert('สำเร็จ', `ปลดบล็อก ${targetName} เรียบร้อยแล้ว`);
+              }
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert(
+        'บล็อกผู้ใช้',
+        `ท่านต้องการบล็อก "${targetName}" หรือไม่?\n\nเมื่อบล็อกแล้ว:\n• โพสต์ของผู้ใช้นี้จะถูกซ่อน\n• ความคิดเห็นของผู้ใช้นี้จะถูกซ่อน\n• ป้องกันการโต้ตอบระหว่างกัน`,
+        [
+          { text: 'ยกเลิก', style: 'cancel' },
+          {
+            text: 'บล็อก',
+            style: 'destructive',
+            onPress: async () => {
+              const res = await blockUser(
+                userId,
+                profile?.display_name || profile?.username,
+                profile?.avatar_url,
+                profile?.username
+              );
+              if (res.success) {
+                setIsBlockedByMe(true);
+                setIsBlocked(true);
+                Alert.alert('สำเร็จ', `บล็อก ${targetName} เรียบร้อยแล้ว`);
+              }
+            },
+          },
+        ]
+      );
+    }
+  };
 
   const handleMenuChange = (id: string) => {
     if (id === "home") router.replace("/");
@@ -181,33 +252,85 @@ export default function OtherProfileScreen() {
                   </ThemedText>
                 </View>
               ) : null}
-            </View>
 
-            {/* Posts Title */}
-            <View style={styles.postsHeader}>
-              <ThemedText style={styles.postsTitle}>
-                โพสต์ทั้งหมด
-              </ThemedText>
-            </View>
+              {/* Action Buttons: Report & Block */}
+              <View style={styles.actionRow}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionBtn,
+                    isBlockedByMe ? styles.unblockActionBtn : styles.blockActionBtn,
+                    pressed && styles.btnPressed,
+                  ]}
+                  onPress={handleToggleBlock}
+                >
+                  {isBlockedByMe ? (
+                    <>
+                      <UserCheck size={16} color="#57423E" />
+                      <ThemedText style={styles.actionBtnText}>ปลดบล็อก</ThemedText>
+                    </>
+                  ) : (
+                    <>
+                      <UserX size={16} color="#A7392A" />
+                      <ThemedText style={[styles.actionBtnText, { color: '#A7392A' }]}>บล็อกผู้ใช้</ThemedText>
+                    </>
+                  )}
+                </Pressable>
 
-            {/* Post Grid */}
-            {loadingPosts ? (
-              <PostGridSkeleton count={6} />
-            ) : posts.length > 0 ? (
-              <PostGrid
-                posts={posts}
-                onPressPost={handleOpenPost}
-                onLongPressPost={(post) => {
-                  setSelectedPost(post);
-                  setPopupVisible(true);
-                }}
-              />
-            ) : (
-              <View style={styles.empty}>
-                <ThemedText style={styles.emptyText}>
-                  ยังไม่มีโพสต์
-                </ThemedText>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionBtn,
+                    styles.reportActionBtn,
+                    pressed && styles.btnPressed,
+                  ]}
+                  onPress={() => setReportModalVisible(true)}
+                >
+                  <Flag size={16} color="#79747E" />
+                  <ThemedText style={[styles.actionBtnText, { color: '#79747E' }]}>รายงาน</ThemedText>
+                </Pressable>
               </View>
+            </View>
+
+            {/* Blocked state or Posts */}
+            {isBlockedByMe ? (
+              <View style={styles.blockedNoticeCard}>
+                <UserX size={36} color="#A7392A" />
+                <ThemedText style={styles.blockedNoticeTitle}>คุณได้บล็อกผู้ใช้นี้</ThemedText>
+                <ThemedText style={styles.blockedNoticeSub}>
+                  โพสต์และความคิดเห็นของผู้ใช้นี้ถูกซ่อนจากมุมมองของคุณ
+                </ThemedText>
+                <Pressable style={styles.unblockConfirmBtn} onPress={handleToggleBlock}>
+                  <ThemedText style={styles.unblockConfirmBtnText}>ปลดบล็อกผู้ใช้</ThemedText>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                {/* Posts Title */}
+                <View style={styles.postsHeader}>
+                  <ThemedText style={styles.postsTitle}>
+                    โพสต์ทั้งหมด
+                  </ThemedText>
+                </View>
+
+                {/* Post Grid */}
+                {loadingPosts && posts.length === 0 ? (
+                  <PostGridSkeleton count={6} />
+                ) : posts.length > 0 ? (
+                  <PostGrid
+                    posts={posts}
+                    onPressPost={handleOpenPost}
+                    onLongPressPost={(post) => {
+                      setSelectedPost(post);
+                      setPopupVisible(true);
+                    }}
+                  />
+                ) : (
+                  <View style={styles.empty}>
+                    <ThemedText style={styles.emptyText}>
+                      ยังไม่มีโพสต์
+                    </ThemedText>
+                  </View>
+                )}
+              </>
             )}
           </ScrollView>
 
@@ -236,6 +359,15 @@ export default function OtherProfileScreen() {
           onBookmark={
             handleToggleBookmark
           }
+        />
+
+        {/* Report Modal */}
+        <ReportModal
+          visible={reportModalVisible}
+          targetType="user"
+          targetId={userId || ''}
+          targetTitle={profile?.display_name || profile?.username || 'ผู้ใช้นี้'}
+          onClose={() => setReportModalVisible(false)}
         />
       </SafeAreaView>
     </>
@@ -295,7 +427,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 20,
     lineHeight: 30,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: "#241917",
     marginBottom: 3,
@@ -358,5 +490,81 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     color: "#9B8E89",
+  },
+
+  /* Action buttons */
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  blockActionBtn: {
+    borderColor: '#F3D6D0',
+    backgroundColor: '#FFF0EB',
+  },
+  unblockActionBtn: {
+    borderColor: '#D4C8C5',
+    backgroundColor: '#FFFFFF',
+  },
+  reportActionBtn: {
+    borderColor: '#E6DACF',
+    backgroundColor: '#FFFFFF',
+  },
+  btnPressed: {
+    opacity: 0.7,
+  },
+  actionBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#57423E',
+  },
+
+  /* Blocked notice */
+  blockedNoticeCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 30,
+    marginHorizontal: 20,
+    marginTop: 24,
+    backgroundColor: '#FFF8F6',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#F8D7CD',
+  },
+  blockedNoticeTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#A7392A',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  blockedNoticeSub: {
+    fontSize: 13,
+    color: '#79747E',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 18,
+  },
+  unblockConfirmBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#A7392A',
+  },
+  unblockConfirmBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

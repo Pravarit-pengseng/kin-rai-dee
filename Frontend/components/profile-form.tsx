@@ -177,6 +177,6 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     fontSize: 15,
     color: "#241917",
-    fontFamily: "NotoSansThai_400Regular",
+    fontFamily: "Inter_400Regular",
   },
 });

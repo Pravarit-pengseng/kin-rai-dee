@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from "react-native";
+import { View, ScrollView, type ScrollViewInstance, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -19,13 +19,18 @@ import { fetchFeedPosts, bookmarkPost, unbookmarkPost, deletePost, getSavedPosts
 export default function HomeScreen() {
   const { isLoggedIn, user } = useAuth();
   const [posts, setPosts] = useState<PopupPostData[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const params = useLocalSearchParams<{ refresh?: string }>();
+  const postsRef = useRef<PopupPostData[]>([]);
+
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
 
   useEffect(() => {
     if (params.refresh) {
@@ -35,23 +40,35 @@ export default function HomeScreen() {
   }, [params.refresh]);
 
   const loadFeed = useCallback(async () => {
-    setLoading(true);
-    const fetched = await fetchFeedPosts();
-    if (fetched && fetched.length > 0) {
-      setPosts(fetched);
+    if (postsRef.current.length === 0) {
+      setLoading(true);
     }
 
-    if (isLoggedIn) {
-      const saved = await getSavedPosts();
-      if (saved && saved.length > 0) {
-        setBookmarkedIds(saved.map((s) => s.id));
-      } else {
-        setBookmarkedIds([]);
+    try {
+      // 1. Fetch posts and display immediately without delay
+      const fetched = await fetchFeedPosts();
+      if (fetched && fetched.length > 0) {
+        setPosts(fetched);
       }
+    } catch (e) {
+      console.warn("Failed to load feed:", e);
+    } finally {
+      // Stop skeleton immediately once posts are ready!
+      setLoading(false);
+    }
+
+    // 2. Sync bookmarks in background without blocking post display
+    if (isLoggedIn) {
+      getSavedPosts().then((saved) => {
+        if (saved && saved.length > 0) {
+          setBookmarkedIds(saved.map((s) => s.id));
+        } else {
+          setBookmarkedIds([]);
+        }
+      }).catch(() => { });
     } else {
       setBookmarkedIds([]);
     }
-    setLoading(false);
   }, [isLoggedIn]);
 
   const onRefresh = useCallback(async () => {
@@ -143,7 +160,7 @@ export default function HomeScreen() {
           <MaterialCommunityIcons name="silverware-fork-knife" size={26} color="#DCA64E" />
         </View>
 
-        {!refreshing && loading && (
+        {!refreshing && loading && posts.length === 0 && (
           <PostSkeleton count={3} />
         )}
 
@@ -161,6 +178,9 @@ export default function HomeScreen() {
               onEdit={handleEditPost}
               onRequestDelete={handleRequestDelete}
               onUserPress={handleUserPress}
+              onBlockUser={(blockedUserId) => {
+                setPosts((prev) => prev.filter((p) => p.userId !== blockedUserId));
+              }}
             />
           </View>
         ))}
@@ -204,7 +224,7 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 22,
     lineHeight: 34,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: "#46302B",
   },
@@ -233,7 +253,7 @@ const styles = StyleSheet.create({
   },
   fabText: {
     fontSize: 16,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "800",
     color: "#721209",
   },

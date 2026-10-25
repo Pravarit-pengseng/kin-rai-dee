@@ -65,9 +65,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data } = await supabase
         .from('profiles')
-        .select('display_name, username, bio, avatar_url')
+        .select('display_name, username, bio, avatar_url, is_suspended')
         .eq('id', supabaseUser.id)
         .single();
+
+      if (data?.is_suspended) {
+        await supabase.auth.signOut();
+        setUser(null);
+        setSession(null);
+        return;
+      }
 
       if (data) {
         setUser({
@@ -103,10 +110,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<{ error: string | null }> => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       return { error: error.message };
     }
+
+    if (authData?.user) {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_suspended')
+          .eq('id', authData.user.id)
+          .maybeSingle();
+
+        if (profile?.is_suspended) {
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+          return { error: 'บัญชีของคุณถูกระงับการใช้งาน หากคิดว่าเป็นข้อผิดพลาด สามารถติดต่อฝ่ายสนับสนุนได้ที่ phatsachon25488@gmail.com' };
+        }
+      } catch (err) {
+        console.warn('Error checking profile suspension:', err);
+      }
+    }
+
     return { error: null };
   };
 

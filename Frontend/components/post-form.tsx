@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     fontSize: 15,
     color: "#241917",
-    fontFamily: "NotoSansThai_400Regular",
+    fontFamily: "Inter_400Regular",
   },
 
   multilineWrapper: {
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: "#241917",
-    fontFamily: "NotoSansThai_400Regular",
+    fontFamily: "Inter_400Regular",
     marginRight: 8,
   },
 
@@ -397,6 +397,6 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 14,
     color: "#604E49",
-    fontFamily: "NotoSansThai_400Regular",
+    fontFamily: "Inter_400Regular",
   },
 });

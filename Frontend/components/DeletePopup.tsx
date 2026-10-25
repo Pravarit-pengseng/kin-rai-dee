@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   title: {
     textAlign: "center",
     fontSize: 18,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: "#241917",
     marginBottom: 20,
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
 
   cancelText: {
     fontSize: 16,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: "#57423E",
     textAlign: "center",
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
 
   deleteText: {
     fontSize: 16,
-    fontFamily: "NotoSansThai_700Bold",
+    fontFamily: "Inter_700Bold",
     fontWeight: "700",
     color: "#9B2C24",
     textAlign: "center",

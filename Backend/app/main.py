@@ -1,7 +1,10 @@
 import os
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from app.core.security import get_current_user
 from app.db.supabase import supabase
@@ -9,20 +12,55 @@ from app.db.supabase import supabase
 from app.routers import auth, categories, foods, search, posts, profiles, restaurants, safety, pages, admin
 
 
+# ── Rate Limiter ──────────────────────────────────────────────────────────────
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+
+# ── FastAPI App ───────────────────────────────────────────────────────────────
+_IS_PROD = os.getenv("ENVIRONMENT", "production").lower() == "production"
+
 app = FastAPI(
     title="Kin-Rai-Dee Backend API",
     version="1.0.0",
+    # Disable interactive docs in production to reduce attack surface
+    docs_url=None if _IS_PROD else "/docs",
+    redoc_url=None if _IS_PROD else "/redoc",
+    openapi_url=None if _IS_PROD else "/openapi.json",
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
 
-# Enable CORS for frontend app
+
+# ── CORS — explicit origins only (C-2 fix) ───────────────────────────────────
+_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS",
+        "https://kinraidee.app,https://www.kinraidee.app,http://localhost:8081,http://localhost:5173",
+    ).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
 )
+
+
+# ── Security Headers Middleware ───────────────────────────────────────────────
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response: Response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    if _IS_PROD:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 
 # Mount static assets from Expo Web export if available
@@ -58,25 +96,12 @@ app.include_router(restaurants.router)
 @app.get("/")
 def read_root():
     return {
-        "message": "Kin-Rai-Dee API is running and connected to Supabase DB",
+        "message": "Kin-Rai-Dee API is running",
         "status": "ok",
     }
 
 
-@app.get("/test/supabase")
-def test_supabase():
-    response = (
-        supabase
-        .table("profiles")
-        .select("*")
-        .limit(1)
-        .execute()
-    )
-
-    return {
-        "success": True,
-        "data": response.data,
-    }
+# NOTE: /test/supabase removed — exposed unauthenticated DB access (C-3 fix)
 
 
 @app.get("/me")

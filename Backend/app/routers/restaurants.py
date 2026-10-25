@@ -114,10 +114,11 @@ async def search_google_places(
                 if photos and len(photos) > 0:
                     photo_name = photos[0].get("name")
                     if photo_name:
-                        photo_url = (
-                            f"https://places.googleapis.com/v1/{photo_name}/media"
-                            f"?maxHeightPx=400&maxWidthPx=400&key={GOOGLE_MAPS_API_KEY}"
-                        )
+                        # H-4: Proxy through backend so the API key is never
+                        # exposed in client-visible URLs
+                        import base64
+                        encoded = base64.urlsafe_b64encode(photo_name.encode()).decode().rstrip("=")
+                        photo_url = f"/api/restaurants/photo/{encoded}"
                 if not photo_url:
                     photo_url = DEFAULT_IMAGES[len(results) % len(DEFAULT_IMAGES)]
 
@@ -204,3 +205,48 @@ async def search_restaurants(
     places = await search_google_places(search_query, user_lat, user_lng, radius)
     return places
 
+
+# ── Photo Proxy (H-4) ─────────────────────────────────────────────────────────
+import base64
+import binascii
+from fastapi.responses import Response as FastAPIResponse
+
+
+@router.get("/photo/{encoded_name}")
+async def proxy_place_photo(encoded_name: str):
+    """
+    Server-side proxy for Google Places photo.
+    Hides GOOGLE_MAPS_API_KEY from client-visible URLs.
+    encoded_name is base64url-encoded Places photo resource name (no padding).
+    """
+    if not GOOGLE_MAPS_API_KEY:
+        return FastAPIResponse(status_code=404, content=b"")
+
+    # Restore base64url padding
+    padding = 4 - len(encoded_name) % 4
+    padded = encoded_name + "=" * (padding % 4)
+    try:
+        photo_name = base64.urlsafe_b64decode(padded).decode()
+    except (binascii.Error, UnicodeDecodeError):
+        return FastAPIResponse(status_code=400, content=b"Invalid photo reference")
+
+    # Basic allowlist: photo_name must match the expected Places API format
+    import re as _re
+    if not _re.match(r'^places/[A-Za-z0-9_\-]+/photos/[A-Za-z0-9_\-]+$', photo_name):
+        return FastAPIResponse(status_code=400, content=b"Invalid photo reference")
+
+    url = (
+        f"https://places.googleapis.com/v1/{photo_name}/media"
+        f"?maxHeightPx=400&maxWidthPx=400&key={GOOGLE_MAPS_API_KEY}&skipHttpRedirect=true"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(url)
+            content_type = resp.headers.get("content-type", "image/jpeg")
+            return FastAPIResponse(
+                content=resp.content,
+                media_type=content_type,
+                headers={"Cache-Control": "public, max-age=86400"},
+            )
+    except Exception:
+        return FastAPIResponse(status_code=502, content=b"Photo unavailable")

@@ -1,17 +1,26 @@
 from typing import Optional
+import logging
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.db import supabase
 from app.core.security import get_current_user
 from app.routers.posts import attach_profiles_to_posts, normalize_avatar_url, to_records
 
 router = APIRouter(prefix="/api/profiles", tags=["Profiles"])
 
+_logger = logging.getLogger(__name__)
+
+# Max avatar file size: 5 MB
+_MAX_AVATAR_BYTES = 5 * 1024 * 1024
+
+# Fields that should never be exposed in a public profile response
+_PRIVATE_PROFILE_FIELDS = {"is_suspended", "violation_count"}
+
 
 class ProfileUpdate(BaseModel):
-    username: Optional[str] = None
-    display_name: Optional[str] = None
-    bio: Optional[str] = None
+    username: Optional[str] = Field(None, min_length=3, max_length=30, pattern=r'^[\w\u0E00-\u0E7F.\-]+$')
+    display_name: Optional[str] = Field(None, max_length=50)
+    bio: Optional[str] = Field(None, max_length=500)
     avatar_url: Optional[str] = None
 
 
@@ -71,7 +80,13 @@ async def upload_avatar(
             detail="Only JPG, PNG, and WEBP images are allowed",
         )
 
-    file_data = await file.read()
+    # H-5: Enforce file size limit to prevent DoS
+    file_data = await file.read(_MAX_AVATAR_BYTES + 1)
+    if len(file_data) > _MAX_AVATAR_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail="File size must not exceed 5 MB",
+        )
     file_extension = file.content_type.split("/")[-1]
     file_path = f"{user['id']}/avatar.{file_extension}"
 
@@ -103,7 +118,7 @@ async def upload_avatar(
 
 @router.get("/{user_id}")
 def get_user_profile(user_id: str):
-    """Fetch any user's public profile."""
+    """Fetch any user's public profile. Sensitive admin/moderation fields are stripped."""
     if not supabase:
         raise HTTPException(status_code=404, detail="Profile not found")
     try:
@@ -117,6 +132,9 @@ def get_user_profile(user_id: str):
         profile = response.data
         if isinstance(profile, dict):
             profile["avatar_url"] = normalize_avatar_url(profile.get("avatar_url"))
+            # M-3: Strip private moderation fields from public response
+            for field in _PRIVATE_PROFILE_FIELDS:
+                profile.pop(field, None)
         return profile
     except Exception:
         raise HTTPException(status_code=404, detail="Profile not found")

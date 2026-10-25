@@ -107,23 +107,6 @@ def get_current_admin(
         import logging
         logging.warning(f"Error querying public.admins: {e}")
 
-    # 2. Fallback check metadata role
-    try:
-        token = credentials.credentials
-        auth_resp = supabase.auth.get_user(token)
-        u = auth_resp.user if auth_resp else None
-        if u:
-            role = (u.app_metadata or {}).get("role") or (u.user_metadata or {}).get("role") or ""
-            if role.lower() in ["admin", "super_admin", "moderator"]:
-                return {
-                    "id": user_id,
-                    "email": user.get("email"),
-                    "name": (u.user_metadata or {}).get("display_name") or "ผู้ดูแลระบบ",
-                    "role": role.lower(),
-                }
-    except Exception:
-        pass
-
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="สิทธิ์การเข้าถึงถูกปฏิเสธ: จำเป็นต้องมีสิทธิ์ผู้ดูแลระบบ (Admin privilege required)",

@@ -2,12 +2,15 @@ import re
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+import logging
 
 from app.core.security import get_current_user, get_optional_current_user
+from app.core.validators import sanitize_search_query
 from app.db import supabase
 from app.routers.posts import attach_profiles_to_posts, to_records
 from app.services.safety_service import get_blocked_user_ids
 
+_logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/search",
@@ -55,8 +58,8 @@ def search_posts(
 
             return attach_profiles_to_posts(posts)
 
-        # Sanitize term for PostgREST .or_() filter
-        safe_term = re.sub(r'[,()"]', '', search_term).strip()
+        # H-3: Allowlist-based sanitization (strips PostgREST injection chars)
+        safe_term = sanitize_search_query(search_term)
         if not safe_term:
             return []
 
@@ -109,9 +112,10 @@ def search_posts(
         return attach_profiles_to_posts(posts)
 
     except Exception as e:
+        _logger.error("Search error: %s", e, exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=str(e),
+            detail="Search temporarily unavailable",  # H-2: Don't leak internals
         )
 
 

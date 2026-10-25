@@ -1,11 +1,15 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, EmailStr
 from supabase import create_client
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+import logging
 
 from app.core.config import SUPABASE_URL
 from app.core.config import SUPABASE_PUBLISHABLE_KEY
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+limiter = Limiter(key_func=get_remote_address)
 
 supabase_auth = create_client(
     SUPABASE_URL,
@@ -19,13 +23,15 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/login")
-def login(data: LoginRequest):
+@limiter.limit("5/minute")  # H-1: Brute force protection
+def login(request: Request, data: LoginRequest):
     try:
         response = supabase_auth.auth.sign_in_with_password({
             "email": data.email,
             "password": data.password,
         })
     except Exception:
+        # H-2: Don't expose auth system details to caller
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password",

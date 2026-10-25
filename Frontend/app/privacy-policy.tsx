@@ -6,7 +6,6 @@ import {
   Pressable,
   ScrollView,
   Platform,
-  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
@@ -17,16 +16,6 @@ const isWeb = Platform.OS === 'web';
 
 export default function PrivacyPolicyScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const isSmallScreen = width < 480;
-
-  const handleBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/' as any);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -37,7 +26,7 @@ export default function PrivacyPolicyScreen() {
         <LegalNavbar activeTab="privacy" />
       ) : (
         <View style={styles.header}>
-          <Pressable onPress={handleBack} style={styles.backBtn} hitSlop={12}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
             <ArrowLeft size={22} color="#1A1A1A" />
           </Pressable>
           <Text style={styles.headerTitle}>นโยบายความเป็นส่วนตัว</Text>
@@ -47,14 +36,10 @@ export default function PrivacyPolicyScreen() {
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={[
-          styles.scrollContent,
-          isWeb && styles.webScrollContent,
-          isSmallScreen && styles.mobileScrollContent,
-        ]}
+        contentContainerStyle={[styles.scrollContent, isWeb && styles.webScrollContent]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.mainTitle, isSmallScreen && styles.mobileMainTitle]}>นโยบายความเป็นส่วนตัว</Text>
+        <Text style={styles.mainTitle}>นโยบายความเป็นส่วนตัว</Text>
         <Text style={styles.updatedDate}>อัปเดตล่าสุด 21 ตุลาคม 2569</Text>
 
         <Text style={styles.introParagraph}>
@@ -168,23 +153,13 @@ export default function PrivacyPolicyScreen() {
         {isWeb && (
           <>
             <View style={styles.footerNav}>
-              <View style={styles.footerLinkPressable}>
-                <Text style={[styles.footerLink, styles.footerLinkActive]}>นโยบายความเป็นส่วนตัว</Text>
-              </View>
+              <Text style={[styles.footerLink, styles.footerLinkActive]}>นโยบายความเป็นส่วนตัว</Text>
               <Text style={styles.footerDot}>•</Text>
-              <Pressable
-                onPress={() => router.push('/terms-of-use' as any)}
-                style={({ pressed }) => [styles.footerLinkPressable, pressed && styles.btnPressed]}
-                hitSlop={8}
-              >
+              <Pressable onPress={() => router.push('/terms-of-use' as any)}>
                 <Text style={styles.footerLink}>ข้อกำหนดการใช้งาน</Text>
               </Pressable>
               <Text style={styles.footerDot}>•</Text>
-              <Pressable
-                onPress={() => router.push('/delete-account' as any)}
-                style={({ pressed }) => [styles.footerLinkPressable, pressed && styles.btnPressed]}
-                hitSlop={8}
-              >
+              <Pressable onPress={() => router.push('/delete-account' as any)}>
                 <Text style={styles.footerLink}>คำขอลบบัญชี</Text>
               </Pressable>
             </View>
@@ -212,11 +187,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E5E5',
   },
-  mobileMainTitle: {
-    fontSize: 20,
-    lineHeight: 28,
-    marginBottom: 8,
-  },
   backBtn: {
     padding: 6,
     marginLeft: -4,
@@ -242,11 +212,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 24,
     paddingBottom: 48,
-  },
-  mobileScrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 40,
   },
   webScrollContent: {
     width: '100%',
@@ -399,20 +364,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    marginTop: 32,
+    marginTop: 36,
     paddingTop: 18,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
-    rowGap: 8,
-    columnGap: 10,
-  },
-  footerLinkPressable: {
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-  },
-  btnPressed: {
-    opacity: 0.6,
+    gap: 10,
   },
   footerLink: {
     fontSize: 13,

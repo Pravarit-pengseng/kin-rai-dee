@@ -516,9 +516,9 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 28,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
     }),
   },
   actionButton: {
@@ -533,9 +533,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9CA3AF',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
     }),
   },
   resendLink: {
@@ -543,9 +543,9 @@ const styles = StyleSheet.create({
     color: '#A63826',
     fontWeight: '600',
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_600SemiBold',
-      default: 'NotoSansThai_600SemiBold, Inter_600SemiBold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
     }),
   },
   passwordRulesContainer: {
@@ -561,9 +561,9 @@ const styles = StyleSheet.create({
     color: '#57423E',
     marginBottom: 8,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_600SemiBold',
-      default: 'NotoSansThai_600SemiBold, Inter_600SemiBold, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_600SemiBold',
+      default: 'Inter, sans-serif',
     }),
   },
   ruleItem: {
@@ -576,9 +576,9 @@ const styles = StyleSheet.create({
     color: '#8C7A75',
     marginLeft: 8,
     fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
+      ios: 'Inter',
+      android: 'Inter_400Regular',
+      default: 'Inter, sans-serif',
     }),
   },
   ruleTextValid: {

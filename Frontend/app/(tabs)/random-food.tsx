@@ -7,7 +7,6 @@ import {
   Image,
   ActivityIndicator,
   Linking,
-  useWindowDimensions,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,12 +27,6 @@ import { FOOD_LIST, FoodItem } from '@/constants/foodData';
 import { fetchNearbyRestaurants } from '@/services/restaurantService';
 
 export default function RandomFoodScreen() {
-  const { width } = useWindowDimensions();
-  const isSuperNarrow = width < 340; // e.g. 300px width
-  const isNarrow = width < 380; // e.g. 360px (realme 9 pro+)
-  const logoSize = Math.min(230, Math.max(140, width - (isSuperNarrow ? 60 : isNarrow ? 76 : 96)));
-  const foodImageHeight = isSuperNarrow ? 170 : isNarrow ? 200 : 230;
-
   const [categories] = useState<FoodCategory[]>(FOOD_CATEGORIES);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [hasRandomized, setHasRandomized] = useState(false);
@@ -158,35 +151,12 @@ export default function RandomFoodScreen() {
       <Header onSearchPress={handleSearch} />
 
       <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          {
-            paddingHorizontal: isSuperNarrow ? 12 : isNarrow ? 16 : 20,
-            maxWidth: 560,
-            width: '100%',
-            alignSelf: 'center',
-          },
-        ]}
+        contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
         {/* Title */}
-        <Text
-          style={[
-            styles.mainTitle,
-            isSuperNarrow && { fontSize: 20 },
-            isNarrow && !isSuperNarrow && { fontSize: 22 },
-          ]}
-        >
-          วันนี้กินอะไรดี?
-        </Text>
-        <Text
-          style={[
-            styles.subTitle,
-            isSuperNarrow && { fontSize: 12.5, marginBottom: 14 },
-          ]}
-        >
-          คิดไม่ออกใช่ไหม? ให้เราช่วยเลือก!
-        </Text>
+        <Text style={styles.mainTitle}>วันนี้กินอะไรดี?</Text>
+        <Text style={styles.subTitle}>คิดไม่ออกใช่ไหม? ให้เราช่วยเลือก!</Text>
 
         {/* Food Category */}
         <MultiSelectDropdown
@@ -197,35 +167,20 @@ export default function RandomFoodScreen() {
         />
 
         {/* Random Food Result */}
-        <View
-          style={[
-            styles.resultCard,
-            isSuperNarrow && { padding: 14, borderRadius: 18 },
-            isNarrow && !isSuperNarrow && { padding: 18, borderRadius: 20 },
-          ]}
-        >
+        <View style={styles.resultCard}>
           {(!hasRandomized && !isRandomizing) || !randomFood ? (
             <Image
               source={require('@/assets/images/kinraidee-logo.png')}
-              style={{ width: logoSize, height: logoSize }}
+              style={styles.logoImage}
               resizeMode="contain"
             />
           ) : (
             <View style={styles.foodContainer}>
               <Image
                 source={randomFood.image}
-                style={[styles.foodImage, { height: foodImageHeight }]}
+                style={styles.foodImage}
                 resizeMode="contain"
               />
-              <Text
-                style={[
-                  styles.foodTitle,
-                  isSuperNarrow && { fontSize: 17, marginTop: 8 },
-                ]}
-                numberOfLines={1}
-              >
-                {randomFood.name}
-              </Text>
             </View>
           )}
         </View>
@@ -428,4 +383,4 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     color: '#8A7772',
   },
-});
+});

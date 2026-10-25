@@ -9,7 +9,6 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
-  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
@@ -19,8 +18,6 @@ import { supabase } from '../lib/supabase';
 
 export default function DeleteAccountScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const isSmallScreen = width < 480;
   const [email, setEmail] = useState('');
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -76,13 +73,10 @@ export default function DeleteAccountScreen() {
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={[
-          styles.scrollContent,
-          isSmallScreen && styles.mobileScrollContent,
-        ]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.mainTitle, isSmallScreen && styles.mobileMainTitle]}>คำขอลบบัญชีผู้ใช้และข้อมูลทั้งหมด</Text>
+        <Text style={styles.mainTitle}>คำขอลบบัญชีผู้ใช้และข้อมูลทั้งหมด</Text>
         <Text style={styles.updatedDate}>อัปเดตล่าสุด 21 ตุลาคม 2569</Text>
 
         <Text style={styles.introParagraph}>
@@ -214,8 +208,8 @@ export default function DeleteAccountScreen() {
                 onChangeText={setReason}
               />
 
-              <Pressable
-                style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]}
+              <Pressable 
+                style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]} 
                 onPress={handleSubmit}
                 disabled={isSubmitting}
               >
@@ -234,25 +228,15 @@ export default function DeleteAccountScreen() {
 
         {/* Footer Navigation */}
         <View style={styles.footerNav}>
-          <Pressable
-            onPress={() => router.push('/privacy-policy' as any)}
-            style={({ pressed }) => [styles.footerLinkPressable, pressed && styles.btnPressed]}
-            hitSlop={8}
-          >
+          <Pressable onPress={() => router.push('/privacy-policy' as any)}>
             <Text style={styles.footerLink}>นโยบายความเป็นส่วนตัว</Text>
           </Pressable>
           <Text style={styles.footerDot}>•</Text>
-          <Pressable
-            onPress={() => router.push('/terms-of-use' as any)}
-            style={({ pressed }) => [styles.footerLinkPressable, pressed && styles.btnPressed]}
-            hitSlop={8}
-          >
+          <Pressable onPress={() => router.push('/terms-of-use' as any)}>
             <Text style={styles.footerLink}>ข้อกำหนดการใช้งาน</Text>
           </Pressable>
           <Text style={styles.footerDot}>•</Text>
-          <View style={styles.footerLinkPressable}>
-            <Text style={[styles.footerLink, styles.footerLinkActive]}>คำขอลบบัญชี</Text>
-          </View>
+          <Text style={[styles.footerLink, styles.footerLinkActive]}>คำขอลบบัญชี</Text>
         </View>
 
         <Text style={styles.copyright}>&copy; 2026 KIN RAI DEE Community. All rights reserved.</Text>
@@ -270,11 +254,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  mobileMainTitle: {
-    fontSize: 20,
-    lineHeight: 28,
-    marginBottom: 8,
-  },
   scrollContent: {
     paddingHorizontal: 22,
     paddingTop: 24,
@@ -282,11 +261,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 960,
     alignSelf: 'center',
-  },
-  mobileScrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 40,
   },
   mainTitle: {
     fontSize: 24,
@@ -522,20 +496,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    marginTop: 32,
+    marginTop: 36,
     paddingTop: 18,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
-    rowGap: 8,
-    columnGap: 10,
-  },
-  footerLinkPressable: {
-    paddingVertical: 4,
-    paddingHorizontal: 2,
-  },
-  btnPressed: {
-    opacity: 0.6,
+    gap: 10,
   },
   footerLink: {
     fontSize: 13,

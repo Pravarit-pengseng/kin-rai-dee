@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, Modal } from 'react-native';
+import { Typography } from '@/constants/typography';
 
 interface SuccessModalProps {
   visible: boolean;
@@ -61,10 +62,6 @@ const styles = StyleSheet.create({
     color: '#111827',
     textAlign: 'center',
     marginBottom: 0,
-    fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
-    }),
+    fontFamily: Typography.bold,
   },
 });

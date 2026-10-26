@@ -19,11 +19,11 @@ import {
   IngredientItem,
 } from '@/constants/ingredientData';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Typography } from '@/constants/typography';
 
 export default function RandomIngredientScreen() {
   const { width } = useWindowDimensions();
-  const isSuperNarrow = width < 340;
-  const isNarrow = width < 380;
+  const cardWidth = (width - 40 - 16) / 2;
 
   const [isVegSelected, setIsVegSelected] = useState(false);
   const [isMeatSelected, setIsMeatSelected] = useState(false);
@@ -113,11 +113,11 @@ export default function RandomIngredientScreen() {
     }, 100);
   };
 
-  const renderCard = (ingredient: IngredientItem) => (
-    <View style={[styles.resultCard, styles.halfCard]}>
+  const renderCard = (ingredient: IngredientItem, isSingle: boolean = false) => (
+    <View style={isSingle ? [styles.singleCard, { width: cardWidth }] : styles.halfCard}>
       <Image
         source={ingredient.image}
-        style={styles.foodImageHalf}
+        style={styles.foodImage}
         resizeMode="cover"
       />
     </View>
@@ -130,43 +130,23 @@ export default function RandomIngredientScreen() {
       <Header onSearchPress={handleSearch} />
 
       <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          {
-            paddingHorizontal: isSuperNarrow ? 12 : isNarrow ? 16 : 20,
-            maxWidth: 560,
-            width: '100%',
-            alignSelf: 'center',
-          },
-        ]}
+        contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        <Text
-          style={[
-            styles.mainTitle,
-            isSuperNarrow && { fontSize: 18.5 },
-            isNarrow && !isSuperNarrow && { fontSize: 20 },
-          ]}
-        >
+        <Text style={styles.mainTitle}>
           อยากทำอาหารแต่คิดวัตถุดิบไม่ออก?
         </Text>
 
-        <Text
-          style={[
-            styles.subTitle,
-            isSuperNarrow && { fontSize: 12.5, marginBottom: 16 },
-          ]}
-        >
+        <Text style={styles.subTitle}>
           แตะเลือกหมวดวัตถุดิบที่ต้องการก่อนกดสุ่ม
         </Text>
 
         {/* Category Toggles */}
-        <View style={[styles.toggleContainer, isSuperNarrow && { gap: 10, marginBottom: 14 }]}>
+        <View style={styles.toggleContainer}>
           {/* ผัก */}
           <Pressable
             style={({ pressed }) => [
               styles.toggleBox,
-              isSuperNarrow && styles.toggleBoxNarrow,
               isVegSelected
                 ? styles.vegSelected
                 : styles.unselected,
@@ -178,10 +158,10 @@ export default function RandomIngredientScreen() {
               setRandomVeg(null);
             }}
           >
-            <View style={[styles.iconCircle, isSuperNarrow && styles.iconCircleNarrow]}>
+            <View style={styles.iconCircle}>
               <MaterialCommunityIcons
                 name="flower"
-                size={isSuperNarrow ? 24 : 32}
+                size={32}
                 color={
                   isVegSelected
                     ? '#2A6B4E'
@@ -193,7 +173,6 @@ export default function RandomIngredientScreen() {
             <Text
               style={[
                 styles.toggleText,
-                isSuperNarrow && { fontSize: 15 },
                 isVegSelected
                   ? styles.vegText
                   : styles.unselectedText,
@@ -207,7 +186,6 @@ export default function RandomIngredientScreen() {
           <Pressable
             style={({ pressed }) => [
               styles.toggleBox,
-              isSuperNarrow && styles.toggleBoxNarrow,
               isMeatSelected
                 ? styles.meatSelected
                 : styles.unselected,
@@ -219,10 +197,10 @@ export default function RandomIngredientScreen() {
               setRandomMeat(null);
             }}
           >
-            <View style={[styles.iconCircle, isSuperNarrow && styles.iconCircleNarrow]}>
+            <View style={styles.iconCircle}>
               <MaterialCommunityIcons
                 name="pot-steam"
-                size={isSuperNarrow ? 24 : 32}
+                size={32}
                 color={
                   isMeatSelected
                     ? '#A5352A'
@@ -234,7 +212,6 @@ export default function RandomIngredientScreen() {
             <Text
               style={[
                 styles.toggleText,
-                isSuperNarrow && { fontSize: 15 },
                 isMeatSelected
                   ? styles.meatText
                   : styles.unselectedText,
@@ -266,11 +243,11 @@ export default function RandomIngredientScreen() {
             >
               {isVegSelected &&
                 randomVeg &&
-                renderCard(randomVeg)}
+                renderCard(randomVeg, !isMeatSelected)}
 
               {isMeatSelected &&
                 randomMeat &&
-                renderCard(randomMeat)}
+                renderCard(randomMeat, !isVegSelected)}
             </View>
           )}
         </View>
@@ -310,7 +287,7 @@ const styles = StyleSheet.create({
 
   mainTitle: {
     fontSize: 22,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: Typography.bold,
     color: '#241917',
     textAlign: 'center',
     marginBottom: 8,
@@ -318,7 +295,7 @@ const styles = StyleSheet.create({
 
   subTitle: {
     fontSize: 14,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: Typography.regular,
     color: '#57423E',
     textAlign: 'center',
     marginBottom: 24,
@@ -338,19 +315,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-
-  toggleBoxNarrow: {
-    height: 105,
-    borderRadius: 14,
   },
 
   unselected: {
@@ -378,16 +342,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  iconCircleNarrow: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    marginBottom: 6,
-  },
-
   toggleText: {
     fontSize: 18,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: Typography.bold,
   },
 
   unselectedText: {
@@ -415,14 +372,6 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 4,
   },
 
   logoImage: {
@@ -432,48 +381,42 @@ const styles = StyleSheet.create({
 
   rowResults: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
+    gap: 16,
+    width: '100%',
   },
 
   singleResult: {
-    alignItems: 'center',
-  },
-
-  resultCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 4,
-    width: '100%',
   },
 
   halfCard: {
     flex: 1,
-    maxWidth: '48%',
-    height: 245,
-    borderRadius: 16,
-    padding: 0,
-    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
 
-  foodImageHalf: {
-    width: '100%',
-    height: '100%',
+  singleCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
 
-
+  foodImage: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 14,
+  },
 
   buttonPressed: {
     opacity: 0.8,

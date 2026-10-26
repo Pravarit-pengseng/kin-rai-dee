@@ -33,6 +33,7 @@ import ReportModal from "@/components/ReportModal";
 
 import PostDropdown from "./post-dropdown";
 import { ThemedText } from "@/components/themed-text";
+import { Typography } from "@/constants/typography";
 
 function formatBreakableText(text?: string): string {
   if (!text) return "";
@@ -267,7 +268,7 @@ export default function PopupPost({
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentText, setCommentText] = useState("");
-  const commentsScrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const commentsScrollRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [slideAnim] = useState(() => new Animated.Value(600));
 
@@ -1013,7 +1014,7 @@ const styles = StyleSheet.create({
 
   userName: {
     fontSize: 14,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Typography.bold,
     fontWeight: "700",
     color: "#4B3500",
     lineHeight: 20,
@@ -1059,7 +1060,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     lineHeight: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Typography.bold,
     fontWeight: "900",
     color: "#4B3500",
     marginBottom: 6,
@@ -1092,7 +1093,7 @@ const styles = StyleSheet.create({
 
   readMoreText: {
     fontSize: 14,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: Typography.semiBold,
     fontWeight: "600",
     color: "#8B5A2B",
   },
@@ -1119,8 +1120,6 @@ const styles = StyleSheet.create({
 
   tagContainer: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
     marginBottom: 10,
   },
 
@@ -1214,7 +1213,7 @@ const styles = StyleSheet.create({
 
   sheetTitle: {
     fontSize: 16,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Typography.bold,
     fontWeight: "700",
     color: "#241917",
     textAlign: "center",
@@ -1251,7 +1250,7 @@ const styles = StyleSheet.create({
 
   emptyCommentsText: {
     fontSize: 14,
-    fontFamily: "Inter_400Regular",
+    fontFamily: Typography.regular,
     color: "#8C7B75",
     textAlign: "center",
   },
@@ -1294,7 +1293,7 @@ const styles = StyleSheet.create({
 
   commentUsername: {
     fontSize: 14,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Typography.bold,
     fontWeight: "700",
     color: "#241917",
     marginBottom: 2,
@@ -1302,7 +1301,7 @@ const styles = StyleSheet.create({
 
   commentText: {
     fontSize: 13.5,
-    fontFamily: "Inter_400Regular",
+    fontFamily: Typography.regular,
     color: "#4B3500",
     lineHeight: 20,
   },
@@ -1347,7 +1346,7 @@ const styles = StyleSheet.create({
   commentTextInput: {
     flex: 1,
     fontSize: 13.5,
-    fontFamily: "Inter_400Regular",
+    fontFamily: Typography.regular,
     color: "#241917",
     paddingVertical: 0,
   },
@@ -1359,7 +1358,7 @@ const styles = StyleSheet.create({
 
   postCommentText: {
     fontSize: 14,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Typography.bold,
     fontWeight: "700",
     color: "#8A3E2D",
   },
@@ -1373,7 +1372,6 @@ const styles = StyleSheet.create({
 
   blockSuccessPopup: {
     width: 290,
-    maxWidth: "88%",
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
     paddingVertical: 36,
@@ -1393,7 +1391,7 @@ const styles = StyleSheet.create({
   blockSuccessText: {
     textAlign: "center",
     fontSize: 18,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Typography.bold,
     fontWeight: "700",
     color: "#1C1B1F",
   },

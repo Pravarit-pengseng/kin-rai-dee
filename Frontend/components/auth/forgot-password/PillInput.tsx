@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { Typography } from '@/constants/typography';
 
 interface PillInputProps extends TextInputProps {
   iconName: keyof typeof Feather.glyphMap;
@@ -136,11 +137,7 @@ const styles = StyleSheet.create({
     height: '100%',
     color: '#111827',
     fontSize: 15,
-    fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
-    }),
+    fontFamily: Typography.regular,
     paddingVertical: 0,
   },
   eyeButton: {
@@ -159,10 +156,6 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#DC2626',
     fontSize: 12,
-    fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_400Regular',
-      default: 'NotoSansThai_400Regular, Inter_400Regular, sans-serif',
-    }),
+    fontFamily: Typography.regular,
   },
 });

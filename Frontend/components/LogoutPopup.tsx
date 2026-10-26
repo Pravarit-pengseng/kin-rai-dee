@@ -6,6 +6,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { ThemedText } from "@/components/themed-text";
+import { Typography } from "@/constants/typography";
 
 export type LogoutPopupProps = {
   visible: boolean;
@@ -95,7 +96,7 @@ const styles = StyleSheet.create({
   title: {
     textAlign: "center",
     fontSize: 18,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Typography.bold,
     fontWeight: "700",
     color: "#241917",
     marginBottom: 20,
@@ -144,7 +145,7 @@ const styles = StyleSheet.create({
 
   cancelText: {
     fontSize: 16,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Typography.bold,
     fontWeight: "700",
     color: "#57423E",
     textAlign: "center",
@@ -152,7 +153,7 @@ const styles = StyleSheet.create({
 
   logoutText: {
     fontSize: 15,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Typography.bold,
     fontWeight: "700",
     color: "#9B2C24",
     textAlign: "center",

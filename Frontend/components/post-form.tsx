@@ -16,6 +16,7 @@ import {
 
 import { ThemedText } from "@/components/themed-text";
 import { FOOD_CATEGORIES } from "@/constants/categories";
+import { Typography } from "@/constants/typography";
 
 const categories = FOOD_CATEGORIES.map((c) => c.label);
 
@@ -322,7 +323,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     fontSize: 15,
     color: "#241917",
-    fontFamily: "Inter_400Regular",
+    fontFamily: Typography.regular,
   },
 
   multilineWrapper: {
@@ -358,7 +359,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: "#241917",
-    fontFamily: "Inter_400Regular",
+    fontFamily: Typography.regular,
     marginRight: 8,
   },
 
@@ -397,6 +398,6 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 14,
     color: "#604E49",
-    fontFamily: "Inter_400Regular",
+    fontFamily: Typography.regular,
   },
 });

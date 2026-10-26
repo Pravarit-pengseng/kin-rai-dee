@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { ArrowLeft, UserX, ShieldCheck } from 'lucide-react-native';
 import { getBlockedUsers, unblockUser, BlockedUserItem } from '@/services/safetyService';
+import { Typography } from '@/constants/typography';
 
 const DEFAULT_AVATAR = require('@/assets/images/ProfilePicture.png');
 
@@ -188,11 +189,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1C1B1F',
     flex: 1,
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: Typography.bold,
   },
   headerRight: {
     minWidth: 32,

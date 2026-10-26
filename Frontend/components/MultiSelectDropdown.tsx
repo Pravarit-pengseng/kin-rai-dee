@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { Typography } from '@/constants/typography';
 
 interface Option {
   id: string;
@@ -20,8 +21,6 @@ export function MultiSelectDropdown({
   onSelectionChange,
   placeholder = 'เลือกประเภทอาหาร',
 }: MultiSelectDropdownProps) {
-  const { width } = useWindowDimensions();
-  const isNarrow = width < 360;
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleOption = (id: string) => {
@@ -43,20 +42,13 @@ export function MultiSelectDropdown({
   return (
     <View style={styles.container}>
       <Pressable
-        style={[
-          styles.dropdownButton,
-          isNarrow && styles.dropdownButtonNarrow,
-          isOpen && styles.dropdownButtonOpen,
-        ]}
+        style={[styles.dropdownButton, isOpen && styles.dropdownButtonOpen]}
         onPress={() => setIsOpen(!isOpen)}
       >
-        <Text
-          style={[styles.dropdownText, isNarrow && { fontSize: 14.5 }]}
-          numberOfLines={1}
-        >
+        <Text style={styles.dropdownText} numberOfLines={1}>
           {getDisplayText()}
         </Text>
-        <Feather name={isOpen ? 'chevron-up' : 'chevron-down'} size={isNarrow ? 20 : 24} color="#9F9F9F" />
+        <Feather name={isOpen ? 'chevron-up' : 'chevron-down'} size={24} color="#9F9F9F" />
       </Pressable>
 
       {isOpen && (
@@ -104,17 +96,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  dropdownButtonNarrow: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
   dropdownButtonOpen: {
     // Optionally style when open
   },
   dropdownText: {
     fontSize: 16,
     color: '#5A4A42',
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: Typography.semiBold,
     flex: 1,
     marginRight: 8,
   },
@@ -163,7 +151,7 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 16,
     color: '#5A4A42',
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: Typography.semiBold,
   },
   buttonPressed: {
     opacity: 0.8,

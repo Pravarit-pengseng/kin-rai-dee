@@ -10,6 +10,7 @@ import {
   SquarePen,
 } from "lucide-react-native";
 import { ThemedText } from "@/components/themed-text";
+import { Typography } from "@/constants/typography";
 
 export type ProfileHeaderProps = {
   name?: string;
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 20,
     lineHeight: 30,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Typography.bold,
     fontWeight: "900",
     color: "#241917",
     marginBottom: 3,
@@ -166,7 +167,6 @@ const styles = StyleSheet.create({
   bio: {
     minHeight: 40,
     width: 220,
-    maxWidth: "92%",
     marginTop: 13,
     marginBottom: 8,
     paddingHorizontal: 8,
@@ -187,7 +187,6 @@ const styles = StyleSheet.create({
 
   actionRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "center",
     gap: 9,

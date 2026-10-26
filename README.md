@@ -253,7 +253,15 @@ npx playwright show-report
 ### 2. รัน Backend Unit & Integration Tests (Pytest)
 ```bash
 cd backend
+
+# รันการทดสอบพื้นฐานทั่วไป (Unauthenticated, Safety, Admin, Legal)
 pytest -v
+
+# รันแบบครบวงจร (รวม 9 Authenticated Tests ที่ต้องใช้ User Token)
+# Windows PowerShell:
+$env:TEST_EMAIL="user@gmail.com"; $env:TEST_PASSWORD="password"; pytest -v
+# macOS/Linux:
+TEST_EMAIL="user@gmail.com" TEST_PASSWORD="password" pytest -v
 ```
 
 ### 3. รัน Comprehensive End-to-End API Health Test

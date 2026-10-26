@@ -165,7 +165,7 @@ docker exec -it kin-rai-dee-api sh
 
 ### 1. รัน Pytest Suite ทั้งหมด
 ```bash
-# รันการทดสอบทั้งหมดพร้อมแสดงรายละเอียด
+# รันการทดสอบพื้นฐานทั้งหมด (Unauthenticated, Safety, Admin, Legal)
 pytest -v
 
 # รันเฉพาะการทดสอบความปลอดภัย (Safety & Blocking)
@@ -177,6 +177,23 @@ pytest tests/test_admin.py -v
 # รันเฉพาะการทดสอบหน้าเอกสารทางกฎหมาย
 pytest tests/test_legal_pages.py -v
 ```
+
+#### การรันการทดสอบแบบเต็มรูปแบบ (รวม Authenticated Tests ทั้งหมด)
+การทดสอบ API ที่ต้องมีการยืนยันตัวตน (เช่น การสร้างโพสต์, บุ๊กมาร์ก, คอมเมนต์, การแก้ไขโปรไฟล์) จำเป็นต้องระบุอีเมลและรหัสผ่านของบัญชีผู้ใช้ทดสอบ:
+
+**Windows (PowerShell):**
+```powershell
+$env:TEST_EMAIL="your_test_user@gmail.com"
+$env:TEST_PASSWORD="your_password"
+pytest tests/test_api.py -v
+```
+
+**macOS / Linux / Bash:**
+```bash
+TEST_EMAIL="your_test_user@gmail.com" TEST_PASSWORD="your_password" pytest tests/test_api.py -v
+```
+> [!NOTE]
+> หากไม่ได้ระบุ `TEST_EMAIL` และ `TEST_PASSWORD` ระบบจะทำการ **Skip (ข้าม)** การทดสอบ 9 ข้อที่ต้องใช้สิทธิ์ผู้ใช้โดยอัตโนมัติ เพื่อป้องกันการเกิด 401 Unauthorized
 
 ### 2. รัน Comprehensive End-to-End API Test Script
 สคริปต์ `test_system_apis.py` จะยิงทดสอบระบบจริงแบบครบวงจร (Root, Health, Foods, Categories, Posts, Legal Pages, Safety/Reports, Admin Auth):

@@ -22,6 +22,7 @@ import PostForm, {
 } from "@/components/post-form";
 import { updatePost } from "@/services/postService";
 import { FOOD_CATEGORIES } from "@/constants/categories";
+import { Typography } from "@/constants/typography";
 
 export default function EditPost() {
     const { postId, post: postParam } = useLocalSearchParams<{
@@ -240,9 +241,6 @@ const styles = StyleSheet.create({
     content: {
         padding: 16,
         paddingBottom: 40,
-        maxWidth: 600,
-        width: "100%",
-        alignSelf: "center",
     },
 
     imageBox: {
@@ -275,7 +273,7 @@ const styles = StyleSheet.create({
         marginTop: 5,
         fontSize: 15,
         color: "#9D8179",
-        fontFamily: "Inter_400Regular",
+        fontFamily: Typography.regular,
     },
 
     postButton: {

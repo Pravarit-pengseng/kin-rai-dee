@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,14 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
-import { ChevronRight, ArrowLeft, ShieldAlert } from 'lucide-react-native';
+import { ChevronRight, ArrowLeft } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { deleteAccount, getBlockedUsers } from '@/services/safetyService';
 import DeleteAccountPopup from '@/components/DeleteAccountPopup';
+import { Typography } from '@/constants/typography';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -25,7 +24,7 @@ export default function SettingsScreen() {
   const [blockedCount, setBlockedCount] = useState<number>(0);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       getBlockedUsers().then((list) => {
         setBlockedCount(list.length);
       });
@@ -216,11 +215,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#1C1B1F',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_700Bold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: Typography.bold,
   },
   content: {
     flex: 1,
@@ -262,11 +257,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '500',
     color: '#1C1B1F',
-    fontFamily: Platform.select({
-      ios: 'Inter',
-      android: 'Inter_600SemiBold',
-      default: 'Inter, sans-serif',
-    }),
+    fontFamily: Typography.semiBold,
   },
   deleteText: {
     color: '#1C1B1F',

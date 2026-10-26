@@ -1,27 +1,27 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router/react-navigation";
-import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
-import { NotoSansThai_400Regular, NotoSansThai_600SemiBold, NotoSansThai_700Bold } from '@expo-google-fonts/noto-sans-thai';
+import { useFonts, NotoSansThai_400Regular, NotoSansThai_600SemiBold, NotoSansThai_700Bold } from '@expo-google-fonts/noto-sans-thai';
 import { PlusJakartaSans_400Regular, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold } from '@expo-google-fonts/plus-jakarta-sans';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { Text, TextInput } from 'react-native';
+import { Platform, Text, TextInput } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/context/AuthContext';
+import { Typography } from '@/constants/typography';
 
 // Set global default font family for Text & TextInput across the app
 if ((Text as any).defaultProps == null) {
   (Text as any).defaultProps = {};
 }
-(Text as any).defaultProps.style = { fontFamily: 'Inter_400Regular' };
+(Text as any).defaultProps.style = { fontFamily: Typography.regular };
 
 if ((TextInput as any).defaultProps == null) {
   (TextInput as any).defaultProps = {};
 }
-(TextInput as any).defaultProps.style = { fontFamily: 'Inter_400Regular' };
+(TextInput as any).defaultProps.style = { fontFamily: Typography.regular };
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',
@@ -35,9 +35,6 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   
   const [loaded] = useFonts({
-    Inter_400Regular,
-    Inter_600SemiBold,
-    Inter_700Bold,
     NotoSansThai_400Regular,
     NotoSansThai_600SemiBold,
     NotoSansThai_700Bold,

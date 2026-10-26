@@ -1,13 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-  Pressable,
-  ActivityIndicator,
-  RefreshControl,
-  useWindowDimensions,
-} from "react-native";
+import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -21,10 +13,11 @@ import DeletePopup from "@/components/DeletePopup";
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/context/AuthContext";
 import { fetchFeedPosts, bookmarkPost, unbookmarkPost, deletePost, getSavedPosts } from "@/services/postService";
+import { Typography } from "@/constants/typography";
+
+
 
 export default function HomeScreen() {
-  const { width } = useWindowDimensions();
-  const isSuperNarrow = width < 340;
   const { isLoggedIn, user } = useAuth();
   const [posts, setPosts] = useState<PopupPostData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +25,7 @@ export default function HomeScreen() {
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
-  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const scrollRef = useRef<any>(null);
   const params = useLocalSearchParams<{ refresh?: string }>();
   const postsRef = useRef<PopupPostData[]>([]);
 
@@ -146,16 +139,16 @@ export default function HomeScreen() {
         title="KIN RAI DEE"
         leftIcon="none"
         rightIcon="search"
-        onSearchPress={() => router.push('/(tabs)/search?from=/')}
+        onSearchPress={() =>
+          router.push('/(tabs)/search?from=/')
+        }
+        titleStyle={styles.headerTitle}
       />
 
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.scrollContent,
-          isSuperNarrow && { paddingHorizontal: 10 },
-        ]}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -224,14 +217,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#FFF8F6" },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 110,
-    maxWidth: 600,
-    width: "100%",
-    alignSelf: "center",
-  },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 110 },
   titleContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -239,11 +225,17 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingHorizontal: 4,
   },
+  headerTitle: {
+    fontSize: 20,
+    color: '#A7392A',
+    letterSpacing: 0.5,
+    fontFamily: 'NotoSansThai_700Bold',
+  },
   pageTitle: {
     fontSize: 22,
     lineHeight: 34,
-    fontFamily: "Inter_700Bold",
-    fontWeight: "800",
+    fontFamily: 'NotoSansThai_700Bold',
+    fontWeight: "bold",
     color: "#46302B",
   },
   postWrapper: { marginBottom: 16 },
@@ -271,7 +263,7 @@ const styles = StyleSheet.create({
   },
   fabText: {
     fontSize: 16,
-    fontFamily: "Inter_700Bold",
+    fontFamily: Typography.bold,
     fontWeight: "800",
     color: "#721209",
   },

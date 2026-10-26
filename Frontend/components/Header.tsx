@@ -1,8 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  type StyleProp,
+  type TextStyle,
+} from 'react-native';;
 import { Feather } from '@expo/vector-icons';
 import { StatusBar, StatusBarStyle } from 'expo-status-bar';
 import { useAuth } from '@/context/AuthContext';
+import { Typography } from '@/constants/typography';
 
 export type HeaderLeftIcon = 'back' | 'close' | 'logout' | 'none';
 export type HeaderRightIcon = 'search' | 'settings' | 'none';
@@ -19,12 +27,13 @@ interface HeaderProps {
   onSearchPress?: () => void; // Alias for onRightPress
   statusBarStyle?: StatusBarStyle;
   showBorder?: boolean;
+  titleStyle?: StyleProp<TextStyle>;
 }
 
 export function Header({
   backgroundColor = 'transparent',
-  textColor = '#A7392A', // Default red color from mockup
-  iconColor = '#57423E', // Default dark brown icon color
+  textColor = '#A7392A',
+  iconColor = '#57423E',
   title = 'KIN RAI DEE',
   leftIcon = 'none',
   onLeftPress,
@@ -33,9 +42,10 @@ export function Header({
   onSearchPress,
   statusBarStyle = 'dark',
   showBorder = true,
+  titleStyle,
 }: HeaderProps) {
   const { isLoggedIn } = useAuth();
-  const fontFamily = 'Inter_700Bold';
+  const fontFamily = Typography.bold;
 
   const renderLeftIcon = () => {
     if (leftIcon === 'none') return null;
@@ -83,7 +93,17 @@ export function Header({
       <View style={styles.leftSide}>{renderLeftIcon()}</View>
 
       {/* Center Title */}
-      <Text style={[styles.title, { color: textColor, fontFamily }]} numberOfLines={1}>
+      <Text
+        style={[
+          styles.title,
+          {
+            color: textColor,
+            fontFamily: Typography.bold,
+          },
+          titleStyle,
+        ]}
+        numberOfLines={1}
+      >
         {title}
       </Text>
 

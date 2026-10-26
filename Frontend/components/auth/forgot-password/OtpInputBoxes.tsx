@@ -8,6 +8,7 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
+import { Typography } from '@/constants/typography';
 
 interface OtpInputBoxesProps {
   code: string;
@@ -133,10 +134,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
     textAlign: 'center',
-    fontFamily: Platform.select({
-      ios: 'Noto Sans Thai',
-      android: 'NotoSansThai_700Bold',
-      default: 'NotoSansThai_700Bold, Inter_700Bold, sans-serif',
-    }),
+    fontFamily: Typography.bold,
   },
 });

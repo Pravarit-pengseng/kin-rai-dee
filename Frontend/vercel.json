@@ -5,13 +5,12 @@
     { "source": "/_expo/(.*)", "destination": "/_expo/$1" },
     { "source": "/assets/(.*)", "destination": "/assets/$1" },
     { "source": "/favicon.ico", "destination": "/favicon.ico" },
+    { "source": "/delete-account", "destination": "/delete-account.html" },
+    { "source": "/support/delete-account", "destination": "/delete-account.html" },
     { "source": "/privacy", "destination": "/privacy-policy.html" },
     { "source": "/privacy-policy", "destination": "/privacy-policy.html" },
     { "source": "/terms", "destination": "/terms-of-use.html" },
     { "source": "/terms-of-use", "destination": "/terms-of-use.html" },
-    { "source": "/delete-account", "destination": "/delete-account.html" },
-    { "source": "/support/delete-account", "destination": "/delete-account.html" },
-    { "source": "/", "destination": "/privacy-policy.html" },
-    { "source": "/(.*)", "destination": "/privacy-policy.html" }
+    { "source": "/", "destination": "/delete-account.html" }
   ]
 }

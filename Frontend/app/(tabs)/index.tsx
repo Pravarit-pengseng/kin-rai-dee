@@ -139,7 +139,10 @@ export default function HomeScreen() {
         title="KIN RAI DEE"
         leftIcon="none"
         rightIcon="search"
-        onSearchPress={() => router.push('/(tabs)/search?from=/')}
+        onSearchPress={() =>
+          router.push('/(tabs)/search?from=/')
+        }
+        titleStyle={styles.headerTitle}
       />
 
       <ScrollView
@@ -222,10 +225,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingHorizontal: 4,
   },
+  headerTitle: {
+    fontSize: 20,
+    color: '#A7392A',
+    letterSpacing: 0.5,
+    fontFamily: 'NotoSansThai_700Bold',
+  },
   pageTitle: {
     fontSize: 22,
     lineHeight: 34,
-    fontFamily: Typography.bold,
+    fontFamily: 'NotoSansThai_700Bold',
     fontWeight: "bold",
     color: "#46302B",
   },

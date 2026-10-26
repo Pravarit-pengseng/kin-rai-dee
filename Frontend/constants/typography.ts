@@ -2,17 +2,17 @@ import { Platform } from 'react-native';
 
 export const Typography = {
   regular: Platform.select({
-    ios: 'Noto Sans Thai',
+    ios: 'NotoSansThai_400Regular',
     android: 'NotoSansThai_400Regular',
     default: 'NotoSansThai_400Regular',
   }),
   semiBold: Platform.select({
-    ios: 'Noto Sans Thai',
+    ios: 'NotoSansThai_600SemiBold',
     android: 'NotoSansThai_600SemiBold',
     default: 'NotoSansThai_600SemiBold',
   }),
   bold: Platform.select({
-    ios: 'Noto Sans Thai',
+    ios: 'NotoSansThai_700Bold',
     android: 'NotoSansThai_700Bold',
     default: 'NotoSansThai_700Bold',
   }),

@@ -1,5 +1,16 @@
-import { fetchApi } from './api';
+import { fetchApi, API_BASE_URL } from './api';
 import { Restaurant } from '@/components/restuarant-card';
+
+export function resolveRestaurantImage(r: Restaurant): Restaurant {
+  if (r.image && r.image.startsWith('/')) {
+    const base = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+    return {
+      ...r,
+      image: `${base}${r.image}`,
+    };
+  }
+  return r;
+}
 
 const GOOGLE_API_KEY =
   process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
@@ -186,7 +197,7 @@ export async function fetchNearbyRestaurants(
   );
 
   if (data && data.length > 0) {
-    return data;
+    return data.map(resolveRestaurantImage);
   }
 
   // Fallback: ยิงตรง Google Places API (รองรับ Android และ iOS ทุกเครื่อง)
@@ -216,7 +227,7 @@ export async function searchRestaurants(
   );
 
   if (data && data.length > 0) {
-    return data;
+    return data.map(resolveRestaurantImage);
   }
 
   // Fallback: ยิงตรง Google Places API (รองรับ Android และ iOS ทุกเครื่อง)

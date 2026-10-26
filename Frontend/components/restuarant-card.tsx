@@ -1,6 +1,7 @@
 import {  View,  Text,  Image,  StyleSheet,  TouchableOpacity,  Linking,} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/constants/typography';
+import { API_BASE_URL } from '@/services/api';
 export type Restaurant = {
   id: string;
   name: string;
@@ -40,6 +41,12 @@ export function RestaurantCard({
     );
   };
 
+  const imageUri = restaurant.image
+    ? restaurant.image.startsWith('/')
+      ? `${API_BASE_URL.replace(/\/+$/, '')}${restaurant.image}`
+      : restaurant.image
+    : undefined;
+
   return (
     <TouchableOpacity
       style={styles.card}
@@ -47,10 +54,10 @@ export function RestaurantCard({
       onPress={onPress}
     >
       {/* Restaurant Image */}
-      {restaurant.image ? (
+      {imageUri ? (
         <Image
           source={{
-            uri: restaurant.image,
+            uri: imageUri,
           }}
           style={styles.image}
           resizeMode="cover"

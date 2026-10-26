@@ -62,18 +62,8 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (!isLoggedIn) {
       router.replace({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/profile', from: '/' } });
-      return;
     }
-    // โหลด profile จริงจาก DB
-    getMyProfile().then((profile) => {
-      if (profile) {
-        setProfileName(profile.display_name ?? undefined);
-        // username จาก DB ไม่มี @ นำหน้า ให้เก็บตรงๆ
-        setProfileUsername(profile.username ?? undefined);
-        setProfileBio(profile.bio ?? undefined);
-        setProfileAvatarUrl(profile.avatar_url ?? undefined);
-      }
-    });
+    // โหลด profile จาก useFocusEffect แทน เพื่อไม่ดึงซ้ำ
   }, [isLoggedIn]);
 
   const [posts, setPosts] = useState<PopupPostData[]>([]);

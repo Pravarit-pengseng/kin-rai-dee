@@ -384,4 +384,4 @@ const styles = StyleSheet.create({
     fontFamily: Typography.regular,
     color: '#8A7772',
   },
-});
+});

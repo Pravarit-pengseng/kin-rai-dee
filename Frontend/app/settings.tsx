@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,10 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
-import { ChevronRight, ArrowLeft, ShieldAlert } from 'lucide-react-native';
+import { ChevronRight, ArrowLeft } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { deleteAccount, getBlockedUsers } from '@/services/safetyService';
 import DeleteAccountPopup from '@/components/DeleteAccountPopup';
@@ -26,7 +24,7 @@ export default function SettingsScreen() {
   const [blockedCount, setBlockedCount] = useState<number>(0);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       getBlockedUsers().then((list) => {
         setBlockedCount(list.length);
       });

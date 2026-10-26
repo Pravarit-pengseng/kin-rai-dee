@@ -59,11 +59,27 @@ def login(request: Request, data: LoginRequest):
                         status_code=403,
                         detail="บัญชีของคุณถูกระงับการใช้งาน หากคิดว่าเป็นข้อผิดพลาด สามารถติดต่อฝ่ายสนับสนุนได้ที่ phatsachon25488@gmail.com",
                     )
+
+            # Defense-in-depth: Prevent admin accounts from logging in via public client /auth/login
+            # Returns generic 401 to prevent User/Role Enumeration (OWASP)
+            import os
+            allow_admin_test = os.getenv("ALLOW_ADMIN_TEST_LOGIN", "").lower() in ("1", "true")
+            if not allow_admin_test:
+                admin_res = supabase.table("admins").select("id, is_active").eq("user_id", response.user.id).eq("is_active", True).execute()
+                if admin_res.data and isinstance(admin_res.data, list) and len(admin_res.data) > 0:
+                    try:
+                        supabase_auth.auth.sign_out()
+                    except Exception:
+                        pass
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Invalid email or password",
+                    )
     except HTTPException:
         raise
     except Exception as e:
         import logging
-        logging.warning(f"Error checking user suspension during login: {e}")
+        logging.warning(f"Error checking user suspension or admin role during login: {e}")
 
     return {
         "success": True,
@@ -122,5 +138,5 @@ def delete_account(user: dict = Depends(get_current_user)):
         logging.error(f"Failed to delete account for user {user_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to delete account: {str(e)}",
+            detail="Failed to delete account. Please try again or contact support.",
         )

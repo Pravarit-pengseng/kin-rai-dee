@@ -158,7 +158,8 @@ def get_user_posts(user_id: str):
         posts = [p for p in to_records(response.data) if not p.get("is_hidden")]
         return attach_profiles_to_posts(posts)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        _logger.error(f"Failed to fetch posts for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch posts")
 
 
 @router.delete("/me")
@@ -201,5 +202,5 @@ def delete_my_account(user: dict = Depends(get_current_user)):
         logging.error(f"Failed to delete account for user {user_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to delete account: {str(e)}",
+            detail="Failed to delete account. Please try again or contact support.",
         )

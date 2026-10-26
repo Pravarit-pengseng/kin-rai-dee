@@ -17,6 +17,7 @@ client = TestClient(app)
 
 TEST_EMAIL = os.getenv("TEST_EMAIL")
 TEST_PASSWORD = os.getenv("TEST_PASSWORD")
+os.environ.setdefault("ALLOW_ADMIN_TEST_LOGIN", "1")
 
 
 @pytest.fixture(scope="session")
@@ -66,14 +67,9 @@ def test_health_check():
 
 
 def test_supabase_connection():
+    # Verify unauthenticated /test/supabase was properly removed for security (C-3 fix)
     response = client.get("/test/supabase")
-
-    assert response.status_code == 200
-
-    body = response.json()
-
-    assert body["success"] is True
-    assert "data" in body
+    assert response.status_code == 404
 
 
 # =========================================================

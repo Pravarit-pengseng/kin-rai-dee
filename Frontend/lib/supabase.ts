@@ -11,4 +11,10 @@ if (typeof globalThis.WebSocket === 'undefined') {
   }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false, // H-1: ป้องกัน token ปรากฎใน URL บน mobile
+  },
+});

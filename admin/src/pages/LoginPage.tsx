@@ -16,8 +16,8 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onShowToast }) => {
-  const [email, setEmail] = useState('admin@gmail.com');
-  const [password, setPassword] = useState('admin1234');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -84,8 +84,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onShowToas
 
     setErrorMsg(null);
 
-    const trimmedEmail = email.trim() || 'admin@gmail.com';
-    const loginPassword = password || 'admin1234';
+    const trimmedEmail = email.trim();
+    const loginPassword = password;
+
+    if (!trimmedEmail || !loginPassword) {
+      setErrorMsg('กรุณากรอกอีเมลและรหัสผ่าน');
+      return;
+    }
 
     setLoading(true);
 
@@ -159,7 +164,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onShowToas
   };
 
   const saveAndLogin = (admin: AdminUser) => {
-    localStorage.setItem('kinraidee_admin_auth', JSON.stringify(admin));
+    sessionStorage.setItem('kinraidee_admin_auth', JSON.stringify(admin));
+    localStorage.removeItem('kinraidee_admin_auth');
     onShowToast(`ยินดีต้อนรับ ${admin.name}`, 'success');
     onLoginSuccess(admin);
   };

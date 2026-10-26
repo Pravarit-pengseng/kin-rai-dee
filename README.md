@@ -288,6 +288,38 @@ npm run lint
 
 ---
 
+## 🏗️ การ Build สำหรับ Production (Production Build)
+
+สรุปคำสั่ง Build สำหรับแต่ละโมดูลเพื่อนำไป Deploy บน Cloud หรือ Production Server:
+
+### 1. Frontend Web & Legal Pages (Expo Export)
+สร้าง Static Web Bundle สำหรับหน้าเว็บและหน้า Legal (PDPA / Terms) พร้อม Deploy ไปยัง Vercel:
+```bash
+cd frontend
+npm run build:web
+```
+- Output: โฟลเดอร์ `frontend/dist/`
+
+### 2. Admin Dashboard (Vite SPA Build)
+ตรวจสอบ TypeScript และ Bundle เว็บแผงควบคุมผู้ดูแลระบบ:
+```bash
+cd admin
+npm run build
+
+# ทดสอบพรีวิว Production Build ในเครื่อง:
+npm run preview
+```
+- Output: โฟลเดอร์ `admin/dist/`
+
+### 3. Backend API (Docker Image Build)
+สร้าง Container Image พร้อมรันบน Docker / Cloud Run / VPS:
+```bash
+cd backend
+docker build -t kin-rai-dee-backend .
+```
+
+---
+
 ## 📖 เอกสารของแต่ละโมดูล (Module Documentations)
 
 ดูรายละเอียดเชิงลึก การตั้งค่า Environment และคู่มือคำสั่งเฉพาะทางของแต่ละส่วนได้ที่:

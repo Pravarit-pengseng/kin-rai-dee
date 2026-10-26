@@ -6,6 +6,16 @@ import { getBlockedUserIdsSet } from './safetyService';
 
 const DEFAULT_IMAGE = require('@/assets/images/StirFriedHolyBasil.png');
 
+// ── Saved Posts Cache (ลด Supabase egress) ────────────────────────────────────
+let _savedPostsCache: PopupPostData[] | null = null;
+let _savedPostsCacheTime = 0;
+const SAVED_POSTS_CACHE_TTL = 2 * 60 * 1000; // 2 นาที
+
+export function invalidateSavedPostsCache() {
+  _savedPostsCache = null;
+  _savedPostsCacheTime = 0;
+}
+
 export interface PostPayload {
   food_name: string;
   description?: string;
@@ -440,6 +450,7 @@ export async function bookmarkPost(
       return false;
     }
 
+    invalidateSavedPostsCache(); // ล้าง cache
     return true;
   } catch (e) {
     console.warn(
@@ -492,6 +503,7 @@ export async function unbookmarkPost(
       return false;
     }
 
+    invalidateSavedPostsCache(); // ล้าง cache
     return true;
   } catch (e) {
     console.warn(
@@ -507,16 +519,29 @@ export async function unbookmarkPost(
  * Auth required
  */
 export async function getSavedPosts(): Promise<PopupPostData[]> {
+  const now = Date.now();
+
+  // คืน cache ถ้ายังไม่หมดอายุ 2 นาที (ลด Supabase egress มาก)
+  if (_savedPostsCache && now - _savedPostsCacheTime < SAVED_POSTS_CACHE_TTL) {
+    return _savedPostsCache;
+  }
+
   const resp = await fetchApi<{ success: boolean; data: any[] } | any[]>(
     '/api/posts/saved',
   );
 
   // รองรับทั้ง array โดยตรง และ { success, data: [...] }
   if (Array.isArray(resp)) {
-    return resp.map(mapPostToPopup);
+    const result = resp.map(mapPostToPopup);
+    _savedPostsCache = result;
+    _savedPostsCacheTime = now;
+    return result;
   }
   if (resp && !Array.isArray(resp) && (resp as any)?.data) {
-    return (resp as any).data.map(mapPostToPopup);
+    const result = (resp as any).data.map(mapPostToPopup);
+    _savedPostsCache = result;
+    _savedPostsCacheTime = now;
+    return result;
   }
 
   // Supabase fallback
@@ -540,7 +565,10 @@ export async function getSavedPosts(): Promise<PopupPostData[]> {
     if (savedData) {
       const rawPosts = savedData.filter((item: any) => item.posts).map((item: any) => item.posts);
       const populated = await attachProfilesToPosts(rawPosts);
-      return populated.map(mapPostToPopup);
+      const result = populated.map(mapPostToPopup);
+      _savedPostsCache = result;
+      _savedPostsCacheTime = now;
+      return result;
     }
   } catch (e) {
     console.warn(

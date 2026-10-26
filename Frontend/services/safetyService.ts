@@ -64,6 +64,16 @@ export const MOCK_BLOCKED_USERS: BlockedUserItem[] = [];
 
 let inMemoryBlockedUsers: BlockedUserItem[] = [];
 
+// ── Blocked IDs Cache (ลด Supabase egress) ───────────────────────────────────
+let _blockedIdsCache: Set<string> | null = null;
+let _blockedIdsCacheTime = 0;
+const BLOCKED_CACHE_TTL = 5 * 60 * 1000; // 5 นาที
+
+function _invalidateBlockedIdsCache() {
+  _blockedIdsCache = null;
+  _blockedIdsCacheTime = 0;
+}
+
 /**
  * ส่งรายงาน (Report Post / Comment / User)
  */
@@ -115,6 +125,7 @@ export async function blockUser(
   targetAvatar?: string | null,
   targetUsername?: string,
 ): Promise<{ success: boolean; message: string }> {
+  _invalidateBlockedIdsCache(); // ล้าง cache เมื่อ block ใหม่
   let resolvedDisplayName = targetName;
   let resolvedUsername = targetUsername;
   let resolvedAvatar = targetAvatar;
@@ -195,6 +206,7 @@ export async function blockUser(
  */
 export async function unblockUser(targetUserId: string): Promise<{ success: boolean; message: string }> {
   inMemoryBlockedUsers = inMemoryBlockedUsers.filter(u => u.blocked_user_id !== targetUserId);
+  _invalidateBlockedIdsCache(); // ล้าง cache เมื่อ unblock
 
   try {
     const res = await fetchApi<{ success: boolean; message: string }>(`/api/blocks/${targetUserId}`, {
@@ -256,6 +268,13 @@ export async function checkBlockStatus(targetUserId: string): Promise<{ isBlocke
  * ใช้สำหรับกรองฟีดโพสต์ และความคิดเห็น
  */
 export async function getBlockedUserIdsSet(): Promise<Set<string>> {
+  const now = Date.now();
+
+  // คืน cache ถ้ายังไม่หมดอายุ (ลด Supabase egress)
+  if (_blockedIdsCache && now - _blockedIdsCacheTime < BLOCKED_CACHE_TTL) {
+    return _blockedIdsCache;
+  }
+
   const ids = new Set<string>();
 
   // 1. In-memory blocks
@@ -263,7 +282,7 @@ export async function getBlockedUserIdsSet(): Promise<Set<string>> {
     if (item.blocked_user_id) ids.add(String(item.blocked_user_id));
   }
 
-  // 2. Supabase blocks
+  // 2. Supabase blocks (ยิง 1 ครั้ง แล้ว cache ไว้ 5 นาที)
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -282,6 +301,10 @@ export async function getBlockedUserIdsSet(): Promise<Set<string>> {
   } catch (err) {
     console.warn('Error getting blocked user ids set:', err);
   }
+
+  // บันทึก cache
+  _blockedIdsCache = ids;
+  _blockedIdsCacheTime = now;
 
   return ids;
 }

@@ -13,6 +13,9 @@ export type UserProfile = {
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 
+// ── Session-level cache (ลด Supabase egress) ───────────────────────────────
+let _profileCheckCache: { userId: string; isAdmin: boolean; isSuspended: boolean } | null = null;
+
 function normalizeAvatar(url?: string | null): string | undefined {
   if (!url) return undefined;
   const marker = '/storage/v1/object/public/avatars/';
@@ -47,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function syncUserProfile(supabaseUser: Session['user'] | null) {
     if (!supabaseUser) {
       setUser(null);
+      _profileCheckCache = null; // ล้าง cache เมื่อ logout
       return;
     }
 
@@ -63,31 +67,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // ดึงข้อมูลเพิ่มเติมจาก profiles table
     try {
-      // 1. ตรวจสอบว่าผู้ใช้เป็น Admin หรือไม่ — ห้ามบัญชี Admin ใช้งานผ่านแอปผู้ใช้ทั่วไป
-      const { data: adminRecord } = await supabase
-        .from('admins')
-        .select('id, is_active')
-        .eq('user_id', supabaseUser.id)
-        .eq('is_active', true)
-        .maybeSingle();
-
-      if (adminRecord) {
-        await supabase.auth.signOut();
-        setUser(null);
-        setSession(null);
+      // ใช้ cache ถ้าเป็น user คนเดิม (ลด query ทุก token refresh)
+      if (_profileCheckCache?.userId === supabaseUser.id) {
+        if (_profileCheckCache.isAdmin || _profileCheckCache.isSuspended) {
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+          _profileCheckCache = null;
+        }
         return;
       }
 
-      const { data } = await supabase
-        .from('profiles')
-        .select('display_name, username, bio, avatar_url, is_suspended')
-        .eq('id', supabaseUser.id)
-        .single();
+      // 1. บึง admins + profiles พร้อมกัน (2 queries → 1 round-trip ต่อการ login ใหม่)
+      const [adminRes, profileRes] = await Promise.all([
+        supabase
+          .from('admins')
+          .select('id, is_active')
+          .eq('user_id', supabaseUser.id)
+          .eq('is_active', true)
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('display_name, username, bio, avatar_url, is_suspended')
+          .eq('id', supabaseUser.id)
+          .single(),
+      ]);
 
-      if (data?.is_suspended) {
+      const adminRecord = adminRes.data;
+      const data = profileRes.data;
+
+      // บันทึก cache
+      _profileCheckCache = {
+        userId: supabaseUser.id,
+        isAdmin: !!adminRecord,
+        isSuspended: !!data?.is_suspended,
+      };
+
+      if (adminRecord || data?.is_suspended) {
         await supabase.auth.signOut();
         setUser(null);
         setSession(null);
+        _profileCheckCache = null;
         return;
       }
 
@@ -132,13 +152,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (authData?.user) {
       try {
-        // 1. ตรวจสอบว่าเป็นบัญชี Admin หรือไม่ — ป้องกันการเข้าสู่ระบบผ่านแอปพลิเคชันทั่วไป
-        const { data: adminRecord } = await supabase
-          .from('admins')
-          .select('id, is_active')
-          .eq('user_id', authData.user.id)
-          .eq('is_active', true)
-          .maybeSingle();
+        // 1. ตรวจสอบว่าเป็นบัญชี Admin หรือไม่ — ป้องกันการเข้าสู่ระบบผ่านแอพพลิเคชันทั่วไป
+        // บึง admins + profiles พร้อมกันเพื่อลด round-trip
+        const [adminRes, profileRes] = await Promise.all([
+          supabase
+            .from('admins')
+            .select('id, is_active')
+            .eq('user_id', authData.user.id)
+            .eq('is_active', true)
+            .maybeSingle(),
+          supabase
+            .from('profiles')
+            .select('is_suspended')
+            .eq('id', authData.user.id)
+            .maybeSingle(),
+        ]);
+
+        const adminRecord = adminRes.data;
+        const profile = profileRes.data;
+
+        // บันทึก cache สำหรับใช้ใน syncUserProfile
+        _profileCheckCache = {
+          userId: authData.user.id,
+          isAdmin: !!adminRecord,
+          isSuspended: !!profile?.is_suspended,
+        };
 
         if (adminRecord) {
           await supabase.auth.signOut();
@@ -148,13 +186,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
           };
         }
-
-        // 2. ตรวจสอบการระงับการใช้งานใน profiles
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('is_suspended')
-          .eq('id', authData.user.id)
-          .maybeSingle();
 
         if (profile?.is_suspended) {
           await supabase.auth.signOut();

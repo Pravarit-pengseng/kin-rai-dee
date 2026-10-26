@@ -7,6 +7,7 @@ import {
   Image,
   Pressable,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -21,6 +22,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Typography } from '@/constants/typography';
 
 export default function RandomIngredientScreen() {
+  const { width } = useWindowDimensions();
+  const cardWidth = (width - 40 - 16) / 2;
+
   const [isVegSelected, setIsVegSelected] = useState(false);
   const [isMeatSelected, setIsMeatSelected] = useState(false);
   const [hasRandomized, setHasRandomized] = useState(false);
@@ -109,11 +113,11 @@ export default function RandomIngredientScreen() {
     }, 100);
   };
 
-  const renderCard = (ingredient: IngredientItem) => (
-    <View style={[styles.resultCard, styles.halfCard]}>
+  const renderCard = (ingredient: IngredientItem, isSingle: boolean = false) => (
+    <View style={isSingle ? [styles.singleCard, { width: cardWidth }] : styles.halfCard}>
       <Image
         source={ingredient.image}
-        style={styles.foodImageHalf}
+        style={styles.foodImage}
         resizeMode="cover"
       />
     </View>
@@ -239,11 +243,11 @@ export default function RandomIngredientScreen() {
             >
               {isVegSelected &&
                 randomVeg &&
-                renderCard(randomVeg)}
+                renderCard(randomVeg, !isMeatSelected)}
 
               {isMeatSelected &&
                 randomMeat &&
-                renderCard(randomMeat)}
+                renderCard(randomMeat, !isVegSelected)}
             </View>
           )}
         </View>
@@ -311,14 +315,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
 
   unselected: {
@@ -376,14 +372,6 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 4,
   },
 
   logoImage: {
@@ -393,47 +381,42 @@ const styles = StyleSheet.create({
 
   rowResults: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     gap: 16,
-  },
-
-  singleResult: {
-    alignItems: 'center',
-  },
-
-  resultCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 4,
     width: '100%',
   },
 
+  singleResult: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   halfCard: {
-    width: 165,
-    height: 245,
-    borderRadius: 16,
-    padding: 0,
-    overflow: 'hidden',
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
 
-  foodImageHalf: {
-    width: '100%',
-    height: '100%',
+  singleCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
 
-
+  foodImage: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 14,
+  },
 
   buttonPressed: {
     opacity: 0.8,

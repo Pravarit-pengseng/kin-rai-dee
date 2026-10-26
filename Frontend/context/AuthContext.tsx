@@ -63,6 +63,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // ดึงข้อมูลเพิ่มเติมจาก profiles table
     try {
+      // 1. ตรวจสอบว่าผู้ใช้เป็น Admin หรือไม่ — ห้ามบัญชี Admin ใช้งานผ่านแอปผู้ใช้ทั่วไป
+      const { data: adminRecord } = await supabase
+        .from('admins')
+        .select('id, is_active')
+        .eq('user_id', supabaseUser.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (adminRecord) {
+        await supabase.auth.signOut();
+        setUser(null);
+        setSession(null);
+        return;
+      }
+
       const { data } = await supabase
         .from('profiles')
         .select('display_name, username, bio, avatar_url, is_suspended')
@@ -117,6 +132,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (authData?.user) {
       try {
+        // 1. ตรวจสอบว่าเป็นบัญชี Admin หรือไม่ — ป้องกันการเข้าสู่ระบบผ่านแอปพลิเคชันทั่วไป
+        const { data: adminRecord } = await supabase
+          .from('admins')
+          .select('id, is_active')
+          .eq('user_id', authData.user.id)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (adminRecord) {
+          await supabase.auth.signOut();
+          setUser(null);
+          setSession(null);
+          return {
+            error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
+          };
+        }
+
+        // 2. ตรวจสอบการระงับการใช้งานใน profiles
         const { data: profile } = await supabase
           .from('profiles')
           .select('is_suspended')
@@ -130,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { error: 'บัญชีของคุณถูกระงับการใช้งาน หากคิดว่าเป็นข้อผิดพลาด สามารถติดต่อฝ่ายสนับสนุนได้ที่ phatsachon25488@gmail.com' };
         }
       } catch (err) {
-        console.warn('Error checking profile suspension:', err);
+        console.warn('Error checking profile suspension / admin role:', err);
       }
     }
 

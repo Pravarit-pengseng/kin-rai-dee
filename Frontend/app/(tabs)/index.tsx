@@ -25,7 +25,7 @@ export default function HomeScreen() {
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<any>(null);
   const params = useLocalSearchParams<{ refresh?: string }>();
   const postsRef = useRef<PopupPostData[]>([]);
 

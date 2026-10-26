@@ -1,27 +1,44 @@
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field, field_validator
 from app.db import supabase
 from app.core.security import get_current_user, get_optional_current_user
 from app.services.safety_service import get_blocked_user_ids, is_blocked_between
-from pydantic import BaseModel, Field
+from app.core.validators import validate_public_url
 
 router = APIRouter(prefix="/api/posts", tags=["Posts & Bookmarks"])
 
 
 class PostCreate(BaseModel):
-    food_name: str
+    food_name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=2000)
     restaurant_url: Optional[str] = None
     image_url: Optional[str] = None
     category_ids: List[int] = Field(default_factory=list)
 
+    @field_validator("image_url", "restaurant_url", mode="before")
+    @classmethod
+    def validate_urls(cls, v: Optional[str]) -> Optional[str]:
+        try:
+            return validate_public_url(v, "URL")
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+
 
 class PostUpdate(BaseModel):
-    food_name: Optional[str] = None
+    food_name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=2000)
     restaurant_url: Optional[str] = None
     image_url: Optional[str] = None
     category_ids: Optional[List[int]] = None
+
+    @field_validator("image_url", "restaurant_url", mode="before")
+    @classmethod
+    def validate_urls(cls, v: Optional[str]) -> Optional[str]:
+        try:
+            return validate_public_url(v, "URL")
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
 
 
 class CommentCreate(BaseModel):

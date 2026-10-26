@@ -139,8 +139,8 @@ export function App() {
     }
   }, [currentAdmin]);
 
-  const handleLogout = async () => {
-    if (confirm('คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?')) {
+  const handleLogout = async (isTimeout = false) => {
+    if (isTimeout || confirm('คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?')) {
       try {
         await supabase.auth.signOut();
       } catch (err) {
@@ -150,9 +150,52 @@ export function App() {
       sessionStorage.removeItem('kinraidee_admin_auth');
       sessionStorage.setItem('kinraidee_admin_logged_out', 'true');
       setCurrentAdmin(null);
-      showToast('ออกจากระบบเรียบร้อยแล้ว', 'info');
+      if (isTimeout) {
+        showToast('เซสชันหมดอายุเนื่องจากไม่มีการใช้งานนานเกิน 30 นาที กรุณาเข้าสู่ระบบใหม่', 'error');
+      } else {
+        showToast('ออกจากระบบเรียบร้อยแล้ว', 'info');
+      }
     }
   };
+
+  // ── Auto-logout Inactivity Timer (30 minutes) ─────────────────────────────
+  useEffect(() => {
+    if (!currentAdmin) return;
+
+    const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        handleLogout(true);
+      }, INACTIVITY_TIMEOUT_MS);
+    };
+
+    const activityEvents = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+    
+    // Throttle user activity handling to at most once per 2 seconds
+    let lastActivity = Date.now();
+    const handleUserActivity = () => {
+      const now = Date.now();
+      if (now - lastActivity > 2000) {
+        lastActivity = now;
+        resetTimer();
+      }
+    };
+
+    resetTimer();
+    activityEvents.forEach((event) => {
+      window.addEventListener(event, handleUserActivity, { passive: true });
+    });
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      activityEvents.forEach((event) => {
+        window.removeEventListener(event, handleUserActivity);
+      });
+    };
+  }, [currentAdmin]);
 
   // If verifying active session on load
   if (isVerifyingAuth) {

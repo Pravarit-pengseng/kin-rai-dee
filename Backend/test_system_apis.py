@@ -14,17 +14,20 @@ import argparse
 import json
 import urllib.request
 import urllib.error
+from typing import Optional
 
 # Ensure UTF-8 output on Windows console
 if sys.platform == "win32":
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")
-        sys.stderr.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8")
+            except Exception:
+                pass
 
 
-def make_request(url: str, method: str = "GET", payload: dict = None, headers: dict = None) -> tuple:
+def make_request(url: str, method: str = "GET", payload: Optional[dict] = None, headers: Optional[dict] = None) -> tuple:
     req_headers = {
         "User-Agent": "KinRaiDee-API-Test/1.0",
         "Accept": "application/json, text/html, */*",

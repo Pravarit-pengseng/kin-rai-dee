@@ -15,7 +15,9 @@ services:
       - ./backend/tests:/app/tests
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - ENVIRONMENT=production
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
 
   # 2. Vite React Admin Dashboard (Port 5173)
   admin:
@@ -51,5 +53,6 @@ services:
     volumes:
       - ./frontend/app:/app/app
       - ./frontend/components:/app/components
+      - ./frontend/lib:/app/lib
     extra_hosts:
       - "host.docker.internal:host-gateway"

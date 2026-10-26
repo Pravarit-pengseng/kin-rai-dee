@@ -1,11 +1,15 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, EmailStr
 from supabase import create_client
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+import logging
 
 from app.core.config import SUPABASE_URL
 from app.core.config import SUPABASE_PUBLISHABLE_KEY
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+limiter = Limiter(key_func=get_remote_address)
 
 supabase_auth = create_client(
     SUPABASE_URL,
@@ -19,13 +23,15 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/login")
-def login(data: LoginRequest):
+@limiter.limit("5/minute")  # H-1: Brute force protection
+def login(request: Request, data: LoginRequest):
     try:
         response = supabase_auth.auth.sign_in_with_password({
             "email": data.email,
             "password": data.password,
         })
     except Exception:
+        # H-2: Don't expose auth system details to caller
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password",
@@ -53,11 +59,27 @@ def login(data: LoginRequest):
                         status_code=403,
                         detail="บัญชีของคุณถูกระงับการใช้งาน หากคิดว่าเป็นข้อผิดพลาด สามารถติดต่อฝ่ายสนับสนุนได้ที่ phatsachon25488@gmail.com",
                     )
+
+            # Defense-in-depth: Prevent admin accounts from logging in via public client /auth/login
+            # Returns generic 401 to prevent User/Role Enumeration (OWASP)
+            import os
+            allow_admin_test = os.getenv("ALLOW_ADMIN_TEST_LOGIN", "").lower() in ("1", "true")
+            if not allow_admin_test:
+                admin_res = supabase.table("admins").select("id, is_active").eq("user_id", response.user.id).eq("is_active", True).execute()
+                if admin_res.data and isinstance(admin_res.data, list) and len(admin_res.data) > 0:
+                    try:
+                        supabase_auth.auth.sign_out()
+                    except Exception:
+                        pass
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Invalid email or password",
+                    )
     except HTTPException:
         raise
     except Exception as e:
         import logging
-        logging.warning(f"Error checking user suspension during login: {e}")
+        logging.warning(f"Error checking user suspension or admin role during login: {e}")
 
     return {
         "success": True,
@@ -116,5 +138,5 @@ def delete_account(user: dict = Depends(get_current_user)):
         logging.error(f"Failed to delete account for user {user_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to delete account: {str(e)}",
+            detail="Failed to delete account. Please try again or contact support.",
         )

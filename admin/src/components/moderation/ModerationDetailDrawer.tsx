@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   CheckCircle2, 
@@ -31,10 +31,16 @@ export const ModerationDetailDrawer: React.FC<ModerationDetailDrawerProps> = ({
   onClose,
   onActionComplete
 }) => {
-  if (!isOpen || !report) return null;
-
-  const [selectedReason, setSelectedReason] = useState<ReasonCode>(report.reasonCode);
+  const [selectedReason, setSelectedReason] = useState<ReasonCode>(report?.reasonCode || 'OTHER');
   const [confirmModalAction, setConfirmModalAction] = useState<ModerationActionType | null>(null);
+
+  useEffect(() => {
+    if (report?.reasonCode) {
+      setSelectedReason(report.reasonCode);
+    }
+  }, [report?.reasonCode]);
+
+  if (!isOpen || !report) return null;
 
   const content = report.targetContent;
 

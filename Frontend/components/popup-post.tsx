@@ -268,7 +268,7 @@ export default function PopupPost({
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentText, setCommentText] = useState("");
-  const commentsScrollRef = useRef<ScrollView>(null);
+  const commentsScrollRef = useRef<any>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [slideAnim] = useState(() => new Animated.Value(600));
 

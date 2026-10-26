@@ -31,7 +31,8 @@ export async function searchPosts(query: string): Promise<PopupPostData[]> {
         .select('*, post_categories(categories(id, name))')
         .or('is_hidden.is.null,is_hidden.eq.false')
         .ilike('food_name', `%${query}%`)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(20);
 
       if (!error && posts && posts.length > 0) {
         const nonHidden = posts.filter((p: any) => !p.is_hidden);

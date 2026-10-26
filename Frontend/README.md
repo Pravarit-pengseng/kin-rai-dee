@@ -210,3 +210,47 @@ node scripts/test_forgot_password.mjs
    ```bash
    npm run build:web
    ```
+
+---
+
+## 📱 การ Build สำหรับ Android (APK & Google Play AAB)
+
+โปรเจกต์ Expo ได้ตั้งค่า Package Name ไว้เป็น `com.kinraidee.app` (ใน `app.json`) พร้อมสำหรับการ Build:
+
+### วิธีที่ 1: Build ผ่าน Cloud ด้วย EAS Build (แนะนำที่สุด — สะดวกและไม่ต้องลง Android Studio)
+1. ติดตั้ง EAS CLI และเข้าสู่ระบบ:
+   ```bash
+   npm install -g eas-cli
+   npx eas login
+   ```
+2. ตั้งค่าโปรเจกต์ EAS ครั้งแรก:
+   ```bash
+   npx eas build:configure
+   ```
+3. สั่ง Build ตามเป้าหมายที่ต้องการ:
+   - **Build ไฟล์ APK (เพื่อติดตั้งทดสอบบนมือถือโดยตรง / Sideloading):**
+     ```bash
+     npx eas build -p android --profile preview
+     ```
+   - **Build ไฟล์ AAB (Android App Bundle สำหรับอัปโหลดขึ้น Google Play Store):**
+     ```bash
+     npx eas build -p android --profile production
+     ```
+   *(เมื่อ Build เสร็จในระบบ Cloud จะได้รับลิงก์ดาวน์โหลดไฟล์ `.apk` หรือ `.aab` ทันที)*
+
+### วิธีที่ 2: Build แบบ Local ในเครื่องตัวเอง (Local Prebuild & Gradle)
+*หมายเหตุ: จำเป็นต้องมี Android Studio, Android SDK และ Java JDK (JDK 17) ติดตั้งในเครื่อง*
+1. สร้างโฟลเดอร์ Native Android ด้วยคำสั่ง Prebuild:
+   ```bash
+   npx expo prebuild --platform android
+   ```
+2. คอมไพล์ไฟล์ APK ด้วย Gradle:
+   ```bash
+   cd android
+   # Windows PowerShell:
+   .\gradlew.bat assembleRelease
+   # macOS / Linux:
+   ./gradlew assembleRelease
+   ```
+3. ไฟล์ APK ที่ได้จะอยู่ที่:
+   `android/app/build/outputs/apk/release/app-release.apk`

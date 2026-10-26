@@ -300,7 +300,35 @@ npm run build:web
 ```
 - Output: โฟลเดอร์ `frontend/dist/`
 
-### 2. Admin Dashboard (Vite SPA Build)
+### 2. Frontend Mobile App — Android (APK & Google Play AAB)
+โปรเจกต์ Expo รองรับการ Build สำหรับ Android 2 รูปแบบ:
+
+#### แบบที่ 1: Build ผ่าน Cloud ด้วย EAS Build (แนะนำ — ได้ไฟล์พร้อมดาวน์โหลด ไม่ต้องใช้ Android Studio)
+```bash
+cd frontend
+
+# Build ไฟล์ APK เพื่อส่งให้คนในทีมติดตั้งทดสอบบนเครื่องจริง
+npx eas build -p android --profile preview
+
+# Build ไฟล์ AAB (Android App Bundle) เพื่อส่งขึ้น Google Play Store
+npx eas build -p android --profile production
+```
+
+#### แบบที่ 2: Build แบบ Local ในเครื่องตัวเอง (ต้องมี Android SDK & Java JDK)
+```bash
+cd frontend
+
+# 1. แปลงโปรเจกต์เป็น Native Android
+npx expo prebuild --platform android
+
+# 2. คอมไพล์ APK ด้วย Gradle (Windows PowerShell)
+cd android
+.\gradlew.bat assembleRelease
+# (macOS/Linux: ./gradlew assembleRelease)
+```
+- Output APK: `frontend/android/app/build/outputs/apk/release/app-release.apk`
+
+### 3. Admin Dashboard (Vite SPA Build)
 ตรวจสอบ TypeScript และ Bundle เว็บแผงควบคุมผู้ดูแลระบบ:
 ```bash
 cd admin

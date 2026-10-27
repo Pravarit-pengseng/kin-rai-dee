@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
+import { Modal, View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { Typography } from '@/constants/typography';
 
 export type AlertPopupButton = {
@@ -36,8 +36,8 @@ export default function AlertPopup({
       transparent
       visible={visible}
       animationType="fade"
-      statusBarTranslucent
-      presentationStyle="overFullScreen"
+      presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : undefined}
+      statusBarTranslucent={Platform.OS === 'android'}
       onRequestClose={onRequestClose}
     >
       <View style={styles.overlay}>

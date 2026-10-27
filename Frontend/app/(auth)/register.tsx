@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
   Alert,
 } from 'react-native';
+import AlertPopup, { useAlertPopup } from '@/components/AlertPopup';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -118,6 +119,8 @@ export default function RegisterScreen() {
     }
   };
 
+  const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
+
   const handleConfirmPasswordChange = (text: string) => {
     setConfirmPassword(text);
     if (errors.confirmPassword) {
@@ -138,7 +141,7 @@ export default function RegisterScreen() {
     if (!acceptedTerms) {
       setTermsError(true);
       setGeneralError('กรุณากดยอมรับเงื่อนไขและนโยบายความเป็นส่วนตัวก่อนสมัครบัญชี');
-      Alert.alert(
+      showAlert(
         'เงื่อนไขการใช้งาน',
         'กรุณากดยอมรับข้อกำหนดการใช้งานและรับทราบนโยบายความเป็นส่วนตัวก่อนสมัครบัญชี'
       );
@@ -212,6 +215,7 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <AlertPopup {...alertProps} onRequestClose={hideAlert} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}

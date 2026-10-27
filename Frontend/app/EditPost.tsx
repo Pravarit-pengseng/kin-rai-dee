@@ -5,7 +5,6 @@ import {
     Image,
     StyleSheet,
     ScrollView,
-    Alert,
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
@@ -23,6 +22,7 @@ import PostForm, {
 import { updatePost } from "@/services/postService";
 import { FOOD_CATEGORIES } from "@/constants/categories";
 import { Typography } from "@/constants/typography";
+import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
 
 export default function EditPost() {
     const { postId, post: postParam } = useLocalSearchParams<{
@@ -31,8 +31,8 @@ export default function EditPost() {
     }>();
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
 
-    // Parse post จาก params
     const parsedPost = postParam ? (() => {
         try { return JSON.parse(postParam as string); } catch { return null; }
     })() : null;
@@ -54,10 +54,7 @@ export default function EditPost() {
             await ImagePicker.requestMediaLibraryPermissionsAsync();
 
         if (!permission.granted) {
-            Alert.alert(
-                "ไม่สามารถเข้าถึงรูปภาพ",
-                "กรุณาอนุญาตให้แอปเข้าถึงรูปภาพ"
-            );
+            showAlert("ไม่สามารถเข้าถึงรูปภาพ", "กรุณาอนุญาตให้แอปเข้าถึงรูปภาพ");
             return;
         }
 
@@ -85,21 +82,17 @@ export default function EditPost() {
 
     const handleSave = async () => {
         if (!post.title.trim()) {
-            Alert.alert(
-                "กรุณากรอกข้อมูล",
-                "กรุณากรอกชื่อเมนูก่อนบันทึก"
-            );
+            showAlert("กรุณากรอกข้อมูล", "กรุณากรอกชื่อเมนูก่อนบันทึก");
             return;
         }
 
         if (!postId) {
-            Alert.alert("เกิดข้อผิดพลาด", "ไม่พบ ID โพสต์");
+            showAlert("เกิดข้อผิดพลาด", "ไม่พบ ID โพสต์");
             return;
         }
 
         setIsSubmitting(true);
 
-        // Map category labels → numeric IDs
         const categoryIds = post.categories
             .map((label) => {
                 const found = FOOD_CATEGORIES.find((c) => c.label === label);
@@ -118,11 +111,10 @@ export default function EditPost() {
         setIsSubmitting(false);
 
         if (!result) {
-            Alert.alert("บันทึกไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
+            showAlert("บันทึกไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
             return;
         }
 
-        // ส่งข้อมูลอัปเดตกลับไปยัง profile screen
         const updatedPostForUI = {
             id: postId,
             image: post.image ? { uri: post.image } : parsedPost?.image,
@@ -150,8 +142,9 @@ export default function EditPost() {
                 }}
             />
 
+            <AlertPopup {...alertProps} onRequestClose={hideAlert} />
+
             <SafeAreaView style={styles.container}>
-                {/* Header */}
                 <Header
                     title="แก้ไขโพสต์"
                     leftIcon="close"
@@ -159,7 +152,7 @@ export default function EditPost() {
                     rightIcon="none"
                 />
 
-                <KeyboardAvoidingView 
+                <KeyboardAvoidingView
                     style={{ flex: 1 }}
                     behavior={Platform.OS === "ios" ? "padding" : undefined}
                 >
@@ -168,7 +161,6 @@ export default function EditPost() {
                         contentContainerStyle={styles.content}
                         keyboardShouldPersistTaps="handled"
                     >
-                    {/* Image Picker */}
                     <Pressable
                         onPress={pickImage}
                         style={({ pressed }) => [
@@ -199,7 +191,6 @@ export default function EditPost() {
                         )}
                     </Pressable>
 
-                    {/* Post Form */}
                     <PostForm
                         initialData={post}
                         onChange={(data) => {
@@ -210,7 +201,6 @@ export default function EditPost() {
                         }}
                     />
 
-                    {/* Save Button */}
                     <Pressable
                         style={({ pressed }) => [
                             styles.postButton,

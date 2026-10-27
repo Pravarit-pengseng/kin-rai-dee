@@ -6,9 +6,7 @@ import {
   Pressable,
   FlatList,
   ActivityIndicator,
-  Alert,
   RefreshControl,
-  Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +14,7 @@ import { useRouter, Stack } from 'expo-router';
 import { ArrowLeft, UserX, ShieldCheck } from 'lucide-react-native';
 import { getBlockedUsers, unblockUser, BlockedUserItem } from '@/services/safetyService';
 import { Typography } from '@/constants/typography';
+import AlertPopup, { useAlertPopup } from '@/components/AlertPopup';
 
 const DEFAULT_AVATAR = require('@/assets/images/ProfilePicture.png');
 
@@ -25,6 +24,7 @@ export default function BlockedUsersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
+  const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
 
   const loadBlockedUsers = async () => {
     try {
@@ -49,23 +49,28 @@ export default function BlockedUsersScreen() {
 
   const handleUnblock = (item: BlockedUserItem) => {
     const displayName = item.profile?.display_name || item.profile?.username || 'ผู้ใช้นี้';
-    Alert.alert(
+    showAlert(
       'ปลดบล็อกผู้ใช้',
       `ท่านต้องการปลดบล็อก "${displayName}" หรือไม่? เมื่อปลดบล็อกแล้ว โพสต์และความคิดเห็นของบุคคลนี้จะแสดงตามปกติ`,
       [
-        { text: 'ยกเลิก', style: 'cancel' },
+        {
+          text: 'ยกเลิก',
+          style: 'cancel',
+          onPress: hideAlert,
+        },
         {
           text: 'ปลดบล็อก',
-          style: 'default',
+          style: 'confirm',
           onPress: async () => {
+            hideAlert();
             setUnblockingId(item.blocked_user_id);
             const res = await unblockUser(item.blocked_user_id);
             setUnblockingId(null);
             if (res.success) {
               setBlockedUsers(prev => prev.filter(u => u.blocked_user_id !== item.blocked_user_id));
-              Alert.alert('สำเร็จ', 'ปลดบล็อกผู้ใช้เรียบร้อยแล้ว');
+              showAlert('สำเร็จ', 'ปลดบล็อกผู้ใช้เรียบร้อยแล้ว');
             } else {
-              Alert.alert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถปลดบล็อกได้');
+              showAlert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถปลดบล็อกได้');
             }
           },
         },
@@ -111,6 +116,9 @@ export default function BlockedUsersScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
+
+      <AlertPopup {...alertProps} onRequestClose={hideAlert} />
+
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
           <ArrowLeft size={22} color="#1C1B1F" />
@@ -207,6 +215,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#A7392A',
+    fontFamily: Typography.semiBold
   },
   bannerContainer: {
     backgroundColor: '#FFF7F3',
@@ -220,6 +229,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6E483B',
     lineHeight: 18,
+    fontFamily: Typography.semiBold
   },
   centerContainer: {
     flex: 1,
@@ -246,12 +256,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#332421',
     marginBottom: 8,
+    fontFamily: Typography.semiBold
   },
   emptySub: {
     fontSize: 14,
     color: '#79747E',
     textAlign: 'center',
     lineHeight: 20,
+    fontFamily: Typography.semiBold
   },
   listContent: {
     paddingVertical: 8,

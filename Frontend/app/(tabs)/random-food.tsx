@@ -7,6 +7,7 @@ import {
   Image,
   ActivityIndicator,
   Linking,
+  useWindowDimensions,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,6 +29,27 @@ import { FOOD_LIST, FoodItem } from '@/constants/foodData';
 import { fetchNearbyRestaurants } from '@/services/restaurantService';
 
 export default function RandomFoodScreen() {
+  // React Native ใช้หน่วย dp (ไม่ใช่ physical pixels) และจะอัปเดตเมื่อหมุนจอ
+  const { width, height } = useWindowDimensions();
+  const isNarrowScreen = width <= 360;
+  const isCompactHeight = height <= 800;
+  const isVeryShortScreen = height < 700;
+
+  // จำกัดความกว้างเนื้อหาบนจอใหญ่ และลดระยะห่างสำหรับมือถือจอเล็ก
+  const horizontalPadding = width < 340 ? 12 : width <= 390 ? 16 : 20;
+  const cardPadding = isNarrowScreen ? 16 : 24;
+  const availableArtworkWidth = Math.max(
+    1,
+    Math.min(width, 560) - horizontalPadding * 2 - cardPadding * 2
+  );
+  const logoSize = Math.min(
+    availableArtworkWidth,
+    isVeryShortScreen ? 190 : isCompactHeight ? 220 : 250
+  );
+  const foodImageHeight = Math.min(
+    availableArtworkWidth * 0.85,
+    isVeryShortScreen ? 180 : isCompactHeight ? 210 : 240
+  );
   const [categories] = useState<FoodCategory[]>(FOOD_CATEGORIES);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [hasRandomized, setHasRandomized] = useState(false);
@@ -152,12 +174,27 @@ export default function RandomFoodScreen() {
       <Header onSearchPress={handleSearch} />
 
       <ScrollView
-        contentContainerStyle={styles.container}
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.container,
+          {
+            paddingHorizontal: horizontalPadding,
+            paddingTop: isVeryShortScreen ? 4 : 8,
+            paddingBottom: isCompactHeight ? 28 : 40,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Title */}
-        <Text style={styles.mainTitle}>วันนี้กินอะไรดี?</Text>
-        <Text style={styles.subTitle}>คิดไม่ออกใช่ไหม? ให้เราช่วยเลือก!</Text>
+        <Text style={[styles.mainTitle, isNarrowScreen && styles.mainTitleCompact]}>วันนี้กินอะไรดี?</Text>
+        <Text
+          style={[
+            styles.subTitle,
+            isNarrowScreen && styles.subTitleCompact,
+            isCompactHeight && styles.subTitleShort,
+          ]}
+        >คิดไม่ออกใช่ไหม? ให้เราช่วยเลือก!</Text>
 
         {/* Food Category */}
         <MultiSelectDropdown
@@ -168,26 +205,38 @@ export default function RandomFoodScreen() {
         />
 
         {/* Random Food Result */}
-        <View style={styles.resultCard}>
+        <View
+          style={[
+            styles.resultCard,
+            {
+              padding: cardPadding,
+              marginVertical: isCompactHeight ? 10 : 14,
+              borderRadius: isNarrowScreen ? 20 : 24,
+            },
+          ]}
+        >
           {(!hasRandomized && !isRandomizing) || !randomFood ? (
             <Image
               source={require('@/assets/images/kinraidee-logo.png')}
-              style={styles.logoImage}
+              style={{ width: logoSize, height: logoSize }}
               resizeMode="contain"
             />
           ) : (
             <View style={styles.foodContainer}>
               <Image
                 source={randomFood.image}
-                style={styles.foodImage}
+                style={[styles.foodImage, { height: foodImageHeight }]}
                 resizeMode="contain"
               />
             </View>
           )}
-        </View>
-
-        {/* Random Button */}
-        <View style={styles.randomButtonContainer}>
+                  {/* Random Button */}
+        <View
+          style={[
+            styles.randomButtonContainer,
+            isCompactHeight && styles.randomButtonContainerCompact,
+          ]}
+        >
           {!hasRandomized ? (
             <RandomButton
               onPress={handleRandomize}
@@ -206,13 +255,15 @@ export default function RandomFoodScreen() {
           )}
         </View>
 
+        </View>
+
+
         {/* Nearby Restaurants */}
         {hasRandomized && (
           <View style={styles.restaurantSection}>
             {/* Section Title */}
             <View style={styles.restaurantTitleRow}>
               <Text style={styles.restaurantTitle}>ร้านอาหารใกล้ฉัน</Text>
-              <Text style={styles.restaurantSubtitle}></Text>
             </View>
 
             {/* Loading Location or Restaurants */}
@@ -265,10 +316,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFF8F6',
   },
+  scrollView: {
+    flex: 1,
+  },
   container: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 40,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
+    flexGrow: 1,
   },
   mainTitle: {
     fontSize: 24,
@@ -277,6 +332,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
   },
+  mainTitleCompact: {
+    fontSize: 22,
+  },
   subTitle: {
     fontSize: 14,
     fontFamily: Typography.regular,
@@ -284,13 +342,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
   },
+  subTitleCompact: {
+    fontSize: 13,
+  },
+  subTitleShort: {
+    marginBottom: 16,
+  },
   resultCard: {
+    width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 14,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -300,17 +362,12 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  logoImage: {
-    width: 250,
-    height: 250,
-  },
   foodContainer: {
     alignItems: 'center',
     width: '100%',
   },
   foodImage: {
     width: '100%',
-    height: 240,
     borderRadius: 16,
   },
   foodTitle: {
@@ -321,8 +378,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   randomButtonContainer: {
-    width: '100%',
-    marginBottom: 16,
+    width: '60%',
+  },
+  randomButtonContainerCompact: {
+    // marginBottom: 12,
   },
   restaurantSection: {
     marginTop: 16,
@@ -331,9 +390,11 @@ const styles = StyleSheet.create({
   restaurantTitleRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
+    flexWrap: 'wrap',
     marginBottom: 12,
   },
   restaurantTitle: {
+    flexShrink: 1,
     fontSize: 17,
     fontFamily: Typography.bold,
     color: '#241917',
@@ -354,6 +415,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 8,
+    paddingHorizontal: 12,
+    textAlign: 'center',
     fontSize: 11,
     fontFamily: Typography.regular,
     color: '#75625E',
@@ -380,6 +443,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   emptyText: {
+    textAlign: 'center',
     fontSize: 13,
     fontFamily: Typography.regular,
     color: '#8A7772',

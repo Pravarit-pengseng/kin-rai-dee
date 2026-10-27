@@ -309,6 +309,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#A7392A',
+    fontFamily: Typography.semiBold
   },
   disabledBtn: {
     opacity: 0.5,

@@ -1,273 +1,273 @@
-import  { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  StyleSheet,
-  View,
-  Text,
-  ScrollView,
   Image,
   Pressable,
-  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { Header } from '@/components/Header';
-import { RandomButton } from '@/components/RandomButton';
-import {
-  INGREDIENT_LIST,
-  IngredientItem,
-} from '@/constants/ingredientData';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+import { INGREDIENT_LIST, IngredientItem } from '@/constants/ingredientData';
 import { Typography } from '@/constants/typography';
+import { RandomButton } from '@/components/RandomButton';
+import AlertPopup, { useAlertPopup } from '@/components/AlertPopup';
+
+const MAX_CONTENT_WIDTH = 430;
+const LOGO_CARD_WIDTH = 348;
+const LOGO_CARD_HEIGHT = 230;
+const LOGO_IMAGE_SIZE = 170;
+
+const INGREDIENT_CARD_ASPECT_RATIO = 330 / 460;
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
 
 export default function RandomIngredientScreen() {
-  const { width } = useWindowDimensions();
-  const cardWidth = (width - 40 - 16) / 2;
+  const { width, height } = useWindowDimensions();
+  const isNarrow = width <= 360;
+  const isShort = height < 720;
+
+  const sidePadding = isNarrow ? 16 : 20;
+  const cardGap = isNarrow ? 12 : 16;
+  const contentWidth = Math.min(width - sidePadding * 2, MAX_CONTENT_WIDTH);
+  const cardWidth = Math.floor((contentWidth - cardGap) / 2);
+  const toggleHeight = Math.round(clamp(cardWidth * 0.85, 122, 145));
+  const iconCircleSize = Math.round(clamp(cardWidth * 0.4, 54, 64));
+  const iconSize = Math.round(iconCircleSize * 0.5);
+  const ingredientCardHeight = Math.round(cardWidth / INGREDIENT_CARD_ASPECT_RATIO);
 
   const [isVegSelected, setIsVegSelected] = useState(false);
   const [isMeatSelected, setIsMeatSelected] = useState(false);
   const [hasRandomized, setHasRandomized] = useState(false);
   const [isRandomizing, setIsRandomizing] = useState(false);
-
   const [randomVeg, setRandomVeg] = useState<IngredientItem | null>(null);
   const [randomMeat, setRandomMeat] = useState<IngredientItem | null>(null);
+
+  const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
+
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current !== null) clearInterval(intervalRef.current);
+    };
+  }, []);
 
   const handleSearch = () => {
     router.push('/(tabs)/search?from=/(tabs)/random-ingredient');
   };
 
-  const handleRandomize = () => {
-    if (!isVegSelected && !isMeatSelected) {
-      Alert.alert(
-        'แจ้งเตือน',
-        'กรุณาเลือกหมวดวัตถุดิบอย่างน้อย 1 อย่างก่อนกดสุ่ม'
-      );
-      return;
+  const resetRandomResult = () => {
+    if (intervalRef.current !== null) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
+    setIsRandomizing(false);
+    setHasRandomized(false);
+    setRandomVeg(null);
+    setRandomMeat(null);
+  };
 
+  const handleRandomize = () => {
     if (isRandomizing) return;
 
-    // DB:
-    // ingredient category 1 = เนื้อสัตว์
-    // ingredient category 2 = ผัก
-    const vegPool = INGREDIENT_LIST.filter(
-      (item) => item.categoryId === '2'
-    );
-
-    const meatPool = INGREDIENT_LIST.filter(
-      (item) => item.categoryId === '1'
-    );
-
-    // ป้องกันกรณีเลือกหมวดที่ไม่มีข้อมูล
-    if (
-      (isVegSelected && vegPool.length === 0) ||
-      (isMeatSelected && meatPool.length === 0)
-    ) {
-      Alert.alert(
-        'แจ้งเตือน',
-        'ไม่พบข้อมูลวัตถุดิบในหมวดที่เลือก'
-      );
+    if (!isVegSelected && !isMeatSelected) {
+      showAlert('แจ้งเตือน', 'กรุณาเลือกหมวดวัตถุดิบอย่างน้อย 1 อย่างก่อนกดสุ่ม');
       return;
     }
 
-    setHasRandomized(true);
+    const vegPool = INGREDIENT_LIST.filter(item => String(item.categoryId) === '2');
+    const meatPool = INGREDIENT_LIST.filter(item => String(item.categoryId) === '1');
+
+    if ((isVegSelected && vegPool.length === 0) ||
+        (isMeatSelected && meatPool.length === 0)) {
+      showAlert('แจ้งเตือน', 'ไม่พบข้อมูลวัตถุดิบในหมวดที่เลือก');
+      return;
+    }
+
     setIsRandomizing(true);
-
-    // ล้างผลลัพธ์ของหมวดที่ไม่ได้เลือก
-    if (!isVegSelected) {
-      setRandomVeg(null);
-    }
-
-    if (!isMeatSelected) {
-      setRandomMeat(null);
-    }
+    setHasRandomized(true);
+    setRandomVeg(null);
+    setRandomMeat(null);
 
     let count = 0;
-    const maxCount = 15;
-
-    // Frontend เป็นคนสุ่มเอง
-    const intervalId = setInterval(() => {
-      if (isVegSelected && vegPool.length > 0) {
-        const randomIndex = Math.floor(
-          Math.random() * vegPool.length
-        );
-
-        setRandomVeg(vegPool[randomIndex]);
+    intervalRef.current = setInterval(() => {
+      if (isVegSelected) {
+        setRandomVeg(vegPool[Math.floor(Math.random() * vegPool.length)]);
+      }
+      if (isMeatSelected) {
+        setRandomMeat(meatPool[Math.floor(Math.random() * meatPool.length)]);
       }
 
-      if (isMeatSelected && meatPool.length > 0) {
-        const randomIndex = Math.floor(
-          Math.random() * meatPool.length
-        );
-
-        setRandomMeat(meatPool[randomIndex]);
-      }
-
-      count++;
-
-      if (count >= maxCount) {
-        clearInterval(intervalId);
+      count += 1;
+      if (count >= 15) {
+        if (intervalRef.current !== null) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
         setIsRandomizing(false);
       }
     }, 100);
   };
 
-  const renderCard = (ingredient: IngredientItem, isSingle: boolean = false) => (
-    <View style={isSingle ? [styles.singleCard, { width: cardWidth }] : styles.halfCard}>
-      <Image
-        source={ingredient.image}
-        style={styles.foodImage}
-        resizeMode="cover"
-      />
-    </View>
+  const renderIngredientCard = (ingredient: IngredientItem) => (
+    <Image
+      key={`${ingredient.categoryId}-${ingredient.name}`}
+      source={ingredient.image}
+      style={[
+        styles.ingredientCardImage,
+        { width: cardWidth, height: ingredientCardHeight },
+      ]}
+      resizeMode="contain"
+      accessibilityLabel={ingredient.name}
+    />
   );
 
+  const showResults = hasRandomized && (isVegSelected || isMeatSelected);
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <StatusBar style="dark" />
 
-      <Header onSearchPress={handleSearch} />
+      <AlertPopup {...alertProps} onRequestClose={hideAlert} />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>KIN RAI DEE</Text>
+        <Pressable
+          onPress={handleSearch}
+          accessibilityRole="button"
+          accessibilityLabel="ค้นหา"
+          hitSlop={10}
+          style={({ pressed }) => [styles.searchButton, pressed && { opacity: 0.6 }]}
+        >
+          <MaterialCommunityIcons name="magnify" size={24} color="#4D3C38" />
+        </Pressable>
+      </View>
 
       <ScrollView
-        contentContainerStyle={styles.container}
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingHorizontal: sidePadding, paddingTop: isShort ? 12 : 18 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.mainTitle}>
-          อยากทำอาหารแต่คิดวัตถุดิบไม่ออก?
-        </Text>
+        <View style={[styles.pageContent, { maxWidth: MAX_CONTENT_WIDTH }]}>
+          <Text style={[styles.mainTitle, { fontSize: isNarrow ? 19 : 20 }]}>
+            อยากทำอาหารแต่คิดวัตถุดิบไม่ออก?
+          </Text>
+          <Text style={[styles.subTitle, { fontSize: isNarrow ? 12 : 13 }]}>
+            แตะเลือกหมวดวัตถุดิบที่ต้องการก่อนกดสุ่ม
+          </Text>
 
-        <Text style={styles.subTitle}>
-          แตะเลือกหมวดวัตถุดิบที่ต้องการก่อนกดสุ่ม
-        </Text>
-
-        {/* Category Toggles */}
-        <View style={styles.toggleContainer}>
-          {/* ผัก */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.toggleBox,
-              isVegSelected
-                ? styles.vegSelected
-                : styles.unselected,
-              pressed && styles.buttonPressed,
-            ]}
-            onPress={() => {
-              setIsVegSelected(!isVegSelected);
-              setHasRandomized(false);
-              setRandomVeg(null);
-            }}
-          >
-            <View style={styles.iconCircle}>
-              <MaterialCommunityIcons
-                name="flower"
-                size={32}
-                color={
-                  isVegSelected
-                    ? '#2A6B4E'
-                    : '#687076'
-                }
-              />
-            </View>
-
-            <Text
-              style={[
-                styles.toggleText,
-                isVegSelected
-                  ? styles.vegText
-                  : styles.unselectedText,
+          <View style={[styles.toggleContainer, { gap: cardGap, marginBottom: isShort ? 14 : 18 }]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: isVegSelected }}
+              onPress={() => {
+                setIsVegSelected(prev => !prev);
+                resetRandomResult();
+              }}
+              style={({ pressed }) => [
+                styles.toggleBox,
+                { width: cardWidth, height: toggleHeight },
+                isVegSelected ? styles.vegSelected : styles.unselected,
+                pressed && styles.buttonPressed,
               ]}
             >
-              ผัก
-            </Text>
-          </Pressable>
-
-          {/* เนื้อสัตว์ */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.toggleBox,
-              isMeatSelected
-                ? styles.meatSelected
-                : styles.unselected,
-              pressed && styles.buttonPressed,
-            ]}
-            onPress={() => {
-              setIsMeatSelected(!isMeatSelected);
-              setHasRandomized(false);
-              setRandomMeat(null);
-            }}
-          >
-            <View style={styles.iconCircle}>
-              <MaterialCommunityIcons
-                name="pot-steam"
-                size={32}
-                color={
-                  isMeatSelected
-                    ? '#A5352A'
-                    : '#687076'
-                }
-              />
-            </View>
-
-            <Text
-              style={[
+              <View style={[
+                styles.iconCircle,
+                { width: iconCircleSize, height: iconCircleSize, borderRadius: iconCircleSize / 2 },
+              ]}>
+                <MaterialCommunityIcons
+                  name="flower"
+                  size={iconSize}
+                  color={isVegSelected ? '#2A6B4E' : '#687076'}
+                />
+              </View>
+              <Text style={[
                 styles.toggleText,
-                isMeatSelected
-                  ? styles.meatText
-                  : styles.unselectedText,
+                { fontSize: isNarrow ? 16 : 18 },
+                isVegSelected ? styles.vegText : styles.unselectedText,
+              ]}>
+                ผัก
+              </Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: isMeatSelected }}
+              onPress={() => {
+                setIsMeatSelected(prev => !prev);
+                resetRandomResult();
+              }}
+              style={({ pressed }) => [
+                styles.toggleBox,
+                { width: cardWidth, height: toggleHeight },
+                isMeatSelected ? styles.meatSelected : styles.unselected,
+                pressed && styles.buttonPressed,
               ]}
             >
-              เนื้อสัตว์
-            </Text>
-          </Pressable>
-        </View>
+              <View style={[
+                styles.iconCircle,
+                { width: iconCircleSize, height: iconCircleSize, borderRadius: iconCircleSize / 2 },
+              ]}>
+                <MaterialCommunityIcons
+                  name="pot-steam"
+                  size={iconSize}
+                  color={isMeatSelected ? '#A5352A' : '#687076'}
+                />
+              </View>
+              <Text style={[
+                styles.toggleText,
+                { fontSize: isNarrow ? 16 : 18 },
+                isMeatSelected ? styles.meatText : styles.unselectedText,
+              ]}>
+                เนื้อสัตว์
+              </Text>
+            </Pressable>
+          </View>
 
-        {/* Display Area */}
-        <View style={styles.resultsArea}>
-          {!hasRandomized ||
-            (!isVegSelected && !isMeatSelected) ? (
-            <View style={styles.resultCardFull}>
-              <Image
-                source={require('@/assets/images/kinraidee-logo.png')}
-                style={styles.logoImage}
-                resizeMode="contain"
+          <View style={[styles.resultsArea, { minHeight: showResults ? undefined : LOGO_CARD_HEIGHT }]}>
+            {!showResults ? (
+              <View style={styles.placeholderCard}>
+                <Image
+                  source={require('@/assets/images/kinraidee-logo.png')}
+                  style={styles.placeholderLogo}
+                  resizeMode="contain"
+                />
+              </View>
+            ) : (
+              <View style={[styles.resultRow, { gap: cardGap }]}>
+                {isVegSelected && randomVeg && renderIngredientCard(randomVeg)}
+                {isMeatSelected && randomMeat && renderIngredientCard(randomMeat)}
+              </View>
+            )}
+          </View>
+
+          <View style={[styles.randomButtonWrapper, { marginTop: isShort ? 16 : 20 }]}>
+            {!hasRandomized ? (
+              <RandomButton
+                onPress={handleRandomize}
+                title="สุ่มวัตถุดิบ"
+                iconName="dice"
+                disabled={isRandomizing}
               />
-            </View>
-          ) : (
-            <View
-              style={
-                isVegSelected && isMeatSelected
-                  ? styles.rowResults
-                  : styles.singleResult
-              }
-            >
-              {isVegSelected &&
-                randomVeg &&
-                renderCard(randomVeg, !isMeatSelected)}
-
-              {isMeatSelected &&
-                randomMeat &&
-                renderCard(randomMeat, !isVegSelected)}
-            </View>
-          )}
+            ) : (
+              <RandomButton
+                onPress={handleRandomize}
+                variant="rerandom"
+                disabled={isRandomizing}
+              />
+            )}
+          </View>
         </View>
-
-        {/* Randomize Button */}
-        {!hasRandomized ||
-          (!isVegSelected && !isMeatSelected) ? (
-          <RandomButton
-            onPress={handleRandomize}
-            title="สุ่มวัตถุดิบ"
-            iconName="dice"
-            disabled={isRandomizing}
-          />
-        ) : (
-          <RandomButton
-            onPress={handleRandomize}
-            variant="rerandom"
-            disabled={isRandomizing}
-          />
-        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -278,152 +278,127 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFF8F6',
   },
-
-  container: {
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 40,
+  header: {
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E9E0DD',
   },
-
+  headerTitle: {
+    fontFamily: Typography.bold,
+    fontSize: 20,
+    color: '#A5352A',
+    letterSpacing: 0.5,
+  },
+  searchButton: {
+    position: 'absolute',
+    right: 20,
+    width: 36,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingBottom: 32,
+  },
+  pageContent: {
+    width: '100%',
+  },
   mainTitle: {
-    fontSize: 22,
     fontFamily: Typography.bold,
     color: '#241917',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
+    lineHeight: 27,
   },
-
   subTitle: {
-    fontSize: 14,
     fontFamily: Typography.regular,
     color: '#57423E',
     textAlign: 'center',
     marginBottom: 24,
+    lineHeight: 19,
   },
-
   toggleContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    gap: 16,
+    justifyContent: 'center',
   },
-
   toggleBox: {
-    flex: 1,
-    height: 135,
     borderRadius: 16,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
   },
-
   unselected: {
     backgroundColor: '#E5E5E5',
     borderColor: '#D0D5DD',
   },
-
   vegSelected: {
     backgroundColor: '#A5E3C5',
-    borderColor: '#81ac99ff',
+    borderColor: '#81AC99',
   },
-
   meatSelected: {
     backgroundColor: '#F6D0CE',
-    borderColor: '#c18079ff',
+    borderColor: '#C18079',
   },
-
   iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
-
   toggleText: {
-    fontSize: 18,
     fontFamily: Typography.bold,
   },
-
   unselectedText: {
     color: '#687076',
   },
-
   vegText: {
     color: '#2A6B4E',
   },
-
   meatText: {
     color: '#A5352A',
   },
-
   resultsArea: {
-    marginVertical: 10,
-  },
-
-  resultCardFull: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 24,
-    height: 245,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  logoImage: {
-    width: 160,
-    height: 160,
-  },
-
-  rowResults: {
+  resultRow: {
     flexDirection: 'row',
-    gap: 16,
-    width: '100%',
-  },
-
-  singleResult: {
-    width: '100%',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'flex-start',
+    width: '100%',
   },
-
-  halfCard: {
-    flex: 1,
+  ingredientCardImage: {
+    flexShrink: 0,
+  },
+  placeholderCard: {
+    width: LOGO_CARD_WIDTH,
+    maxWidth: '100%',
+    height: LOGO_CARD_HEIGHT,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-  },
-
-  singleCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
-
-  foodImage: {
+  placeholderLogo: {
+    width: LOGO_IMAGE_SIZE,
+    height: LOGO_IMAGE_SIZE,
+  },
+  randomButtonWrapper: {
     width: '100%',
-    aspectRatio: 1,
-    borderRadius: 14,
+    alignSelf: 'center',
   },
-
   buttonPressed: {
     opacity: 0.8,
-    transform: [
-      {
-        translateY: 2,
-      },
-    ],
+    transform: [{ translateY: 2 }],
   },
 });

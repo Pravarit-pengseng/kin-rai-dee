@@ -1,9 +1,17 @@
+
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
   "framework": null,
   "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/delete-account",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/support/delete-account",
@@ -16,10 +24,6 @@
     {
       "source": "/terms",
       "destination": "/terms-of-use"
-    },
-    {
-      "source": "/",
-      "destination": "/delete-account"
     }
   ]
 }

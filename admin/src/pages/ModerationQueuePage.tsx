@@ -50,27 +50,8 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
   // Stats & Reports
   const [reports, setReports] = useState<ModerationReport[]>([]);
   const [stats, setStats] = useState(moderationService.getStats());
-  const [userCount, setUserCount] = useState<number>(() => moderationService.getUserCount() || 5);
-
-  useEffect(() => {
-    const fetchRealStats = async () => {
-      try {
-        const s = await adminApi.getStats();
-        setUserCount(s.total_users);
-      } catch (err) {
-        console.warn('Failed to fetch stats from admin API, fallback to Supabase:', err);
-        try {
-          const { count, error } = await supabase
-            .from('profiles')
-            .select('*', { count: 'exact', head: true });
-          if (!error && typeof count === 'number') {
-            setUserCount(count);
-          }
-        } catch {}
-      }
-    };
-    fetchRealStats();
-  }, []);
+  const [userCount, setUserCount] = useState<number>(() => moderationService.getUserCount());
+  const [loading, setLoading] = useState(true);
 
   const refreshData = () => {
     const list = moderationService.getReports({
@@ -83,6 +64,24 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
     setReports(list);
     setStats(moderationService.getStats());
   };
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      await moderationService.initialize();
+      setStats(moderationService.getStats());
+      setUserCount(moderationService.getUserCount());
+      refreshData();
+    } catch (err) {
+      console.error('Failed to load moderation queue:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   useEffect(() => {
     refreshData();
@@ -132,7 +131,7 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
             <Users size={15} color="#2563eb" />
           </div>
           <div className="kpi-value" style={{ color: '#101828' }}>
-            {userCount} บัญชี
+            {loading ? '–' : `${userCount} บัญชี`}
           </div>
           <div className="kpi-footer">บัญชีผู้ใช้ทั้งหมด</div>
         </div>
@@ -273,7 +272,18 @@ export const ModerationQueuePage: React.FC<ModerationQueuePageProps> = ({
               </tr>
             </thead>
             <tbody>
-              {paginatedReports.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '48px 16px', color: '#667085' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                      <RotateCcw className="animate-spin" size={24} color="#2563eb" />
+                      <span style={{ fontSize: '13px', color: '#475467', fontWeight: 500 }}>
+                        กำลังโหลดรายการรายงาน...
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedReports.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '48px 16px', color: '#667085' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>

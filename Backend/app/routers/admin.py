@@ -176,48 +176,75 @@ def get_reports_queue(
 
         # Enrich reporter and target details
         if reports:
-            reporter_ids = list(set([r["reporter_id"] for r in reports if r.get("reporter_id")]))
+            # 1. Target contents for posts and comments
+            post_ids = [int(r["target_id"]) for r in reports if r.get("target_type") == "post" and str(r.get("target_id")).isdigit()]
+            comment_ids = [int(r["target_id"]) for r in reports if r.get("target_type") == "comment" and str(r.get("target_id")).isdigit()]
+
+            posts_data = []
+            if post_ids:
+                p_resp = supabase.table("posts").select("id, food_name, description, image_url, user_id, is_hidden, created_at").in_("id", post_ids).execute()
+                posts_data = to_records(p_resp.data)
+
+            comments_data = []
+            if comment_ids:
+                c_resp = supabase.table("comments").select("id, content, post_id, user_id, is_hidden, created_at").in_("id", comment_ids).execute()
+                comments_data = to_records(c_resp.data)
+
+            # 2. Gather all relevant user IDs: reporters, post authors, comment authors, and user targets
+            reporter_ids = [r["reporter_id"] for r in reports if r.get("reporter_id")]
+            user_target_ids = [str(r["target_id"]) for r in reports if r.get("target_type") == "user" and r.get("target_id")]
+            post_author_ids = [p["user_id"] for p in posts_data if p.get("user_id")]
+            comment_author_ids = [c["user_id"] for c in comments_data if c.get("user_id")]
+
+            all_user_ids = list(set(reporter_ids + user_target_ids + post_author_ids + comment_author_ids))
+
             profiles_map = {}
-            if reporter_ids:
-                prof_resp = supabase.table("profiles").select("id, username, display_name, avatar_url").in_("id", reporter_ids).execute()
+            if all_user_ids:
+                prof_resp = supabase.table("profiles").select("id, username, display_name, avatar_url, bio, is_suspended").in_("id", all_user_ids).execute()
                 prof_data = to_records(prof_resp.data)
                 if prof_data:
                     for p in prof_data:
                         p["avatar_url"] = normalize_avatar_url(p.get("avatar_url"))
-                    profiles_map = {p["id"]: p for p in prof_data}
+                    profiles_map = {str(p["id"]): p for p in prof_data}
 
-            # Enrich target contents
-            post_ids = [int(r["target_id"]) for r in reports if r.get("target_type") == "post" and str(r.get("target_id")).isdigit()]
-            comment_ids = [int(r["target_id"]) for r in reports if r.get("target_type") == "comment" and str(r.get("target_id")).isdigit()]
-
+            # 3. Attach author profiles to posts and comments
             posts_map = {}
-            if post_ids:
-                p_resp = supabase.table("posts").select("id, food_name, description, image_url, user_id, is_hidden").in_("id", post_ids).execute()
-                p_data = to_records(p_resp.data)
-                if p_data:
-                    posts_map = {p["id"]: p for p in p_data}
+            for p in posts_data:
+                uid = str(p.get("user_id") or "")
+                p["profiles"] = profiles_map.get(uid)
+                posts_map[p["id"]] = p
 
             comments_map = {}
-            if comment_ids:
-                c_resp = supabase.table("comments").select("id, content, post_id, user_id, is_hidden").in_("id", comment_ids).execute()
-                c_data = to_records(c_resp.data)
-                if c_data:
-                    comments_map = {c["id"]: c for c in c_data}
+            for c in comments_data:
+                uid = str(c.get("user_id") or "")
+                c["profiles"] = profiles_map.get(uid)
+                comments_map[c["id"]] = c
 
+            # 4. Map target content and reporter onto each report
             for r in reports:
-                # Reporter
-                rep_id = r.get("reporter_id")
+                rep_id = str(r.get("reporter_id") or "")
                 r["reporter"] = profiles_map.get(rep_id, {"username": "anonymous", "display_name": "ผู้ใช้ทั่วไป"})
 
-                # Target Content
                 t_type = r.get("target_type")
                 t_id = r.get("target_id")
-                if t_id is not None and str(t_id).isdigit():
-                    t_id_int = int(t_id)
-                    if t_type == "post":
-                        r["target_content"] = posts_map.get(t_id_int)
-                    elif t_type == "comment":
-                        r["target_content"] = comments_map.get(t_id_int)
+
+                if t_type == "post" and t_id is not None and str(t_id).isdigit():
+                    r["target_content"] = posts_map.get(int(t_id))
+                elif t_type == "comment" and t_id is not None and str(t_id).isdigit():
+                    r["target_content"] = comments_map.get(int(t_id))
+                elif t_type == "user" and t_id:
+                    u_prof = profiles_map.get(str(t_id))
+                    if u_prof:
+                        r["target_content"] = {
+                            "id": t_id,
+                            "user_id": t_id,
+                            "username": u_prof.get("username"),
+                            "display_name": u_prof.get("display_name"),
+                            "avatar_url": u_prof.get("avatar_url"),
+                            "bio": u_prof.get("bio"),
+                            "is_suspended": u_prof.get("is_suspended"),
+                            "profiles": u_prof,
+                        }
 
         return {"success": True, "data": reports, "total": len(reports)}
     except Exception as e:
@@ -624,26 +651,28 @@ def toggle_user_status(user_id: str, payload: UserStatusPayload):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def delete_user_completely(user_id: str) -> bool:
+def delete_user_completely(user_id: str, reason: str = "Deleted by admin") -> bool:
     """Completely and permanently remove a user and all associated records."""
     if not supabase:
         return False
+
+    # 1. First attempt: Direct Supabase RPC function (runs as SECURITY DEFINER superuser)
     try:
-        # 1. Saved posts
-        try:
-            supabase.table("saved_posts").delete().eq("user_id", user_id).execute()
-        except Exception:
-            pass
+        rpc_res = supabase.rpc("admin_delete_user_completely", {
+            "target_user_id": user_id,
+            "reason": reason
+        }).execute()
+        if rpc_res and rpc_res.data:
+            print(f"User {user_id} purged via Supabase RPC:", rpc_res.data)
+            return True
+    except Exception as rpc_err:
+        print(f"Supabase RPC admin_delete_user_completely notice ({rpc_err}), falling back to service_role direct cleanup...")
 
-        # 2. Comments authored by user
+    # 2. Service Role Cascade Cleanup
+    try:
+        # 1. Clean up user's posts and post dependencies
         try:
-            supabase.table("comments").delete().eq("user_id", user_id).execute()
-        except Exception:
-            pass
-
-        # 3. Posts authored by user (and categories, comments on those posts)
-        try:
-            p_res = supabase.table("posts").select("id").eq("user_id", user_id).execute()
+            p_res = supabase.table("posts").select("id, image_url").eq("user_id", user_id).execute()
             p_records = to_records(p_res.data)
             if p_records:
                 p_ids = [p["id"] for p in p_records]
@@ -651,37 +680,82 @@ def delete_user_completely(user_id: str) -> bool:
                 supabase.table("saved_posts").delete().in_("post_id", p_ids).execute()
                 supabase.table("comments").delete().in_("post_id", p_ids).execute()
                 supabase.table("posts").delete().eq("user_id", user_id).execute()
-        except Exception:
-            pass
+        except Exception as e:
+            print("Posts cleanup notice:", e)
+
+        # 2. Saved posts authored/saved by user
+        try:
+            supabase.table("saved_posts").delete().eq("user_id", user_id).execute()
+        except Exception as e:
+            print("Saved posts cleanup notice:", e)
+
+        # 3. Comments authored by user
+        try:
+            supabase.table("comments").delete().eq("user_id", user_id).execute()
+        except Exception as e:
+            print("Comments cleanup notice:", e)
 
         # 4. Search history
         try:
             supabase.table("search_history").delete().eq("user_id", user_id).execute()
-        except Exception:
-            pass
+        except Exception as e:
+            print("Search history cleanup notice:", e)
 
         # 5. Blocked users
         try:
             supabase.table("blocked_users").delete().eq("blocker_id", user_id).execute()
             supabase.table("blocked_users").delete().eq("blocked_id", user_id).execute()
-        except Exception:
-            pass
+        except Exception as e:
+            print("Blocked users cleanup notice:", e)
 
-        # 6. Profile
+        # 6. Nullify / Clean up Reports & Moderation
+        try:
+            supabase.table("reports").update({"reporter_id": None}).eq("reporter_id", user_id).execute()
+            supabase.table("reports").update({"assigned_to": None}).eq("assigned_to", user_id).execute()
+            supabase.table("reports").update({"status": "closed"}).eq("target_type", "user").eq("target_id", str(user_id)).execute()
+            supabase.table("moderation_actions").update({"actor_id": None}).eq("actor_id", user_id).execute()
+            supabase.table("appeals").delete().eq("user_id", user_id).execute()
+        except Exception as e:
+            print("Reports/Moderation cleanup notice:", e)
+
+        # 7. Account Deletion Requests
+        try:
+            supabase.table("account_deletion_requests").update({
+                "status": "completed",
+                "admin_notes": reason or "ลบบัญชีเรียบร้อยแล้วโดยผู้ดูแลระบบ"
+            }).eq("user_id", user_id).execute()
+        except Exception as e:
+            print("Account deletion requests update notice:", e)
+
+        # 8. Storage files cleanup
+        try:
+            # Avatar files
+            avatars = supabase.storage.from_("avatars").list(user_id)
+            if avatars:
+                file_paths = [f"{user_id}/{f['name']}" for f in avatars]
+                supabase.storage.from_("avatars").remove(file_paths)
+        except Exception as e:
+            print("Storage avatars cleanup notice:", e)
+
+        # 9. Profile row
         try:
             supabase.table("profiles").delete().eq("id", user_id).execute()
-        except Exception:
-            pass
+        except Exception as e:
+            print("Profile delete notice:", e)
 
-        # 7. Auth User (GoTrue)
+        # 10. Auth User in GoTrue
         try:
             supabase.auth.admin.delete_user(user_id)
+            print(f"Auth user {user_id} deleted successfully via auth.admin")
         except Exception as e:
-            print(f"Auth user deletion note for {user_id}:", e)
+            print(f"Auth user deletion error for {user_id}:", e)
+            # If user not found, it is already deleted
+            if "User not found" not in str(e):
+                raise e
 
         return True
     except Exception as e:
-        print("delete_user_completely error:", e)
+        print("delete_user_completely failed:", e)
         return False
 
 

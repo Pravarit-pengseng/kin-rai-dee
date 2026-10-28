@@ -58,7 +58,7 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast }) => {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, username, display_name, avatar_url, is_suspended, created_at')
           .limit(200);
 
         if (error) throw error;
@@ -81,7 +81,7 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast }) => {
       try {
         const { data, error } = await supabase
           .from('account_deletion_requests')
-          .select('*')
+          .select('id, user_id, email, reason, status, created_at, resolved_at, admin_notes')
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -102,13 +102,18 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast }) => {
   const handleToggleSuspend = async (userId: string, currentSuspended: boolean) => {
     const nextSuspended = !currentSuspended;
     try {
-      try {
+      // 1. Try direct Supabase RPC
+      const { error: rpcErr } = await supabase.rpc('admin_toggle_user_status', {
+        target_user_id: userId,
+        should_suspend: nextSuspended,
+        reason: 'เปลี่ยนสถานะโดยผู้ดูแลระบบ',
+      });
+
+      if (rpcErr) {
+        console.warn('RPC admin_toggle_user_status failed, falling back to adminApi:', rpcErr);
         await adminApi.setUserStatus(userId, nextSuspended ? 'suspended' : 'active');
-      } catch (apiErr) {
-        console.warn('adminApi setUserStatus failed, falling back to direct Supabase:', apiErr);
-        const { error } = await supabase.from('profiles').update({ is_suspended: nextSuspended }).eq('id', userId);
-        if (error) throw error;
       }
+
       setUsers(prev => prev.map(u => {
         if (u.id === userId) {
           return { ...u, is_suspended: nextSuspended, _suspended: nextSuspended };
@@ -122,60 +127,58 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast }) => {
     }
   };
 
-  // Direct User Deletion
+  // Direct User Deletion via Supabase RPC (Complete & Permanent Cascade)
   const handleConfirmDirectDeleteUser = async () => {
     if (!selectedUserToDelete) return;
     setIsProcessing(true);
     try {
-      try {
+      // 1. Primary: Direct Supabase RPC (Runs as SECURITY DEFINER superuser, atomic deletion of auth, storage & db rows)
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('admin_delete_user_completely', {
+        target_user_id: selectedUserToDelete.id,
+        reason: 'ลบบัญชีโดยผู้ดูแลระบบ',
+      });
+
+      if (rpcErr) {
+        console.warn('Supabase RPC admin_delete_user_completely notice, trying adminApi fallback:', rpcErr);
+        // 2. Secondary: FastAPI backend with service_role key
         await adminApi.deleteUser(selectedUserToDelete.id);
-      } catch (apiErr) {
-        console.warn('adminApi deleteUser failed, falling back to direct Supabase:', apiErr);
-        await supabase.from('saved_posts').delete().eq('user_id', selectedUserToDelete.id);
-        await supabase.from('comments').delete().eq('user_id', selectedUserToDelete.id);
-        await supabase.from('posts').delete().eq('user_id', selectedUserToDelete.id);
-        await supabase.from('profiles').delete().eq('id', selectedUserToDelete.id);
       }
+
       setUsers(prev => prev.filter(u => u.id !== selectedUserToDelete.id));
       onShowToast(`ลบบัญชี @${selectedUserToDelete.username} และข้อมูลทั้งหมดเรียบร้อยแล้ว`, 'success');
       setSelectedUserToDelete(null);
     } catch (err: any) {
-      console.error(err);
-      onShowToast(`เกิดข้อผิดพลาดในการลบผู้ใช้: ${err.message}`, 'error');
+      console.error('Delete user failed:', err);
+      onShowToast(`เกิดข้อผิดพลาดในการลบผู้ใช้: ${err.message || 'ไม่สามารถลบได้ กรุณาตรวจสอบสิทธิ์'}`, 'error');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Approve Deletion Request
+  // Approve Deletion Request via Supabase RPC
   const handleConfirmApproveRequest = async () => {
     if (!selectedRequestForAction) return;
     setIsProcessing(true);
     try {
-      try {
+      // 1. Primary: Direct Supabase RPC
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('admin_approve_deletion_request', {
+        request_id: selectedRequestForAction.id,
+        admin_notes: adminNote || 'อนุมัติและลบบัญชีเรียบร้อยแล้วโดยผู้ดูแลระบบ',
+      });
+
+      if (rpcErr) {
+        console.warn('Supabase RPC admin_approve_deletion_request notice, trying adminApi fallback:', rpcErr);
         await adminApi.approveDeletionRequest(selectedRequestForAction.id, adminNote);
-      } catch (apiErr) {
-        console.warn('API approve failed, falling back to direct Supabase:', apiErr);
-        if (selectedRequestForAction.user_id) {
-          await supabase.from('saved_posts').delete().eq('user_id', selectedRequestForAction.user_id);
-          await supabase.from('comments').delete().eq('user_id', selectedRequestForAction.user_id);
-          await supabase.from('posts').delete().eq('user_id', selectedRequestForAction.user_id);
-          await supabase.from('profiles').delete().eq('id', selectedRequestForAction.user_id);
-        }
-        await supabase.from('account_deletion_requests').update({
-          status: 'completed',
-          resolved_at: new Date().toISOString(),
-          admin_notes: adminNote || 'อนุมัติและลบบัญชีเรียบร้อยแล้ว',
-        }).eq('id', selectedRequestForAction.id);
       }
+
       onShowToast(`อนุมัติและลบบัญชีสำหรับ ${selectedRequestForAction.email} เรียบร้อยแล้ว`, 'success');
       setSelectedRequestForAction(null);
       setAdminNote('');
       fetchDeletionRequests();
       fetchUsers();
     } catch (err: any) {
-      console.error(err);
-      onShowToast(`เกิดข้อผิดพลาดในการลบบัญชี: ${err.message}`, 'error');
+      console.error('Approve deletion request failed:', err);
+      onShowToast(`เกิดข้อผิดพลาดในการลบบัญชี: ${err.message || 'ไม่สามารถดำเนินการได้'}`, 'error');
     } finally {
       setIsProcessing(false);
     }

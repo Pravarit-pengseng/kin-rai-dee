@@ -1,16 +1,25 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
+  "framework": null,
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/_expo/(.*)", "destination": "/_expo/$1" },
-    { "source": "/assets/(.*)", "destination": "/assets/$1" },
-    { "source": "/favicon.ico", "destination": "/favicon.ico" },
-    { "source": "/delete-account", "destination": "/delete-account.html" },
-    { "source": "/support/delete-account", "destination": "/delete-account.html" },
-    { "source": "/privacy", "destination": "/privacy-policy.html" },
-    { "source": "/privacy-policy", "destination": "/privacy-policy.html" },
-    { "source": "/terms", "destination": "/terms-of-use.html" },
-    { "source": "/terms-of-use", "destination": "/terms-of-use.html" },
-    { "source": "/", "destination": "/delete-account.html" }
+    {
+      "source": "/support/delete-account",
+      "destination": "/delete-account"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy-policy"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms-of-use"
+    },
+    {
+      "source": "/",
+      "destination": "/delete-account"
+    }
   ]
 }

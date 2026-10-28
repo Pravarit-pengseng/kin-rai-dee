@@ -45,7 +45,7 @@ export const CommentsPage: React.FC<CommentsPageProps> = ({ onShowToast }) => {
       try {
         const { data, error } = await supabase
           .from('comments')
-          .select('*')
+          .select('id, user_id, post_id, content, created_at, is_hidden, profiles:user_id(id, username, display_name, avatar_url)')
           .order('created_at', { ascending: false })
           .limit(300);
 

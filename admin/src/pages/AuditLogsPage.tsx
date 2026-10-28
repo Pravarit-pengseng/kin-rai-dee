@@ -42,7 +42,7 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ onShowToast }) => 
         console.warn('API getAuditLogs failed, falling back to direct Supabase:', apiErr);
         const { data, error } = await supabase
           .from('audit_logs')
-          .select('*')
+          .select('id, created_at, actor_id, actor_name, event_type, target_type, target_id, metadata')
           .order('created_at', { ascending: false })
           .limit(200);
         if (error) throw error;

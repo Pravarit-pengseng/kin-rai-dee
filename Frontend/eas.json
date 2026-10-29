@@ -1,4 +1,3 @@
-
 {
   "cli": {
     "version": ">= 27.1.0",
@@ -7,8 +6,7 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal",
-      "environment": "development"
+      "distribution": "internal"
     },
     "preview": {
       "distribution": "internal",
@@ -19,13 +17,9 @@
     },
     "production": {
       "autoIncrement": true,
-      "environment": "production",
       "android": {
         "buildType": "app-bundle"
       }
     }
-  },
-  "submit": {
-    "production": {}
   }
 }

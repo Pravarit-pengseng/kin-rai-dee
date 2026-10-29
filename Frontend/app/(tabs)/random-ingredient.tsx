@@ -15,6 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { INGREDIENT_LIST, IngredientItem } from '@/constants/ingredientData';
 import { Typography } from '@/constants/typography';
+import { Header } from '@/components/Header';
 import { RandomButton } from '@/components/RandomButton';
 import AlertPopup, { useAlertPopup } from '@/components/AlertPopup';
 
@@ -137,18 +138,7 @@ export default function RandomIngredientScreen() {
       <AlertPopup {...alertProps} onRequestClose={hideAlert} />
 
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>KIN RAI DEE</Text>
-        <Pressable
-          onPress={handleSearch}
-          accessibilityRole="button"
-          accessibilityLabel="ค้นหา"
-          hitSlop={10}
-          style={({ pressed }) => [styles.searchButton, pressed && { opacity: 0.6 }]}
-        >
-          <MaterialCommunityIcons name="magnify" size={24} color="#4D3C38" />
-        </Pressable>
-      </View>
+      <Header onSearchPress={handleSearch} />
 
       <ScrollView
         style={styles.scrollView}

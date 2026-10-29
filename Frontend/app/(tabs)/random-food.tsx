@@ -378,10 +378,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   randomButtonContainer: {
-    width: '60%',
+    width: '65%',
   },
   randomButtonContainerCompact: {
-    // marginBottom: 12,
+    marginBottom: 12,
   },
   restaurantSection: {
     marginTop: 16,

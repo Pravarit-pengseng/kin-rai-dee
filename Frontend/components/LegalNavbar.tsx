@@ -70,7 +70,7 @@ export default function LegalNavbar({ activeTab }: LegalNavbarProps) {
           >
             {/* Real App Mascot / Logo Image */}
             <Image
-              source={require('@/assets/images/kin-rai-dee-logo.png')}
+              source={require('@/assets/images/kinraidee-logo.png')}
               style={styles.logoImage}
               resizeMode="contain"
             />

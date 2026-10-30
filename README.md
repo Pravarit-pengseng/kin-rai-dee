@@ -237,25 +237,55 @@ npm run dev
 
 โปรเจกต์ KIN RAI DEE มีชุดการทดสอบครอบคลุมทั้ง Unit Test, Integration Test, E2E Browser Testing และ System API Tests:
 
-### 1. รัน Playwright E2E Tests (Admin, Backend & Frontend Web)
+### 1. คำสั่งลัดจาก Root Workspace
 ```bash
-# รันแบบ Headless จาก Root
+# รัน Playwright E2E Tests ทั้งหมดแบบ Headless
 npm run test:e2e
+```
 
-# หรือเข้าไปที่ admin แล้วรันแบบ Interactive UI
+### 2. รัน Playwright E2E Tests (`admin/`)
+ศูนย์กลางการทดสอบแบบ End-to-End ครอบคลุมทั้ง Admin Dashboard, Backend API และ Frontend Mobile Web:
+```bash
 cd admin
+
+# รันการทดสอบทั้งหมดแบบ Headless
+npm run test:e2e
+# หรือ
+npx playwright test
+
+# รันแบบเปิดหน้าต่างเบราว์เซอร์จริง (Headed Mode)
+npx playwright test --headed
+
+# รันแบบ Interactive UI Mode (มี Time-travel และขั้นตอนแบบละเอียด)
 npx playwright test --ui
 
-# ดูรายงานผลการทดสอบ
+# รันเจาะจงเฉพาะไฟล์ที่ต้องการ:
+npx playwright test e2e/account-deletion.spec.ts   # หน้าขอลบบัญชี PDPA และ Responsive (375x667)
+npx playwright test e2e/admin-dashboard.spec.ts    # แดชบอร์ดผู้ดูแล, Moderation Drawer, Audit Logs
+npx playwright test e2e/backend-api.spec.ts       # ตรวจสอบความเชื่อมต่อ API และ Legal Pages
+npx playwright test e2e/frontend-app.spec.ts      # หน้าจอหลัก Mobile Web (Login, Register, Recovery)
+
+# ดูรายงานผลการทดสอบแบบ HTML
 npx playwright show-report
 ```
 
-### 2. รัน Backend Unit & Integration Tests (Pytest)
+### 3. รัน Backend Unit & Integration Tests (Pytest)
 ```bash
 cd backend
 
-# รันการทดสอบพื้นฐานทั่วไป (Unauthenticated, Safety, Admin, Legal)
+# เปิดใช้งาน Virtual Environment
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+# macOS/Linux:        source .venv/bin/activate
+
+# รันการทดสอบพื้นฐานทั้งหมด (Unauthenticated, Safety, Admin, Legal)
 pytest -v
+
+# รันเฉพาะโมดูลที่ต้องการ:
+pytest tests/test_safety.py -v                  # ความปลอดภัย การรายงาน และการบล็อก (Safety & Report)
+pytest tests/test_admin.py -v                   # ระบบผู้ดูแลและการจัดการเนื้อหา (Admin & Moderation)
+pytest tests/test_integration_admin_mobile.py -v # เชื่อมต่อระหว่าง Mobile และ Admin RBAC
+pytest tests/test_legal_pages.py -v             # หน้าข้อกำหนดทางกฎหมายและแบบฟอร์มขอลบบัญชี
+pytest tests/test_api.py -v                     # Core Mobile API (ฟีด, ค้นหา, สุ่มอาหาร, ร้านอาหาร)
 
 # รันแบบครบวงจร (รวม 9 Authenticated Tests ที่ต้องใช้ User Token)
 # Windows PowerShell:
@@ -264,26 +294,30 @@ $env:TEST_EMAIL="user@gmail.com"; $env:TEST_PASSWORD="password"; pytest -v
 TEST_EMAIL="user@gmail.com" TEST_PASSWORD="password" pytest -v
 ```
 
-### 3. รัน Comprehensive End-to-End API Health Test
+### 4. รัน Comprehensive End-to-End API Health Test
 สคริปต์ทดสอบสุขภาพและ Endpoint ทั้งหมดของ Backend (ตรวจทั้ง Mobile API, Legal Pages และ Admin endpoints):
 ```bash
-# ทดสอบ Local
+# ทดสอบ Local (Port 8000)
 python backend/test_system_apis.py --base-url http://localhost:8000
 
 # ทดสอบ Production Staging
 python backend/test_system_apis.py --base-url https://your-backend-api.com
 ```
 
-### 4. รัน Typecheck และ Linter
+### 5. รัน Typecheck, Linter และ Logic Validation
 ```bash
-# ตรวจสอบ TypeScript ใน Frontend
+# ตรวจสอบ TypeScript ใน Frontend Mobile
 cd frontend
 npx tsc --noEmit
 npm run lint
 
-# ตรวจสอบ Linter ใน Admin Dashboard
+# ทดสอบตรรกะการตรวจสอบ Validation รหัสผ่าน และ OTP 6 หลัก
+node scripts/test_forgot_password.mjs
+
+# ตรวจสอบ Linter และทดสอบ Build ใน Admin Dashboard
 cd admin
 npm run lint
+npm run build
 ```
 
 ---

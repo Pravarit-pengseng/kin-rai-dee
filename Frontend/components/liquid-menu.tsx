@@ -74,6 +74,7 @@ export default function LiquidMenu({
           return (
             <Pressable
               key={item.id}
+              testID={`tab-${item.id}`}
               onPress={() => handlePress(item.id)}
               style={({ pressed }) => [
                 styles.menuItem,

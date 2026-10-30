@@ -178,6 +178,7 @@ export default function LoginScreen() {
                 <AuthErrorBanner message={generalError} />
 
               <AuthInput
+                testID="input-email"
                 iconName="user"
                 placeholder="อีเมล"
                 value={email}
@@ -195,6 +196,7 @@ export default function LoginScreen() {
               />
 
                 <AuthInput
+                  testID="input-password"
                   iconName="lock"
                   placeholder="รหัสผ่าน"
                   value={password}
@@ -214,6 +216,7 @@ export default function LoginScreen() {
               </View>
 
               <Pressable
+                testID="button-login"
                 onPress={handleLogin}
                 disabled={isLoading}
                 style={({ pressed }) => [

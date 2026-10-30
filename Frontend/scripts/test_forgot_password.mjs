@@ -1,30 +1,12 @@
-/**
- * Auth Validation & Password Recovery Integration Tests
- * Kin Rai Dee — Frontend Test Suite
- *
- * Imports directly from the single source of truth:
- *   ../utils/authValidation.ts
- */
-
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 
-import {
-  AUTH_ERROR_MESSAGES,
-  formatEmail,
-  validateEmail,
-  validatePassword,
-  validateConfirmPassword,
-  validateOtp,
-} from '../utils/authValidation.ts';
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Read Frontend/.env manually
-// Read frontend/.env manually if present
 try {
   const envContent = fs.readFileSync(path.resolve(__dirname, '../.env'), 'utf-8');
   for (const line of envContent.split('\n')) {
@@ -43,6 +25,86 @@ const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://ckkuyhpdrqw
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_elBMw2lLUBxrjDo5lN9pUA_6bmtA_PO';
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// ==========================================
+// Mirror of Frontend/utils/authValidation.ts
+// ==========================================
+const AUTH_ERROR_MESSAGES = {
+  EMAIL_REQUIRED: 'กรุณากรอกอีเมล',
+  EMAIL_INVALID: 'รูปแบบอีเมลไม่ถูกต้อง',
+  PASSWORD_REQUIRED: 'กรุณากรอกรหัสผ่าน',
+  PASSWORD_MIN_LENGTH: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร',
+  PASSWORD_MAX_LENGTH: 'รหัสผ่านต้องไม่เกิน 20 ตัวอักษร',
+  PASSWORD_NEED_LETTER: 'ต้องมีอักษรภาษาอังกฤษอย่างน้อย 1 ตัว',
+  PASSWORD_NEED_NUMBER: 'ต้องมีตัวเลขอย่างน้อย 1 ตัว',
+  PASSWORD_NEED_SPECIAL: 'ต้องมีอักขระพิเศษอย่างน้อย 1 ตัว (# ? ! @ - _)',
+  PASSWORD_INVALID_CHARS: 'ใช้ได้เฉพาะอักษรภาษาอังกฤษ ตัวเลข และ #?!@-_',
+  PASSWORD_MULTI_FAIL: 'รหัสผ่านยังไม่ครบตามเงื่อนไข',
+  CONFIRM_PASSWORD_REQUIRED: 'กรุณายืนยันรหัสผ่าน',
+  PASSWORD_MISMATCH: 'รหัสผ่านไม่ตรงกัน',
+  OTP_REQUIRED: 'กรุณากรอกรหัส OTP',
+  OTP_INVALID_LENGTH: 'กรุณากรอกรหัส OTP ให้ครบ 6 หลัก',
+  OTP_INVALID: 'รหัส OTP ไม่ถูกต้อง กรุณาลองอีกครั้ง',
+  OTP_EXPIRED: 'รหัส OTP หมดอายุ กรุณาขอรหัสใหม่',
+  RATE_LIMIT_EXCEEDED: 'คำขอบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่',
+  PASSWORD_RESET_MIN_LENGTH: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 12 ตัวอักษร',
+  PASSWORD_SAME_AS_OLD: 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านเดิม',
+  SESSION_EXPIRED: 'เซสชันกู้คืนหมดอายุ กรุณาเริ่มใหม่อีกครั้ง',
+  NO_INTERNET: 'ไม่สามารถเชื่อมต่อได้ กรุณาตรวจสอบอินเทอร์เน็ต',
+  SYSTEM_ERROR: 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง',
+};
+
+function formatEmail(email) {
+  return email.trim().toLowerCase();
+}
+
+function validateEmail(email) {
+  const trimmed = email.trim();
+  if (!trimmed) return AUTH_ERROR_MESSAGES.EMAIL_REQUIRED;
+  if (
+    trimmed.includes('..') ||
+    trimmed.startsWith('.') ||
+    trimmed.includes('.@') ||
+    trimmed.includes('@.')
+  ) {
+    return AUTH_ERROR_MESSAGES.EMAIL_INVALID;
+  }
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(trimmed)) return AUTH_ERROR_MESSAGES.EMAIL_INVALID;
+  return null;
+}
+
+function validatePassword(password) {
+  if (!password) return AUTH_ERROR_MESSAGES.PASSWORD_REQUIRED;
+  const allowedCharsRegex = /^[a-zA-Z0-9#?!@\-_]+$/;
+  if (!allowedCharsRegex.test(password)) {
+    return AUTH_ERROR_MESSAGES.PASSWORD_INVALID_CHARS;
+  }
+  const failures = [];
+  if (password.length < 8) failures.push(AUTH_ERROR_MESSAGES.PASSWORD_MIN_LENGTH);
+  else if (password.length > 20) failures.push(AUTH_ERROR_MESSAGES.PASSWORD_MAX_LENGTH);
+
+  if (!/[a-zA-Z]/.test(password)) failures.push(AUTH_ERROR_MESSAGES.PASSWORD_NEED_LETTER);
+  if (!/[0-9]/.test(password)) failures.push(AUTH_ERROR_MESSAGES.PASSWORD_NEED_NUMBER);
+  if (!/[#?!@\-_]/.test(password)) failures.push(AUTH_ERROR_MESSAGES.PASSWORD_NEED_SPECIAL);
+
+  if (failures.length > 1) return AUTH_ERROR_MESSAGES.PASSWORD_MULTI_FAIL;
+  if (failures.length === 1) return failures[0];
+  return null;
+}
+
+function validateConfirmPassword(password, confirmPassword) {
+  if (!confirmPassword) return AUTH_ERROR_MESSAGES.CONFIRM_PASSWORD_REQUIRED;
+  if (confirmPassword !== password) return AUTH_ERROR_MESSAGES.PASSWORD_MISMATCH;
+  return null;
+}
+
+function validateOtp(otp) {
+  const trimmed = otp.trim();
+  if (!trimmed) return AUTH_ERROR_MESSAGES.OTP_REQUIRED;
+  if (!/^\d{6}$/.test(trimmed)) return AUTH_ERROR_MESSAGES.OTP_INVALID_LENGTH;
+  return null;
+}
 
 // ==========================================
 // Test Runner

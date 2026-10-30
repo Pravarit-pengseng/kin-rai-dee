@@ -74,7 +74,6 @@ export default function LiquidMenu({
           return (
             <Pressable
               key={item.id}
-              testID={`tab-${item.id}`}
               onPress={() => handlePress(item.id)}
               style={({ pressed }) => [
                 styles.menuItem,
@@ -109,11 +108,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     right: 16,
-    bottom: 12,
+    bottom: 20,
     overflow: "hidden",
-    borderRadius: 30,
+    borderRadius: 300,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.25)",
+    borderColor: "rgba(255, 255, 255, 0.05)",
 
     shadowColor: "#000",
     shadowOffset: {
@@ -126,7 +125,7 @@ const styles = StyleSheet.create({
   },
 
   blur: {
-    borderRadius: 28,
+    borderRadius: 300,
     overflow: "hidden",
   },
 
@@ -149,14 +148,15 @@ const styles = StyleSheet.create({
 
   activeItem: {
     borderRadius: 30,
-    backgroundColor: "rgba(255, 233, 229, 0.45)",
+    backgroundColor: "#fff1efff",
+    opacity:0.8,
 
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.05,
     shadowRadius: 5,
     elevation: 2,
   },

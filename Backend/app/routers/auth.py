@@ -63,6 +63,8 @@ def login(request: Request, data: LoginRequest):
             # Defense-in-depth: Prevent admin accounts from logging in via public client /auth/login
             # Returns generic 401 to prevent User/Role Enumeration (OWASP)
             import os
+            from dotenv import load_dotenv
+            load_dotenv(override=True)
             allow_admin_test = os.getenv("ALLOW_ADMIN_TEST_LOGIN", "").lower() in ("1", "true")
             if not allow_admin_test:
                 admin_res = supabase.table("admins").select("id, is_active").eq("user_id", response.user.id).eq("is_active", True).execute()

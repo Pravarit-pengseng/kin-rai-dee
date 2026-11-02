@@ -8,10 +8,8 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Search, 
-  Filter, 
-  X,
+X,
   User,
-  MessageSquare
 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { adminApi } from '../services/adminApi';

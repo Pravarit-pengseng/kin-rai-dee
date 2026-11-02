@@ -62,15 +62,14 @@ test.describe('Admin Auth', () => {
   test('logout returns to login screen', async ({ page }) => {
     await loginAsAdmin(page);
 
-    const logoutBtn = page.locator('[data-testid="logout-btn"], .logout-btn, button:has-text("ออกจากระบบ")');
-    const hasLogout = await logoutBtn.isVisible({ timeout: 3000 }).catch(() => false);
-    if (!hasLogout) {
-      test.skip(); // Logout button not found — check selector
-      return;
-    }
+    const logoutBtn = page.locator('[data-testid="logout-btn"], .logout-btn, button[title="ออกจากระบบ"]').first();
+    await expect(logoutBtn).toBeVisible({ timeout: 10000 });
+
+    page.once('dialog', async (dialog) => {
+      await dialog.accept();
+    });
 
     await logoutBtn.click();
-    await expect(page.locator('.login-card')).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('.login-card')).toBeVisible({ timeout: 15000 });
   });
 });
-

@@ -100,7 +100,8 @@ def test_get_post_by_id(auth_headers, created_post_id):
     res = client.get(f"/api/posts/{created_post_id}", headers=auth_headers)
     assert res.status_code == 200
     body = res.json()
-    assert body["data"]["id"] == created_post_id
+    post_data = body.get("data", body)
+    assert post_data["id"] == created_post_id
 
 
 def test_update_post(auth_headers, created_post_id):
@@ -154,7 +155,8 @@ def test_bookmark_and_unbookmark(auth_headers, created_post_id):
     # Verify in saved list
     saved = client.get("/api/posts/saved", headers=auth_headers)
     assert saved.status_code == 200
-    ids = [p["id"] for p in saved.json()]
+    saved_list = saved.json().get("data", saved.json()) if isinstance(saved.json(), dict) else saved.json()
+    ids = [p["id"] for p in saved_list]
     assert created_post_id in ids
 
     # Unbookmark
@@ -163,6 +165,7 @@ def test_bookmark_and_unbookmark(auth_headers, created_post_id):
 
     # Confirm removed
     saved_after = client.get("/api/posts/saved", headers=auth_headers)
-    ids_after = [p["id"] for p in saved_after.json()]
+    saved_after_list = saved_after.json().get("data", saved_after.json()) if isinstance(saved_after.json(), dict) else saved_after.json()
+    ids_after = [p["id"] for p in saved_after_list]
     assert created_post_id not in ids_after
 

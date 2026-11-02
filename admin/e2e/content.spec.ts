@@ -21,7 +21,7 @@ test.describe('Admin Content Management', () => {
 
   test('posts table renders without error toast', async ({ page }) => {
     await navigateTo(page, 'จัดการเนื้อหา');
-    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
 
     const errorToast = page.locator('.toast-error');
     const hasError = await errorToast.isVisible({ timeout: 2000 }).catch(() => false);
@@ -34,7 +34,7 @@ test.describe('Admin Content Management', () => {
 
   test('can toggle post visibility', async ({ page }) => {
     await navigateTo(page, 'จัดการเนื้อหา');
-    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
 
     const rows = page.locator('.admin-table tbody tr, table tbody tr');
     if (await rows.count() === 0) {
@@ -61,14 +61,16 @@ test.describe('Admin Content Management', () => {
   // ── Comments ──────────────────────────────────────────────────────────────
 
   test('navigates to Comments management tab', async ({ page }) => {
-    const commentsTab = page.locator('.nav-link', { hasText: 'ความคิดเห็น' });
-    const hasTab = await commentsTab.isVisible({ timeout: 3000 }).catch(() => false);
-    if (!hasTab) {
-      test.skip();
-      return;
-    }
-    await commentsTab.click();
-    await expect(page.locator('.header-page-title')).toContainText('ความคิดเห็น', { timeout: 5000 });
+    // Navigate to Posts Management
+    await navigateTo(page, 'จัดการเนื้อหา');
+
+    // Switch to comments sub-tab inside Posts Page
+    const commentsSubTab = page.locator('button:has-text("ความคิดเห็น"), .tab-btn:has-text("ความคิดเห็น")').first();
+    await expect(commentsSubTab).toBeVisible({ timeout: 10000 });
+    await commentsSubTab.click();
+
+    // Verify comments view is active
+    await expect(page.locator('.tab-btn.active')).toContainText('ความคิดเห็น', { timeout: 5000 });
   });
 
   // ── Audit Logs ────────────────────────────────────────────────────────────

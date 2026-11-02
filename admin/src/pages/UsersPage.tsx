@@ -10,8 +10,7 @@ import {
   XCircle, 
   Clock, 
   Mail, 
-  FileText,
-  X,
+X,
   AlertTriangle,
   Search
 } from 'lucide-react';

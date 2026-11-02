@@ -41,6 +41,7 @@ export async function loginAsAdmin(page: Page): Promise<void> {
 export async function navigateTo(page: Page, tabText: string): Promise<void> {
   await page.locator('.nav-link', { hasText: tabText }).click();
   // Wait for navigation to settle
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
+  await page.waitForTimeout(500);
 }
 

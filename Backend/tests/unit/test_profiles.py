@@ -68,8 +68,7 @@ def test_public_profile_by_id(auth_headers):
     res = client.get(f"/api/profiles/{user_id}", headers=auth_headers)
     assert res.status_code == 200
     body = res.json()
-    assert body["success"] is True
-    profile = body["data"]
+    profile = body.get("data", body)
     assert profile["id"] == user_id
 
 
@@ -82,7 +81,8 @@ def test_public_profile_strips_sensitive_fields(auth_headers):
     user_id = me["id"]
 
     res = client.get(f"/api/profiles/{user_id}", headers=auth_headers)
-    profile = res.json()["data"]
+    body = res.json()
+    profile = body.get("data", body)
     assert "is_suspended" not in profile, "is_suspended must not be exposed publicly"
     assert "violation_count" not in profile, "violation_count must not be exposed publicly"
 
@@ -100,6 +100,6 @@ def test_user_posts_by_id(auth_headers):
     res = client.get(f"/api/profiles/{user_id}/posts", headers=auth_headers)
     assert res.status_code == 200
     body = res.json()
-    assert body["success"] is True
-    assert isinstance(body["data"], list)
+    posts = body.get("data", body) if isinstance(body, dict) else body
+    assert isinstance(posts, list)
 

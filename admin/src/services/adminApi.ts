@@ -49,7 +49,7 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
       window.dispatchEvent(new CustomEvent('admin:unauthorized'));
       throw new Error('ไม่พบเซสชันการเข้าสู่ระบบ กำลังนำกลับไปหน้าเข้าสู่ระบบ...');
     }
-  } catch (err: any) {
+  } catch {
     localStorage.removeItem('kinraidee_admin_auth');
     sessionStorage.removeItem('kinraidee_admin_auth');
     window.dispatchEvent(new CustomEvent('admin:unauthorized'));

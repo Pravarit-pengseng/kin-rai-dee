@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TextInputProps,
   Pressable,
-  Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Typography } from '@/constants/typography';

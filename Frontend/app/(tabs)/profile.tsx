@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   ScrollView,
   Pressable,
   StyleSheet,
-  Alert,
   RefreshControl,
 } from "react-native";
 import {
@@ -12,9 +11,8 @@ import {
   useLocalSearchParams,
   useFocusEffect,
 } from "expo-router";
-import { useCallback, useRef } from "react";
 
-import PostGrid, { Post } from "@/components/post-grid";
+import PostGrid from "@/components/post-grid";
 
 import PopupPost, { PopupPostData } from "@/components/popup-post";
 import DeletePostPopup from "@/components/DeletePopup";
@@ -46,12 +44,6 @@ export default function ProfileScreen() {
 
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
-  useEffect(() => {
-    if (params.refresh) {
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
-      onRefresh();
-    }
-  }, [params.refresh]);
 
   // Profile data จาก API
   const [profileName, setProfileName] = useState<string | undefined>(undefined);
@@ -104,6 +96,13 @@ export default function ProfileScreen() {
     }
     setRefreshing(false);
   }, [user?.id]);
+
+  useEffect(() => {
+    if (params.refresh) {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      onRefresh();
+    }
+  }, [params.refresh, onRefresh]);
   const [logoutPopupVisible, setLogoutPopupVisible] =
     useState(false);
   const [deletePostId, setDeletePostId] =
@@ -113,12 +112,15 @@ export default function ProfileScreen() {
   const [activeTab, setActiveTab] =
     useState<"posts" | "saved">("posts");
 
-  useEffect(() => {
+  const currentParamsKey = `${params.name}|${params.username}|${params.bio}|${params.avatarUrl}`;
+  const [prevParamsKey, setPrevParamsKey] = useState(currentParamsKey);
+  if (currentParamsKey !== prevParamsKey) {
+    setPrevParamsKey(currentParamsKey);
     if (params.name !== undefined) setProfileName(params.name || undefined);
     if (params.username !== undefined) setProfileUsername(params.username || undefined);
     if (params.bio !== undefined) setProfileBio(params.bio || undefined);
     if (params.avatarUrl !== undefined) setProfileAvatarUrl(params.avatarUrl || undefined);
-  }, [params.name, params.username, params.bio, params.avatarUrl]);
+  }
 
   // โหลดโพสต์ของตัวเองและโพสต์ที่บันทึกไว้ รวมถึง profile เมื่อโฟกัสหน้าจอ
   useFocusEffect(
@@ -178,7 +180,8 @@ export default function ProfileScreen() {
         ? params.mode[0]
         : params.mode;
 
-      setPosts((prev) => {
+      queueMicrotask(() => {
+        setPosts((prev) => {
         if (mode === "edit") {
           return prev.some((item) => item.id === post.id)
             ? prev.map((item) =>
@@ -190,6 +193,7 @@ export default function ProfileScreen() {
         return prev.some((item) => item.id === post.id)
           ? prev
           : [post, ...prev];
+        });
       });
     } catch {
       // Ignore invalid post parameter

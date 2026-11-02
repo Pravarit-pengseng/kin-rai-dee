@@ -74,7 +74,7 @@ export default function SearchScreen() {
             return;
           }
         }
-      } catch (e) {
+      } catch {
         // location optional
       }
       setUserLocation({ latitude: 14.0734, longitude: 100.6033 });

@@ -106,13 +106,11 @@ export default function PostForm({
   /*
    * Load existing post data when EditPost opens.
    */
-  useEffect(() => {
-    if (!initialData) {
-      return;
-    }
-
+  const [prevInitialData, setPrevInitialData] = useState(initialData);
+  if (initialData && initialData !== prevInitialData) {
+    setPrevInitialData(initialData);
     setPost(initialData);
-  }, [initialData]);
+  }
 
   const updatePost = (data: Partial<PostData>) => {
     const newPost = {

@@ -10,7 +10,6 @@ import {
   Platform,
   ActivityIndicator,
   useWindowDimensions,
-  Alert,
 } from 'react-native';
 import AlertPopup, { useAlertPopup } from '@/components/AlertPopup';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -202,7 +201,7 @@ export default function RegisterScreen() {
       } else {
         router.replace('/(tabs)');
       }
-    } catch (err: any) {
+    } catch {
       setGeneralError('ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsLoading(false);

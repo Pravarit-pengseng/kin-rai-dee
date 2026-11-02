@@ -2,7 +2,6 @@ import React from "react";
 import {
   View,
   Pressable,
-  useWindowDimensions,
   StyleSheet,
   ImageSourcePropType,
 } from "react-native";

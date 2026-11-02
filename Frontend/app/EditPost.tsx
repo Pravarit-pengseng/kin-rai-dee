@@ -5,8 +5,7 @@ import {
     Image,
     StyleSheet,
     ScrollView,
-    ActivityIndicator,
-    KeyboardAvoidingView,
+      KeyboardAvoidingView,
     Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";

@@ -77,7 +77,6 @@ export default function RandomFoodScreen() {
 
   const getCurrentLocation = async () => {
     try {
-      setLocationLoading(true);
 
       const { status } = await Location.requestForegroundPermissionsAsync();
 

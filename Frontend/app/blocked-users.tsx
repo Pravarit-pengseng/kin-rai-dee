@@ -11,7 +11,7 @@ import {
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
-import { ArrowLeft, UserX, ShieldCheck } from 'lucide-react-native';
+import { ArrowLeft, ShieldCheck } from 'lucide-react-native';
 import { getBlockedUsers, unblockUser, BlockedUserItem } from '@/services/safetyService';
 import { Typography } from '@/constants/typography';
 import AlertPopup, { useAlertPopup } from '@/components/AlertPopup';

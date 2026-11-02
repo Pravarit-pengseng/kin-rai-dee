@@ -4,8 +4,6 @@ import {
   View,
   Pressable,
   Image,
-  TouchableWithoutFeedback,
-  Keyboard,
   KeyboardAvoidingView,
   ScrollView,
   Platform,

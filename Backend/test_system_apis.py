@@ -117,7 +117,7 @@ def run_tests(base_url: str):
     record("10. Legal: Terms of Service Page (GET /terms)", code == 200, f"(Status {code})")
 
     # 11. Legal: Account Deletion Submission API
-    test_email = f"smoketest-{int(time.time())}@e2e.invalid"
+    test_email = f"smoketest-{int(time.time())}@example.com"
     code, body, _ = make_request(
         f"{base_url}/api/legal/delete-account-request",
         method="POST",

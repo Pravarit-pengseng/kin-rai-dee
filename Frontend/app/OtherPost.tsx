@@ -78,7 +78,7 @@ export default function OtherPostScreen() {
   // Load from API if needed or sync bookmarks
   useEffect(() => {
     if (ownerId) {
-      if (posts.length === 0) setLoading(true);
+      // loading already initialized
       getUserPosts(ownerId)
         .then((apiPosts) => {
           if (apiPosts && apiPosts.length > 0) {

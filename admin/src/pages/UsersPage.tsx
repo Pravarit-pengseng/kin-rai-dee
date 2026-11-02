@@ -10,8 +10,7 @@ import {
   XCircle, 
   Clock, 
   Mail, 
-  FileText,
-  X,
+X,
   AlertTriangle,
   Search
 } from 'lucide-react';
@@ -133,7 +132,7 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast }) => {
     setIsProcessing(true);
     try {
       // 1. Primary: Direct Supabase RPC (Runs as SECURITY DEFINER superuser, atomic deletion of auth, storage & db rows)
-      const { data: rpcData, error: rpcErr } = await supabase.rpc('admin_delete_user_completely', {
+      const { error: rpcErr } = await supabase.rpc('admin_delete_user_completely', {
         target_user_id: selectedUserToDelete.id,
         reason: 'ลบบัญชีโดยผู้ดูแลระบบ',
       });
@@ -161,7 +160,7 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast }) => {
     setIsProcessing(true);
     try {
       // 1. Primary: Direct Supabase RPC
-      const { data: rpcData, error: rpcErr } = await supabase.rpc('admin_approve_deletion_request', {
+      const { error: rpcErr } = await supabase.rpc('admin_approve_deletion_request', {
         request_id: selectedRequestForAction.id,
         admin_notes: adminNote || 'อนุมัติและลบบัญชีเรียบร้อยแล้วโดยผู้ดูแลระบบ',
       });

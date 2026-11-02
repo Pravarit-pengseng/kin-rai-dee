@@ -22,8 +22,6 @@ import {
   moderationService, 
   COMMUNITY_RULES 
 } from '../services/moderationService';
-import { supabase } from '../services/supabaseClient';
-import { adminApi } from '../services/adminApi';
 
 interface ModerationQueuePageProps {
   onShowToast: (msg: string, type?: 'success' | 'error' | 'info') => void;

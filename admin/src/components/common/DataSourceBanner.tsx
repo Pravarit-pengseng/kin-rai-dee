@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database, RefreshCw, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Database, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { SUPABASE_CONNECTED_URL } from '../../services/supabaseClient';
 
 interface DataSourceBannerProps {

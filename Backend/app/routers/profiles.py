@@ -27,19 +27,24 @@ class ProfileUpdate(BaseModel):
 @router.get("/me")
 def get_my_profile(user: dict = Depends(get_current_user)):
     """Get current user's profile (auth required)."""
-    response = (
-        supabase.table("profiles")
-        .select("*")
-        .eq("id", user["id"])
-        .single()
-        .execute()
-    )
-    if not response.data:
+    try:
+        response = (
+            supabase.table("profiles")
+            .select("*")
+            .eq("id", user["id"])
+            .single()
+            .execute()
+        )
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Profile not found")
+        profile = response.data
+        if isinstance(profile, dict):
+            profile["avatar_url"] = normalize_avatar_url(profile.get("avatar_url"))
+        return {"success": True, "data": profile}
+    except HTTPException:
+        raise
+    except Exception:
         raise HTTPException(status_code=404, detail="Profile not found")
-    profile = response.data
-    if isinstance(profile, dict):
-        profile["avatar_url"] = normalize_avatar_url(profile.get("avatar_url"))
-    return {"success": True, "data": profile}
 
 
 @router.patch("/me")

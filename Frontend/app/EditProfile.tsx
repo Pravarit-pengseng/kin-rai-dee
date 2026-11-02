@@ -4,13 +4,13 @@ import {
   View,
   Pressable,
   Image,
-  Alert,
   TouchableWithoutFeedback,
   Keyboard,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
 } from "react-native";
+import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Stack,
@@ -37,6 +37,7 @@ export default function EditProfile() {
   }>();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
 
   const [profileData, setProfileData] = useState({
     name: params.name ?? "",
@@ -103,7 +104,7 @@ export default function EditProfile() {
           avatarUrl = json.avatar_url;
         } else {
           console.warn("Avatar upload failed:", res.body);
-          Alert.alert("อัปโหลดรูปไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
+          showAlert("อัปโหลดรูปไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
           setIsSubmitting(false);
           return;
         }
@@ -118,7 +119,7 @@ export default function EditProfile() {
       });
 
       if (!result) {
-        Alert.alert("บันทึกไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
+        showAlert("บันทึกไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
         setIsSubmitting(false);
         return;
       }
@@ -136,7 +137,7 @@ export default function EditProfile() {
       });
     } catch (e) {
       console.warn("EditProfile handleSave error:", e);
-      Alert.alert("เกิดข้อผิดพลาด", "กรุณาลองใหม่อีกครั้ง");
+      showAlert("เกิดข้อผิดพลาด", "กรุณาลองใหม่อีกครั้ง");
     } finally {
       setIsSubmitting(false);
     }
@@ -150,6 +151,8 @@ export default function EditProfile() {
           headerShown: false,
         }}
       />
+
+      <AlertPopup {...alertProps} onRequestClose={hideAlert} />
 
       <SafeAreaView style={styles.container}>
         {/* Custom Header */}

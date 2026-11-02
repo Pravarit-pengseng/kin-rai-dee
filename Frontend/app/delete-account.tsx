@@ -6,8 +6,6 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  Platform,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +14,7 @@ import LegalNavbar from '../components/LegalNavbar';
 import { API_BASE_URL } from '../services/api';
 import { supabase } from '../lib/supabase';
 import { Typography } from '@/constants/typography';
+import AlertPopup, { useAlertPopup } from '@/components/AlertPopup';
 
 export default function DeleteAccountScreen() {
   const router = useRouter();
@@ -23,14 +22,11 @@ export default function DeleteAccountScreen() {
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
 
   const handleSubmit = async () => {
     if (!email.trim() || !email.includes('@')) {
-      if (Platform.OS === 'web') {
-        window.alert('กรุณากรอกอีเมลที่ถูกต้อง');
-      } else {
-        Alert.alert('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกอีเมลที่ถูกต้อง');
-      }
+      showAlert('ข้อมูลไม่ถูกต้อง', 'กรุณากรอกอีเมลที่ถูกต้อง');
       return;
     }
 
@@ -56,11 +52,7 @@ export default function DeleteAccountScreen() {
       setIsSubmitted(true);
     } catch (err: any) {
       const msg = err.message || 'เกิดข้อผิดพลาดในการส่งคำขอ กรุณาลองใหม่อีกครั้ง';
-      if (Platform.OS === 'web') {
-        window.alert(msg);
-      } else {
-        Alert.alert('ส่งคำขอไม่สำเร็จ', msg);
-      }
+      showAlert('ส่งคำขอไม่สำเร็จ', msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -69,6 +61,8 @@ export default function DeleteAccountScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
+
+      <AlertPopup {...alertProps} onRequestClose={hideAlert} />
 
       <LegalNavbar activeTab="delete" />
 
@@ -209,8 +203,8 @@ export default function DeleteAccountScreen() {
                 onChangeText={setReason}
               />
 
-              <Pressable 
-                style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]} 
+              <Pressable
+                style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]}
                 onPress={handleSubmit}
                 disabled={isSubmitting}
               >

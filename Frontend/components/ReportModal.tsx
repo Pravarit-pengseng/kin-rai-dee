@@ -7,8 +7,6 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
-  Alert,
-  Platform,
 } from 'react-native';
 import { X, AlertTriangle, CheckCircle2 } from 'lucide-react-native';
 import { DEFAULT_REPORT_REASONS, ReportReason, submitReport } from '@/services/safetyService';
@@ -24,6 +22,13 @@ export interface ReportModalProps {
   useNativeModal?: boolean;
 }
 
+type AlertPopupState = {
+  visible: boolean;
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+};
+
 export default function ReportModal({
   visible,
   targetType,
@@ -35,6 +40,21 @@ export default function ReportModal({
 }: ReportModalProps) {
   const [selectedReason, setSelectedReason] = useState<string>('INAPPROPRIATE');
   const [loading, setLoading] = useState<boolean>(false);
+  const [alertPopup, setAlertPopup] = useState<AlertPopupState>({
+    visible: false,
+    title: '',
+    message: '',
+  });
+
+  const showAlert = (title: string, message: string, onConfirm?: () => void) => {
+    setAlertPopup({ visible: true, title, message, onConfirm });
+  };
+
+  const dismissAlert = () => {
+    const cb = alertPopup.onConfirm;
+    setAlertPopup({ visible: false, title: '', message: '' });
+    cb?.();
+  };
 
   const getTargetTypeTitle = () => {
     switch (targetType) {
@@ -51,7 +71,7 @@ export default function ReportModal({
 
   const handleSubmit = async () => {
     if (!selectedReason) {
-      Alert.alert('แจ้งเตือน', 'กรุณาเลือกเหตุผลในการรายงาน');
+      showAlert('แจ้งเตือน', 'กรุณาเลือกเหตุผลในการรายงาน');
       return;
     }
 
@@ -65,32 +85,47 @@ export default function ReportModal({
 
       setLoading(false);
       if (res.success) {
-        Alert.alert(
+        showAlert(
           'ส่งรายงานเรียบร้อยแล้ว',
           'ขอบคุณที่ช่วยแจ้งให้เราทราบ ทีมผู้ดูแลระบบจะเร่งดำเนินการตรวจสอบตามแนวทางปฏิบัติของชุมชน',
-          [
-            {
-              text: 'ตกลง',
-              onPress: () => {
-                onClose();
-                if (onSuccess) onSuccess();
-              },
-            },
-          ]
+          () => {
+            onClose();
+            if (onSuccess) onSuccess();
+          }
         );
       } else {
-        Alert.alert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถส่งรายงานได้');
+        showAlert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถส่งรายงานได้');
       }
     } catch {
       setLoading(false);
-      Alert.alert('เกิดข้อผิดพลาด', 'กรุณาลองใหม่อีกครั้ง');
+      showAlert('เกิดข้อผิดพลาด', 'กรุณาลองใหม่อีกครั้ง');
     }
   };
+
+  const alertPopupNode = alertPopup.visible ? (
+    <View style={styles.alertOverlay}>
+      <View style={styles.alertPopup}>
+        <Text style={styles.alertTitle}>{alertPopup.title}</Text>
+        <Text style={styles.alertMessage}>{alertPopup.message}</Text>
+        <View style={styles.alertButtonRow}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.alertConfirmButton,
+              pressed && styles.alertButtonPressed,
+            ]}
+            onPress={dismissAlert}
+          >
+            <Text style={styles.alertConfirmText}>ตกลง</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  ) : null;
 
   const modalContent = (
     <View style={[styles.overlay, !useNativeModal && styles.overlayAbsolute]}>
       <Pressable style={styles.backdrop} onPress={onClose} />
-      
+
       <View style={styles.modalCard}>
         {/* Header */}
         <View style={styles.header}>
@@ -116,7 +151,7 @@ export default function ReportModal({
 
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
           <Text style={styles.sectionTitle}>โปรดเลือกเหตุผลในการรายงาน:</Text>
-          
+
           {DEFAULT_REPORT_REASONS.map((reason) => {
             const isSelected = selectedReason === reason.code;
             return (
@@ -165,6 +200,9 @@ export default function ReportModal({
           </Pressable>
         </View>
       </View>
+
+      {/* Alert Popup overlay — แสดงทับ modal card */}
+      {alertPopupNode}
     </View>
   );
 
@@ -248,7 +286,6 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
     color: '#57423E',
     fontFamily: Typography.bold,
   },
@@ -265,22 +302,22 @@ const styles = StyleSheet.create({
   targetInfoLabel: {
     fontSize: 12,
     color: '#8A7B77',
-    fontWeight: '500',
+    fontFamily: Typography.regular,
   },
   targetInfoText: {
     fontSize: 13,
     color: '#A7392A',
-    fontWeight: '600',
     marginTop: 2,
+    fontFamily: Typography.semiBold,
   },
   body: {
     padding: 20,
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: '700',
     color: '#57423E',
     marginBottom: 12,
+    fontFamily: Typography.bold,
   },
   reasonItem: {
     flexDirection: 'row',
@@ -321,8 +358,8 @@ const styles = StyleSheet.create({
   },
   reasonName: {
     fontSize: 14,
-    fontWeight: '600',
     color: '#332421',
+    fontFamily: Typography.semiBold,
   },
   reasonNameSelected: {
     color: '#A7392A',
@@ -332,6 +369,7 @@ const styles = StyleSheet.create({
     color: '#7A6B67',
     marginTop: 2,
     lineHeight: 16,
+    fontFamily: Typography.regular,
   },
   footer: {
     flexDirection: 'row',
@@ -354,18 +392,90 @@ const styles = StyleSheet.create({
   },
   cancelBtnText: {
     fontSize: 14,
-    fontWeight: '600',
     color: '#57423E',
+    fontFamily: Typography.semiBold,
   },
   submitBtn: {
     backgroundColor: '#A7392A',
   },
   submitBtnText: {
     fontSize: 14,
-    fontWeight: '700',
     color: '#FFFFFF',
+        fontFamily: Typography.bold,
   },
   disabledBtn: {
     opacity: 0.6,
+  },
+
+  // Alert Popup (แทน Alert.alert)
+  alertOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  alertPopup: {
+    width: 320,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 22,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  alertTitle: {
+    textAlign: 'center',
+    fontSize: 18,
+    fontFamily: Typography.bold,
+    fontWeight: '700',
+    color: '#241917',
+    marginBottom: 10,
+    lineHeight: 26,
+  },
+  alertMessage: {
+    textAlign: 'center',
+    fontSize: 14,
+    fontFamily: Typography.regular,
+    color: '#57423E',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  alertButtonRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  alertConfirmButton: {
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FF7A6633',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#72120933',
+    borderBottomWidth: 3,
+    borderBottomColor: '#72120933',
+  },
+  alertConfirmText: {
+    fontSize: 15,
+    fontFamily: Typography.bold,
+    fontWeight: '700',
+    color: '#9B2C24',
+    textAlign: 'center',
+  },
+  alertButtonPressed: {
+    opacity: 0.8,
+    transform: [{ translateY: 2 }],
   },
 });

@@ -83,9 +83,9 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
       console.error('API fetch failed, falling back to Supabase client directly:', e);
       try {
         const [postsRes, commentsRes, profilesRes] = await Promise.all([
-          supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(200),
-          supabase.from('comments').select('*').order('created_at', { ascending: false }).limit(500),
-          supabase.from('profiles').select('*').limit(200)
+          supabase.from('posts').select('id, user_id, food_name, description, image_url, restaurant_url, restaurant_name, created_at, is_hidden').order('created_at', { ascending: false }).limit(200),
+          supabase.from('comments').select('id, user_id, post_id, content, created_at, is_hidden').order('created_at', { ascending: false }).limit(500),
+          supabase.from('profiles').select('id, username, display_name, avatar_url').limit(200)
         ]);
         setPosts((postsRes.data || []).map((p: any) => ({ ...p, _hidden: p.is_hidden ?? false })));
         setAllComments((commentsRes.data || []).map((c: any) => ({ ...c, _hidden: c.is_hidden ?? false })));
@@ -155,16 +155,16 @@ export const PostsPage: React.FC<PostsPageProps> = ({ onShowToast }) => {
   const handleRemovePost = async (postId: number) => {
     if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบโพสต์ #${postId}? การลบนี้จะไม่สามารถกู้คืนได้`)) {
       try {
-        try {
+        // 1. Primary: Direct Supabase RPC
+        const { error: rpcErr } = await supabase.rpc('admin_delete_post_completely', {
+          target_post_id: postId,
+        });
+
+        if (rpcErr) {
+          console.warn('RPC admin_delete_post_completely failed, falling back to adminApi:', rpcErr);
           await adminApi.deletePost(postId);
-        } catch (apiErr) {
-          console.warn('adminApi deletePost failed, falling back to direct Supabase:', apiErr);
-          await supabase.from('post_categories').delete().eq('post_id', postId);
-          await supabase.from('saved_posts').delete().eq('post_id', postId);
-          await supabase.from('comments').delete().eq('post_id', postId);
-          const { error } = await supabase.from('posts').delete().eq('id', postId);
-          if (error) throw error;
         }
+
         setPosts(prev => prev.filter(p => p.id !== postId));
         if (selectedPost && selectedPost.id === postId) {
           setSelectedPost(null);

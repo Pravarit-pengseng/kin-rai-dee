@@ -4,7 +4,7 @@
    ========================================================================== */
 
 :root {
-  --font-family: 'Noto Sans Thai', 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-family: 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, sans-serif;
   
   /* Primary */
   --color-primary: #2563eb;

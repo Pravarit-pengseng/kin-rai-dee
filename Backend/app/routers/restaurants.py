@@ -120,7 +120,7 @@ async def search_google_places(
                         encoded = base64.urlsafe_b64encode(photo_name.encode()).decode().rstrip("=")
                         photo_url = f"/api/restaurants/photo/{encoded}"
                 if not photo_url:
-                    photo_url = DEFAULT_IMAGES[len(results) % len(DEFAULT_IMAGES)]
+                    photo_url = None
 
                 # Open status
                 open_time = "เปิดอยู่"
@@ -219,10 +219,8 @@ async def proxy_place_photo(encoded_name: str):
     Hides GOOGLE_MAPS_API_KEY from client-visible URLs.
     encoded_name is base64url-encoded Places photo resource name (no padding).
     """
-    fallback_url = DEFAULT_IMAGES[0] if DEFAULT_IMAGES else ""
-
     if not GOOGLE_MAPS_API_KEY:
-        return RedirectResponse(url=fallback_url, status_code=307) if fallback_url else FastAPIResponse(status_code=404, content=b"")
+        return FastAPIResponse(status_code=404, content=b"")
 
     # Restore base64url padding
     padding = 4 - len(encoded_name) % 4
@@ -230,12 +228,12 @@ async def proxy_place_photo(encoded_name: str):
     try:
         photo_name = base64.urlsafe_b64decode(padded).decode()
     except (binascii.Error, UnicodeDecodeError):
-        return RedirectResponse(url=fallback_url, status_code=307) if fallback_url else FastAPIResponse(status_code=400, content=b"Invalid photo reference")
+        return FastAPIResponse(status_code=400, content=b"Invalid photo reference")
 
     # Basic allowlist: photo_name must match the expected Places API format
     import re as _re
     if not _re.match(r'^places/[A-Za-z0-9_\-]+/photos/[A-Za-z0-9_\-]+$', photo_name):
-        return RedirectResponse(url=fallback_url, status_code=307) if fallback_url else FastAPIResponse(status_code=400, content=b"Invalid photo reference")
+        return FastAPIResponse(status_code=400, content=b"Invalid photo reference")
 
     url = (
         f"https://places.googleapis.com/v1/{photo_name}/media"
@@ -245,15 +243,23 @@ async def proxy_place_photo(encoded_name: str):
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(url)
             if resp.status_code == 200:
-                data = resp.json()
-                photo_uri = data.get("photoUri")
-                if photo_uri:
-                    return RedirectResponse(
-                        url=photo_uri,
-                        status_code=307,
+                content_type = resp.headers.get("content-type", "")
+                if "application/json" in content_type:
+                    data = resp.json()
+                    photo_uri = data.get("photoUri")
+                    if photo_uri:
+                        return RedirectResponse(
+                            url=photo_uri,
+                            status_code=307,
+                            headers={"Cache-Control": "public, max-age=86400"},
+                        )
+                elif content_type.startswith("image/"):
+                    return FastAPIResponse(
+                        content=resp.content,
+                        media_type=content_type,
                         headers={"Cache-Control": "public, max-age=86400"},
                     )
-            return RedirectResponse(url=fallback_url, status_code=307) if fallback_url else FastAPIResponse(status_code=404, content=b"")
+            return FastAPIResponse(status_code=404, content=b"")
     except Exception as e:
-        print(f"Failed to fetch place photo: {e}")
-        return RedirectResponse(url=fallback_url, status_code=307) if fallback_url else FastAPIResponse(status_code=502, content=b"Photo unavailable")
+        print(f"Error fetching place photo: {e}")
+        return FastAPIResponse(status_code=502, content=b"Photo unavailable")

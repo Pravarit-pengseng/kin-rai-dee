@@ -25,7 +25,8 @@ import { blockUser, unblockUser, checkBlockStatus } from "@/services/safetyServi
 import ReportModal from "@/components/ReportModal";
 import { Typography } from "@/constants/typography";
 import { ShieldAlert, UserX, Flag, UserCheck } from "lucide-react-native";
-import { Pressable, Alert } from "react-native";
+import { Pressable } from "react-native";
+import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
 
 const DEFAULT_AVATAR = require("../assets/images/ProfilePicture.png");
 const DEFAULT_IMAGE = require("../assets/images/StirFriedHolyBasil.png");
@@ -56,6 +57,7 @@ export default function OtherProfileScreen() {
   const [isBlockedByMe, setIsBlockedByMe] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [reportModalVisible, setReportModalVisible] = useState(false);
+  const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
 
   useEffect(() => {
     if (!userId) {
@@ -105,34 +107,37 @@ export default function OtherProfileScreen() {
     const targetName = profile?.display_name || profile?.username || 'ผู้ใช้นี้';
 
     if (isBlockedByMe) {
-      Alert.alert(
+      showAlert(
         'ปลดบล็อกผู้ใช้',
         `ท่านต้องการปลดบล็อก "${targetName}" หรือไม่?`,
         [
-          { text: 'ยกเลิก', style: 'cancel' },
+          { text: 'ยกเลิก', style: 'cancel', onPress: hideAlert },
           {
             text: 'ปลดบล็อก',
+            style: 'confirm',
             onPress: async () => {
+              hideAlert();
               const res = await unblockUser(userId);
               if (res.success) {
                 setIsBlockedByMe(false);
                 setIsBlocked(false);
-                Alert.alert('สำเร็จ', `ปลดบล็อก ${targetName} เรียบร้อยแล้ว`);
+                showAlert('สำเร็จ', `ปลดบล็อก ${targetName} เรียบร้อยแล้ว`);
               }
             },
           },
         ]
       );
     } else {
-      Alert.alert(
+      showAlert(
         'บล็อกผู้ใช้',
         `ท่านต้องการบล็อก "${targetName}" หรือไม่?\n\nเมื่อบล็อกแล้ว:\n• โพสต์ของผู้ใช้นี้จะถูกซ่อน\n• ความคิดเห็นของผู้ใช้นี้จะถูกซ่อน\n• ป้องกันการโต้ตอบระหว่างกัน`,
         [
-          { text: 'ยกเลิก', style: 'cancel' },
+          { text: 'ยกเลิก', style: 'cancel', onPress: hideAlert },
           {
             text: 'บล็อก',
-            style: 'destructive',
+            style: 'confirm',
             onPress: async () => {
+              hideAlert();
               const res = await blockUser(
                 userId,
                 profile?.display_name || profile?.username,
@@ -142,7 +147,7 @@ export default function OtherProfileScreen() {
               if (res.success) {
                 setIsBlockedByMe(true);
                 setIsBlocked(true);
-                Alert.alert('สำเร็จ', `บล็อก ${targetName} เรียบร้อยแล้ว`);
+                showAlert('สำเร็จ', `บล็อก ${targetName} เรียบร้อยแล้ว`);
               }
             },
           },
@@ -195,6 +200,8 @@ export default function OtherProfileScreen() {
           headerShown: false,
         }}
       />
+
+      <AlertPopup {...alertProps} onRequestClose={hideAlert} />
 
       <SafeAreaView style={styles.container}>
         <StatusBar style="dark" />

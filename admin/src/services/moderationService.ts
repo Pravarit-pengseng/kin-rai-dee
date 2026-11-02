@@ -44,77 +44,107 @@ class ModerationService {
       // ignore
     }
 
+    // 1. Primary: Direct Supabase Fetch (Instant, zero cold-start latency)
     try {
-      // Fetch live reports, stats, and audit logs via Backend API
-      const [reportsRes, statsRes, auditRes] = await Promise.all([
-        adminApi.getReportsQueue({ limit: 100 }),
-        adminApi.getStats(),
-        adminApi.getAuditLogs(100),
+      const [repRes, profRes, auditRes] = await Promise.all([
+        supabase.from('reports').select('id, target_type, target_id, reason_code, explanation, reporter_id, priority, status, assigned_to, created_at, resolved_at').order('created_at', { ascending: false }).limit(100),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }),
+        supabase.from('audit_logs').select('id, created_at, actor_id, actor_name, event_type, target_type, target_id, metadata').order('created_at', { ascending: false }).limit(100),
       ]);
 
-      this.liveStats = statsRes;
-      this.userCount = statsRes.total_users;
+      const rawReports = repRes.data || [];
+      const postIds = rawReports.filter(r => r.target_type === 'post').map(r => Number(r.target_id)).filter(Boolean);
+      const commentIds = rawReports.filter(r => r.target_type === 'comment').map(r => Number(r.target_id)).filter(Boolean);
+      const userTargetIds = rawReports.filter(r => r.target_type === 'user').map(r => String(r.target_id)).filter(Boolean);
+      const reporterIds = rawReports.map(r => r.reporter_id).filter(Boolean);
+
+      let pData: any[] = [];
+      let cData: any[] = [];
+
+      if (postIds.length > 0) {
+        const { data } = await supabase.from('posts').select('id, user_id, food_name, description, image_url, restaurant_url, created_at, is_hidden').in('id', postIds);
+        pData = data || [];
+      }
+      if (commentIds.length > 0) {
+        const { data } = await supabase.from('comments').select('id, user_id, post_id, content, created_at, is_hidden').in('id', commentIds);
+        cData = data || [];
+      }
+
+      // Collect all author IDs across posts, comments, user targets, and reporters
+      const allUserIds = Array.from(new Set([
+        ...reporterIds,
+        ...userTargetIds,
+        ...pData.map(p => p.user_id),
+        ...cData.map(c => c.user_id),
+      ])).filter(Boolean);
+
+      let profilesMap: Record<string, any> = {};
+      if (allUserIds.length > 0) {
+        const { data: profData } = await supabase
+          .from('profiles')
+          .select('id, username, display_name, avatar_url, bio, is_suspended')
+          .in('id', allUserIds);
+        (profData || []).forEach(p => { profilesMap[p.id] = p; });
+      }
+
+      let postsMap: Record<number, any> = {};
+      let commentsMap: Record<number, any> = {};
+
+      pData.forEach(p => {
+        postsMap[p.id] = { ...p, profiles: profilesMap[p.user_id] };
+      });
+      cData.forEach(c => {
+        commentsMap[c.id] = { ...c, profiles: profilesMap[c.user_id] };
+      });
+
+      const enrichedReports = rawReports.map(r => {
+        let tc = null;
+        if (r.target_type === 'post') tc = postsMap[Number(r.target_id)];
+        else if (r.target_type === 'comment') tc = commentsMap[Number(r.target_id)];
+        else if (r.target_type === 'user') tc = profilesMap[String(r.target_id)];
+
+        const rep = profilesMap[r.reporter_id] || { username: 'user', display_name: 'ผู้ใช้ทั่วไป' };
+        return { ...r, target_content: tc, reporter: rep };
+      });
+
+      this.reportsCache = this.mapLiveReports(enrichedReports);
+      this.userCount = profRes.count ?? 0;
+      this.auditLogsCache = (auditRes.data || []).map((l: any) => ({
+        id: String(l.id),
+        timestamp: l.created_at,
+        actorId: String(l.actor_id || 'admin'),
+        actorName: l.actor_name || 'ผู้ดูแลระบบ',
+        actionType: l.event_type || 'MODERATION',
+        targetType: l.target_type || 'content',
+        targetId: String(l.target_id || ''),
+        reasonCode: l.metadata?.action || 'MODERATION',
+        note: l.metadata?.note || '',
+      }));
       this.isLiveConnected = true;
-
-      // Map real DB reports (No mock/fake reports)
-      this.reportsCache = this.mapLiveReports(reportsRes.data || []);
-      this.auditLogsCache = auditRes.data || [];
       this.hasInitialized = true;
-
-      return {
-        isLive: true,
-        reportCount: this.reportsCache.length,
-      };
+      return { isLive: true, reportCount: this.reportsCache.length };
     } catch (err) {
-      console.warn('Failed to initialize moderation data from backend API, falling back to direct Supabase:', err);
+      console.warn('Direct Supabase fetch error, trying backend API:', err);
       try {
-        const [repRes, profRes, auditRes] = await Promise.all([
-          supabase.from('reports').select('*').order('created_at', { ascending: false }).limit(100),
-          supabase.from('profiles').select('*', { count: 'exact', head: true }),
-          supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        const [reportsRes, statsRes, auditRes] = await Promise.all([
+          adminApi.getReportsQueue({ limit: 100 }),
+          adminApi.getStats(),
+          adminApi.getAuditLogs(100),
         ]);
 
-        const rawReports = repRes.data || [];
-        const postIds = rawReports.filter(r => r.target_type === 'post').map(r => Number(r.target_id)).filter(Boolean);
-        const commentIds = rawReports.filter(r => r.target_type === 'comment').map(r => Number(r.target_id)).filter(Boolean);
-
-        let postsMap: Record<number, any> = {};
-        let commentsMap: Record<number, any> = {};
-
-        if (postIds.length > 0) {
-          const { data: pData } = await supabase.from('posts').select('*').in('id', postIds);
-          (pData || []).forEach(p => { postsMap[p.id] = p; });
-        }
-        if (commentIds.length > 0) {
-          const { data: cData } = await supabase.from('comments').select('*').in('id', commentIds);
-          (cData || []).forEach(c => { commentsMap[c.id] = c; });
-        }
-
-        const enrichedReports = rawReports.map(r => {
-          let tc = null;
-          if (r.target_type === 'post') tc = postsMap[Number(r.target_id)];
-          else if (r.target_type === 'comment') tc = commentsMap[Number(r.target_id)];
-          return { ...r, target_content: tc };
-        });
-
-        this.reportsCache = this.mapLiveReports(enrichedReports);
-        this.userCount = profRes.count || 5;
-        this.auditLogsCache = (auditRes.data || []).map((l: any) => ({
-          id: String(l.id),
-          timestamp: l.created_at,
-          actorId: String(l.actor_id || 'admin'),
-          actorName: l.actor_name || 'ผู้ดูแลระบบ',
-          actionType: l.event_type || 'MODERATION',
-          targetType: l.target_type || 'content',
-          targetId: String(l.target_id || ''),
-          reasonCode: l.metadata?.action || 'MODERATION',
-          note: l.metadata?.note || '',
-        }));
+        this.liveStats = statsRes;
+        this.userCount = statsRes.total_users;
         this.isLiveConnected = true;
+        this.reportsCache = this.mapLiveReports(reportsRes.data || []);
+        this.auditLogsCache = auditRes.data || [];
         this.hasInitialized = true;
-        return { isLive: true, reportCount: this.reportsCache.length };
-      } catch (fallbackErr) {
-        console.error('Supabase fallback error in initialize:', fallbackErr);
+
+        return {
+          isLive: true,
+          reportCount: this.reportsCache.length,
+        };
+      } catch (backendErr) {
+        console.error('All moderation data loading attempts failed:', backendErr);
         this.reportsCache = [];
         this.auditLogsCache = [];
         this.hasInitialized = true;
@@ -133,18 +163,21 @@ class ModerationService {
       const targetType = (r.target_type || 'post') as ContentType;
       const targetId = r.target_id;
 
-      // Extract enriched target content from API response
+      // Extract enriched target content from API response or Supabase fallback
       const tc = r.target_content;
       const rep = r.reporter || {};
 
+      // Determine author object from tc.profiles, or tc itself (for user reports)
+      const author = tc?.profiles || (targetType === 'user' ? tc : null);
+
       const authorProfile: AuthorProfile = {
-        id: tc?.user_id || 'unknown',
-        username: tc?.profiles?.username || 'user',
-        displayName: tc?.profiles?.display_name || tc?.profiles?.username || 'ผู้ใช้งาน',
-        avatarUrl: tc?.profiles?.avatar_url || null,
-        status: 'active',
+        id: author?.id || tc?.user_id || (targetType === 'user' ? targetId : 'unknown'),
+        username: author?.username || tc?.username || 'user',
+        displayName: author?.display_name || author?.username || tc?.display_name || tc?.username || 'ผู้ใช้งาน',
+        avatarUrl: author?.avatar_url || tc?.avatar_url || null,
+        status: (author?.is_suspended ?? tc?.is_suspended ?? false) ? 'suspended' : 'active',
         postCount: 1,
-        violationCount: 0,
+        violationCount: author?.violation_count || 0,
       };
 
       let targetContent: any;

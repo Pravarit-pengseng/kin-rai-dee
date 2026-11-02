@@ -92,7 +92,14 @@ export const ModerationDetailDrawer: React.FC<ModerationDetailDrawerProps> = ({
           }
         } else if (actionType === 'restrict') {
           if (content.author?.id && content.author.id !== 'unknown') {
-            await supabase.from('profiles').update({ is_suspended: true }).eq('id', content.author.id);
+            const { error: rpcErr } = await supabase.rpc('admin_toggle_user_status', {
+              target_user_id: content.author.id,
+              should_suspend: true,
+              reason: 'ระงับบัญชีจากการตัดสินรายงานโดยผู้ดูแลระบบ',
+            });
+            if (rpcErr) {
+              await supabase.from('profiles').update({ is_suspended: true }).eq('id', content.author.id);
+            }
           }
           if (report.targetType === 'post' && tId) {
             await supabase.from('posts').update({ is_hidden: true }).eq('id', tId);

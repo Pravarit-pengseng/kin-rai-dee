@@ -5,9 +5,9 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import AlertPopup, { useAlertPopup } from '@/components/AlertPopup';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { ChevronRight, ArrowLeft } from 'lucide-react-native';
@@ -22,6 +22,7 @@ export default function SettingsScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletePopupVisible, setDeletePopupVisible] = useState(false);
   const [blockedCount, setBlockedCount] = useState<number>(0);
+  const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
 
   useFocusEffect(
     useCallback(() => {
@@ -49,7 +50,7 @@ export default function SettingsScreen() {
 
   const handleDeleteAccountPress = () => {
     if (!isLoggedIn) {
-      Alert.alert('เข้าสู่ระบบ', 'กรุณาเข้าสู่ระบบก่อนดำเนินการ');
+      showAlert('เข้าสู่ระบบ', 'กรุณาเข้าสู่ระบบก่อนดำเนินการ');
       return;
     }
 
@@ -58,7 +59,7 @@ export default function SettingsScreen() {
 
   const handleChangePasswordPress = () => {
     if (!isLoggedIn) {
-      Alert.alert('เข้าสู่ระบบ', 'กรุณาเข้าสู่ระบบก่อนดำเนินการ');
+      showAlert('เข้าสู่ระบบ', 'กรุณาเข้าสู่ระบบก่อนดำเนินการ');
       return;
     }
 
@@ -76,13 +77,15 @@ export default function SettingsScreen() {
       setDeletePopupVisible(false);
 
       if (res.success) {
-        Alert.alert(
+        showAlert(
           'ลบบัญชีเรียบร้อยแล้ว',
           'บัญชีผู้ใช้และข้อมูลทั้งหมดของท่านถูกลบออกจากระบบ Kin-Rai-Dee แล้วอย่างถาวร',
           [
             {
               text: 'ตกลง',
+              style: 'confirm',
               onPress: async () => {
+                hideAlert();
                 await logout();
                 router.replace('/');
               },
@@ -90,17 +93,18 @@ export default function SettingsScreen() {
           ]
         );
       } else {
-        Alert.alert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถลบบัญชีได้');
+        showAlert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถลบบัญชีได้');
       }
     } catch {
       setIsDeleting(false);
-      Alert.alert('เกิดข้อผิดพลาด', 'กรุณาลองใหม่อีกครั้ง');
+      showAlert('เกิดข้อผิดพลาด', 'กรุณาลองใหม่อีกครั้ง');
     }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
+      <AlertPopup {...alertProps} onRequestClose={hideAlert} />
       {/* Header matching user's image: "← ตั้งค่า (Settings)" */}
       <View style={styles.header}>
         <Pressable onPress={handleBack} style={styles.backButton} hitSlop={12}>

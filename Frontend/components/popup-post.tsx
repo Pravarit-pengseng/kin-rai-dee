@@ -6,7 +6,6 @@ import {
   Pressable,
   ImageSourcePropType,
   Linking,
-  Alert,
   TextInput,
   ScrollView,
   Platform,
@@ -15,6 +14,7 @@ import {
   TouchableOpacity,
   LayoutAnimation,
 } from "react-native";
+import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
 import { Image } from "expo-image";
 
 import {
@@ -111,6 +111,7 @@ export default function PopupPost({
   const { isLoggedIn, user } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
   const [prevAvatarUrl, setPrevAvatarUrl] = useState(post?.avatarUrl);
   if (post?.avatarUrl !== prevAvatarUrl) {
     setPrevAvatarUrl(post?.avatarUrl);
@@ -212,11 +213,11 @@ export default function PopupPost({
         }, 1500);
       } else {
         setShowMenu(false);
-        Alert.alert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถบล็อกผู้ใช้ได้');
+        showAlert('เกิดข้อผิดพลาด', res.message || 'ไม่สามารถบล็อกผู้ใช้ได้');
       }
     } catch {
       setShowMenu(false);
-      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถบล็อกผู้ใช้ได้');
+      showAlert('เกิดข้อผิดพลาด', 'ไม่สามารถบล็อกผู้ใช้ได้');
     }
   };
 
@@ -438,7 +439,7 @@ export default function PopupPost({
       }
     } catch (error) {
       console.error("Error opening location link:", error);
-      Alert.alert("ไม่สามารถเปิดลิงก์ได้", "โปรดตรวจสอบ URL หรือลองใหม่อีกครั้ง");
+      showAlert("ไม่สามารถเปิดลิงก์ได้", "โปรดตรวจสอบ URL หรือลองใหม่อีกครั้ง");
     }
   };
 
@@ -448,6 +449,7 @@ export default function PopupPost({
 
   const card = (
     <View style={styles.card}>
+      <AlertPopup {...alertProps} onRequestClose={hideAlert} />
       {/* Header */}
       <Pressable
         style={styles.header}

@@ -41,7 +41,7 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ onShowToast }) => 
         console.warn('API getAuditLogs failed, falling back to direct Supabase:', apiErr);
         const { data, error } = await supabase
           .from('audit_logs')
-          .select('*')
+          .select('id, created_at, actor_id, actor_name, event_type, target_type, target_id, metadata')
           .order('created_at', { ascending: false })
           .limit(200);
         if (error) throw error;
@@ -123,14 +123,27 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ onShowToast }) => 
   };
 
   const getActionBadge = (actionType: string) => {
+    // ตรวจ action ที่เฉพาะเจาะจงก่อน (ก่อน generic keyword matching)
+    if (actionType.includes('REJECT_DELETION')) {
+      return <span className="badge badge-priority-high">ปฏิเสธคำขอลบบัญชี</span>;
+    }
+    if (actionType.includes('REQUEST_DELETION')) {
+      return <span className="badge badge-pending">ขอลบบัญชี</span>;
+    }
+    if (actionType.includes('APPROVE_DELETION')) {
+      return <span className="badge badge-priority-urgent">อนุมัติลบบัญชี</span>;
+    }
+    if (actionType.includes('DELETE_USER')) {
+      return <span className="badge badge-priority-urgent">ลบบัญชีผู้ใช้</span>;
+    }
+    if (actionType.includes('UNHIDE')) {
+      return <span className="badge badge-action_taken">ยกเลิกการซ่อน</span>;
+    }
     if (actionType.includes('REMOVE') || actionType.includes('DELETE')) {
       return <span className="badge badge-priority-urgent">ลบเนื้อหา</span>;
     }
     if (actionType.includes('HIDE')) {
       return <span className="badge badge-pending">ซ่อนเนื้อหา</span>;
-    }
-    if (actionType.includes('UNHIDE')) {
-      return <span className="badge badge-action_taken">ยกเลิกการซ่อน</span>;
     }
     if (actionType.includes('RESTRICT') || actionType.includes('SUSPEND')) {
       return <span className="badge badge-priority-urgent">ระงับบัญชี</span>;

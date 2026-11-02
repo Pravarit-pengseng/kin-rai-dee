@@ -5,7 +5,6 @@ import {
     Image,
     StyleSheet,
     ScrollView,
-    Alert,
     KeyboardAvoidingView,
     Platform,
 } from "react-native";
@@ -22,10 +21,12 @@ import { useAuth } from "@/context/AuthContext";
 import { createPost } from "@/services/postService";
 import { FOOD_CATEGORIES } from "@/constants/categories";
 import { Typography } from "@/constants/typography";
+import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
 
 export default function AddPost() {
     const { isLoggedIn } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
 
     useEffect(() => {
         if (!isLoggedIn) {
@@ -41,16 +42,12 @@ export default function AddPost() {
         categories: ["อาหารจานเดียว"],
     });
 
-    // Pick an image from the device gallery
     const pickImage = async () => {
         const permission =
             await ImagePicker.requestMediaLibraryPermissionsAsync();
 
         if (!permission.granted) {
-            Alert.alert(
-                "ไม่สามารถเข้าถึงรูปภาพ",
-                "กรุณาอนุญาตให้แอปเข้าถึงรูปภาพ",
-            );
+            showAlert("ไม่สามารถเข้าถึงรูปภาพ", "กรุณาอนุญาตให้แอปเข้าถึงรูปภาพ");
             return;
         }
 
@@ -72,19 +69,14 @@ export default function AddPost() {
         }
     };
 
-    // Create a new post via API then return to profile
     const handlePost = async () => {
         if (!post.title.trim()) {
-            Alert.alert(
-                "กรุณากรอกข้อมูล",
-                "กรอกชื่อเมนูก่อนโพสต์",
-            );
+            showAlert("กรุณากรอกข้อมูล", "กรอกชื่อเมนูก่อนโพสต์");
             return;
         }
 
         setIsSubmitting(true);
 
-        // Map category labels → numeric IDs
         const categoryIds = post.categories
             .map((label) => {
                 const found = FOOD_CATEGORIES.find((c) => c.label === label);
@@ -103,14 +95,10 @@ export default function AddPost() {
         setIsSubmitting(false);
 
         if (!result) {
-            Alert.alert(
-                "โพสต์ไม่สำเร็จ",
-                "กรุณาลองใหม่อีกครั้ง",
-            );
+            showAlert("โพสต์ไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
             return;
         }
 
-        // ส่ง post ใหม่จาก backend ไปให้ profile screen แสดง
         const createdPost = result?.data ?? result;
         const newPostForUI = {
             id: String(createdPost?.id ?? Date.now()),
@@ -133,15 +121,15 @@ export default function AddPost() {
 
     return (
         <>
-            {/* Hide Expo Router system header */}
             <Stack.Screen
                 options={{
                     headerShown: false,
                 }}
             />
 
+            <AlertPopup {...alertProps} onRequestClose={hideAlert} />
+
             <SafeAreaView style={styles.container}>
-                {/* Header */}
                 <Header
                     title="เพิ่มโพสต์ใหม่"
                     leftIcon="close"
@@ -149,7 +137,7 @@ export default function AddPost() {
                     rightIcon="none"
                 />
 
-                <KeyboardAvoidingView 
+                <KeyboardAvoidingView
                     style={{ flex: 1 }}
                     behavior={Platform.OS === "ios" ? "padding" : undefined}
                 >
@@ -158,7 +146,6 @@ export default function AddPost() {
                         contentContainerStyle={styles.content}
                         keyboardShouldPersistTaps="handled"
                     >
-                    {/* Image Picker */}
                     <Pressable
                         onPress={pickImage}
                         style={({ pressed }) => [
@@ -189,7 +176,6 @@ export default function AddPost() {
                         )}
                     </Pressable>
 
-                    {/* Post Form */}
                     <PostForm
                         initialData={post}
                         onChange={(data) => {
@@ -200,7 +186,6 @@ export default function AddPost() {
                         }}
                     />
 
-                    {/* Post Button */}
                     <Pressable
                         style={({ pressed }) => [
                             styles.postButton,

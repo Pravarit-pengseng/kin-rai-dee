@@ -41,7 +41,7 @@ export default function ProfileHeader({
         <View style={styles.avatarOuter}>
           <View style={styles.avatarInner}>
             <Image
-              source={avatarUrl && !avatarError ? { uri: avatarUrl } : require("../assets/images/ProfilePicture.png")}
+              source={avatarUrl && !avatarError ? { uri: avatarUrl } : require("@/assets/images/ProfilePicture.png")}
               style={styles.avatar}
               contentFit="cover"
               transition={200}

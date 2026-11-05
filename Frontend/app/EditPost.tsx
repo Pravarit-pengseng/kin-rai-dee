@@ -46,7 +46,7 @@ export default function EditPost() {
     });
 
     const [imageUri, setImageUri] = useState<any>(
-        parsedPost?.image ?? require("../assets/images/StirFriedHolyBasil.png")
+        parsedPost?.image ?? require("@/assets/images/StirFriedHolyBasil.png")
     );
 
     const pickImage = async () => {

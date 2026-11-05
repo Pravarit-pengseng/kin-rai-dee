@@ -127,20 +127,19 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onShowToast }) => {
     }
   };
 
-  // Direct User Deletion via Supabase RPC (Complete & Permanent Cascade)
+  // Direct User Deletion via Admin API (Complete & Permanent Cascade)
   const handleConfirmDirectDeleteUser = async () => {
     if (!selectedUserToDelete) return;
     setIsProcessing(true);
     try {
-      // 1. Primary: Direct Supabase RPC (Runs as SECURITY DEFINER superuser, atomic deletion of auth, storage & db rows)
+      // 1. Try Supabase RPC if exists
       const { data: rpcData, error: rpcErr } = await supabase.rpc('admin_delete_user_completely', {
         target_user_id: selectedUserToDelete.id,
         reason: 'ลบบัญชีโดยผู้ดูแลระบบ',
       });
 
-      if (rpcErr) {
-        console.warn('Supabase RPC admin_delete_user_completely notice, trying adminApi fallback:', rpcErr);
-        // 2. Secondary: FastAPI backend with service_role key
+      if (rpcErr || rpcData === false) {
+        // 2. Call FastAPI Backend Service Role Cascade Cleanup
         await adminApi.deleteUser(selectedUserToDelete.id);
       }
 

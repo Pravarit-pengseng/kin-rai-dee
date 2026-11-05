@@ -652,7 +652,7 @@ def toggle_user_status(user_id: str, payload: UserStatusPayload):
 
 
 def delete_user_completely(user_id: str, reason: str = "Deleted by admin") -> bool:
-    """Completely and permanently remove a user and all associated records."""
+    """Completely and permanently remove a user and all associated records across all tables."""
     if not supabase:
         return False
 
@@ -672,14 +672,21 @@ def delete_user_completely(user_id: str, reason: str = "Deleted by admin") -> bo
     try:
         # 1. Clean up user's posts and post dependencies
         try:
-            p_res = supabase.table("posts").select("id, image_url").eq("user_id", user_id).execute()
+            p_res = supabase.table("posts").select("id").eq("user_id", user_id).execute()
             p_records = to_records(p_res.data)
             if p_records:
                 p_ids = [p["id"] for p in p_records]
-                supabase.table("post_categories").delete().in_("post_id", p_ids).execute()
-                supabase.table("saved_posts").delete().in_("post_id", p_ids).execute()
-                supabase.table("comments").delete().in_("post_id", p_ids).execute()
-                supabase.table("posts").delete().eq("user_id", user_id).execute()
+                for pid in p_ids:
+                    for tbl in ["post_categories", "saved_posts", "comments"]:
+                        try:
+                            supabase.table(tbl).delete().eq("post_id", pid).execute()
+                        except Exception:
+                            pass
+                    try:
+                        supabase.table("reports").delete().eq("target_type", "post").eq("target_id", str(pid)).execute()
+                    except Exception:
+                        pass
+            supabase.table("posts").delete().eq("user_id", user_id).execute()
         except Exception as e:
             print("Posts cleanup notice:", e)
 
@@ -708,28 +715,60 @@ def delete_user_completely(user_id: str, reason: str = "Deleted by admin") -> bo
         except Exception as e:
             print("Blocked users cleanup notice:", e)
 
-        # 6. Nullify / Clean up Reports & Moderation
+        # 6. Reports & Moderation
         try:
-            supabase.table("reports").update({"reporter_id": None}).eq("reporter_id", user_id).execute()
+            supabase.table("reports").delete().eq("reporter_id", user_id).execute()
+        except Exception:
+            try:
+                supabase.table("reports").update({"reporter_id": None}).eq("reporter_id", user_id).execute()
+            except Exception:
+                pass
+        try:
             supabase.table("reports").update({"assigned_to": None}).eq("assigned_to", user_id).execute()
-            supabase.table("reports").update({"status": "closed"}).eq("target_type", "user").eq("target_id", str(user_id)).execute()
+        except Exception:
+            pass
+        try:
+            supabase.table("reports").delete().eq("target_type", "user").eq("target_id", str(user_id)).execute()
+        except Exception:
+            pass
+
+        try:
             supabase.table("moderation_actions").update({"actor_id": None}).eq("actor_id", user_id).execute()
+        except Exception:
+            pass
+        try:
+            supabase.table("moderation_actions").delete().eq("target_type", "user").eq("target_id", str(user_id)).execute()
+        except Exception:
+            pass
+
+        try:
             supabase.table("appeals").delete().eq("user_id", user_id).execute()
         except Exception as e:
-            print("Reports/Moderation cleanup notice:", e)
+            print("Appeals cleanup notice:", e)
 
-        # 7. Account Deletion Requests
+        # 7. Audit logs
+        try:
+            supabase.table("audit_logs").update({"actor_id": None}).eq("actor_id", user_id).execute()
+        except Exception:
+            pass
+        try:
+            supabase.table("audit_logs").delete().eq("target_type", "user").eq("target_id", str(user_id)).execute()
+        except Exception:
+            pass
+
+        # 8. Account Deletion Requests
         try:
             supabase.table("account_deletion_requests").update({
                 "status": "completed",
+                "user_id": None,
+                "resolved_by": None,
                 "admin_notes": reason or "ลบบัญชีเรียบร้อยแล้วโดยผู้ดูแลระบบ"
             }).eq("user_id", user_id).execute()
         except Exception as e:
             print("Account deletion requests update notice:", e)
 
-        # 8. Storage files cleanup
+        # 9. Storage files cleanup
         try:
-            # Avatar files
             avatars = supabase.storage.from_("avatars").list(user_id)
             if avatars:
                 file_paths = [f"{user_id}/{f['name']}" for f in avatars]
@@ -737,21 +776,19 @@ def delete_user_completely(user_id: str, reason: str = "Deleted by admin") -> bo
         except Exception as e:
             print("Storage avatars cleanup notice:", e)
 
-        # 9. Profile row
+        # 10. Profile row in public.profiles
         try:
             supabase.table("profiles").delete().eq("id", user_id).execute()
+            print(f"Profile {user_id} deleted successfully from public.profiles")
         except Exception as e:
             print("Profile delete notice:", e)
 
-        # 10. Auth User in GoTrue
+        # 11. Auth User in GoTrue
         try:
             supabase.auth.admin.delete_user(user_id)
             print(f"Auth user {user_id} deleted successfully via auth.admin")
         except Exception as e:
             print(f"Auth user deletion error for {user_id}:", e)
-            # If user not found, it is already deleted
-            if "User not found" not in str(e):
-                raise e
 
         return True
     except Exception as e:

@@ -1,4 +1,3 @@
-// import React;
 import  { useState } from 'react';
 import {
   View,

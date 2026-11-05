@@ -28,8 +28,8 @@ import { ShieldAlert, UserX, Flag, UserCheck } from "lucide-react-native";
 import { Pressable } from "react-native";
 import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
 
-const DEFAULT_AVATAR = require("../assets/images/ProfilePicture.png");
-const DEFAULT_IMAGE = require("../assets/images/StirFriedHolyBasil.png");
+const DEFAULT_AVATAR = require("@/assets/images/ProfilePicture.png");
+const DEFAULT_IMAGE = require("@/assets/images/StirFriedHolyBasil.png");
 
 export default function OtherProfileScreen() {
   const { user } = useAuth();

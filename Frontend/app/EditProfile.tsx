@@ -46,7 +46,7 @@ export default function EditProfile() {
   });
 
   const [profileImage, setProfileImage] = useState<any>(
-    params.avatarUrl ? { uri: params.avatarUrl } : require("../assets/images/ProfilePicture.png")
+    params.avatarUrl ? { uri: params.avatarUrl } : require("@/assets/images/ProfilePicture.png")
   );
 
   const handlePickImage = async () => {

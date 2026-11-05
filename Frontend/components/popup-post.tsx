@@ -468,7 +468,7 @@ export default function PopupPost({
               />
             ) : (
               <Image
-                source={require("../assets/images/ProfilePicture.png")}
+                source={require("@/assets/images/ProfilePicture.png")}
                 style={styles.avatar}
                 contentFit="cover"
                 transition={200}
@@ -711,7 +711,7 @@ export default function PopupPost({
                   source={
                     item.avatarUrl
                       ? { uri: item.avatarUrl }
-                      : require("../assets/images/ProfilePicture.png")
+                      : require("@/assets/images/ProfilePicture.png")
                   }
                   style={styles.commentAvatarImage}
                   contentFit="cover"
@@ -764,7 +764,7 @@ export default function PopupPost({
             source={
               currentUserAvatar
                 ? { uri: currentUserAvatar }
-                : require("../assets/images/ProfilePicture.png")
+                : require("@/assets/images/ProfilePicture.png")
             }
             style={styles.inputAvatarImage}
             contentFit="cover"

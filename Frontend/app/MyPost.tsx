@@ -82,7 +82,7 @@ export default function MyPost() {
   // ---- Sync posts & bookmarks from API in background ----
   useEffect(() => {
     if (mode === "saved") {
-      if (posts.length === 0) setLoading(true);
+      // loading already initialized
       getSavedPosts().then((saved) => {
         if (saved && saved.length > 0) {
           setPosts(saved as PopupPostData[]);
@@ -93,7 +93,7 @@ export default function MyPost() {
         setLoading(false);
       });
     } else if (ownerId) {
-      if (posts.length === 0) setLoading(true);
+      // loading already initialized
       getUserPosts(ownerId).then((apiPosts) => {
         if (apiPosts && apiPosts.length > 0) {
           setPosts(apiPosts.map(mapPostToPopup));
@@ -114,16 +114,7 @@ export default function MyPost() {
     }
   }, [ownerId, mode, user?.id]);
 
-  // Ensure all saved mode posts are marked as bookmarked initially
-  useEffect(() => {
-    if (mode === "saved" && posts.length > 0) {
-      setBookmarkedIds((prev) => {
-        const ids = posts.map((p) => p.id);
-        const set = new Set([...prev, ...ids]);
-        return Array.from(set);
-      });
-    }
-  }, [mode, posts.length]);
+
 
   // Handle post measurement and scroll directly to target post
   const handlePostLayout = useCallback(

@@ -5,7 +5,6 @@ import {
   TextInput,
   StyleSheet,
   Pressable,
-  Platform,
   useWindowDimensions,
 } from 'react-native';
 import { Typography } from '@/constants/typography';

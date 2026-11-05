@@ -111,8 +111,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
         {!collapsed && (
           <button
-            className="sidebar-toggle-btn"
+            className="sidebar-toggle-btn logout-btn"
             title="ออกจากระบบ"
+            data-testid="logout-btn"
             onClick={onLogout}
           >
             <LogOut size={15} />

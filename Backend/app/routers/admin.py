@@ -259,11 +259,26 @@ def assign_report(report_id: int, payload: AssignReportPayload):
 
     try:
         mod_id = payload.moderator_id
+        is_valid_uuid = False
+        if mod_id:
+            try:
+                import uuid
+                uuid.UUID(str(mod_id))
+                is_valid_uuid = True
+            except (ValueError, AttributeError):
+                is_valid_uuid = False
+
         update_data = {
-            "assigned_to": mod_id if mod_id and len(mod_id) > 10 else None,
+            "assigned_to": mod_id if is_valid_uuid else None,
             "status": "in_review",
         }
-        res = supabase.table("reports").update(update_data).eq("id", report_id).execute()
+        try:
+            res = supabase.table("reports").update(update_data).eq("id", report_id).execute()
+        except Exception:
+            res = supabase.table("reports").update({
+                "assigned_to": None,
+                "status": "in_review",
+            }).eq("id", report_id).execute()
 
         log_audit_event(
             actor_id=payload.moderator_id,
@@ -322,11 +337,18 @@ def apply_report_decision(report_id: int, payload: DecisionPayload):
                 post_data = supabase.table("posts").select("user_id").eq("id", int(target_id)).execute()
                 post_records = to_records(post_data.data)
                 if post_records:
-                    user_target_id = post_records[0]["user_id"]
+                    user_target_id = post_records[0].get("user_id")
                     supabase.table("posts").update({"is_hidden": True}).eq("id", int(target_id)).execute()
+                else:
+                    user_target_id = None
 
             if user_target_id:
-                supabase.table("profiles").update({"is_suspended": True}).eq("id", user_target_id).execute()
+                try:
+                    import uuid
+                    uuid.UUID(str(user_target_id))
+                    supabase.table("profiles").update({"is_suspended": True}).eq("id", str(user_target_id)).execute()
+                except Exception as suspend_err:
+                    print("Could not suspend user profile:", suspend_err)
 
         # 2. Update report status
         new_status = "dismissed" if action == "keep" else "action_taken"
@@ -407,7 +429,9 @@ def toggle_post_visibility(post_id: int, payload: VisibilityPayload):
         raise HTTPException(status_code=500, detail="Database uninitialized")
 
     try:
-        supabase.table("posts").update({"is_hidden": payload.is_hidden}).eq("id", post_id).execute()
+        res = supabase.table("posts").update({"is_hidden": payload.is_hidden}).eq("id", post_id).execute()
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Post not found")
 
         log_audit_event(
             actor_id=payload.moderator_id,
@@ -527,7 +551,9 @@ def toggle_comment_visibility(comment_id: int, payload: VisibilityPayload):
         raise HTTPException(status_code=500, detail="Database uninitialized")
 
     try:
-        supabase.table("comments").update({"is_hidden": payload.is_hidden}).eq("id", comment_id).execute()
+        res = supabase.table("comments").update({"is_hidden": payload.is_hidden}).eq("id", comment_id).execute()
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Comment not found")
 
         log_audit_event(
             actor_id=payload.moderator_id,

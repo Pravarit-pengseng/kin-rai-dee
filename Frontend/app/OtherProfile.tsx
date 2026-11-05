@@ -3,7 +3,7 @@ import {
   View,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
+  Pressable,
 } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,12 +24,10 @@ import { useAuth } from "@/context/AuthContext";
 import { blockUser, unblockUser, checkBlockStatus } from "@/services/safetyService";
 import ReportModal from "@/components/ReportModal";
 import { Typography } from "@/constants/typography";
-import { ShieldAlert, UserX, Flag, UserCheck } from "lucide-react-native";
-import { Pressable } from "react-native";
+import { UserX, Flag, UserCheck } from "lucide-react-native";
 import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
 
-const DEFAULT_AVATAR = require("@/assets/images/ProfilePicture.png");
-const DEFAULT_IMAGE = require("@/assets/images/StirFriedHolyBasil.png");
+const DEFAULT_AVATAR = require("../assets/images/ProfilePicture.png");
 
 export default function OtherProfileScreen() {
   const { user } = useAuth();
@@ -38,12 +36,13 @@ export default function OtherProfileScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [avatarError, setAvatarError] = useState(false);
   const [posts, setPosts] = useState<any[]>([]);
-  const [loadingProfile, setLoadingProfile] = useState(true);
-  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(() => Boolean(userId));
 
-  useEffect(() => {
+  const [prevAvatarUrl, setPrevAvatarUrl] = useState(profile?.avatar_url);
+  if (profile?.avatar_url !== prevAvatarUrl) {
+    setPrevAvatarUrl(profile?.avatar_url);
     setAvatarError(false);
-  }, [profile?.avatar_url]);
+  }
 
   const [selectedPost, setSelectedPost] =
     useState<any | null>(null);
@@ -55,14 +54,11 @@ export default function OtherProfileScreen() {
     useState<string[]>([]);
 
   const [isBlockedByMe, setIsBlockedByMe] = useState(false);
-  const [isBlocked, setIsBlocked] = useState(false);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
 
   useEffect(() => {
     if (!userId) {
-      setLoadingProfile(false);
-      setLoadingPosts(false);
       return;
     }
 

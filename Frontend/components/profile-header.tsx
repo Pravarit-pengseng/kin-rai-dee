@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Pressable,
@@ -31,9 +31,11 @@ export default function ProfileHeader({
 }: ProfileHeaderProps) {
   const [avatarError, setAvatarError] = useState(false);
 
-  useEffect(() => {
+  const [prevAvatarUrl, setPrevAvatarUrl] = useState(avatarUrl);
+  if (avatarUrl !== prevAvatarUrl) {
+    setPrevAvatarUrl(avatarUrl);
     setAvatarError(false);
-  }, [avatarUrl]);
+  }
 
   return (
     <View style={styles.profileSection}>

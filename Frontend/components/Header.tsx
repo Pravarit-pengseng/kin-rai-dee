@@ -7,7 +7,7 @@ import {
   type StyleProp,
   type TextStyle,
 } from 'react-native';;
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar, StatusBarStyle } from 'expo-status-bar';
 import { useAuth } from '@/context/AuthContext';
 import { Typography } from '@/constants/typography';
@@ -69,11 +69,21 @@ export function Header({
   const renderRightIcon = () => {
     if (rightIcon === 'none') return null;
 
-    let iconName: keyof typeof Feather.glyphMap = 'search';
-    if (rightIcon === 'search') iconName = 'search';
-    if (rightIcon === 'settings') iconName = 'settings';
-
     const handleRightPress = onRightPress || onSearchPress;
+
+    if (rightIcon === 'search') {
+      return (
+        <Pressable
+          onPress={handleRightPress}
+          style={({ pressed }) => [styles.iconButton, pressed && styles.buttonPressed]}
+          hitSlop={8}
+        >
+          <MaterialCommunityIcons name="magnify" size={24} color={iconColor} />
+        </Pressable>
+      );
+    }
+
+    let iconName: keyof typeof Feather.glyphMap = 'settings';
 
     return (
       <Pressable

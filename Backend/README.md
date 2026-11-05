@@ -165,35 +165,41 @@ docker exec -it kin-rai-dee-api sh
 
 ### 1. รัน Pytest Suite ทั้งหมด
 ```bash
-# รันการทดสอบพื้นฐานทั้งหมด (Unauthenticated, Safety, Admin, Legal)
+# เปิดใช้งาน Virtual Environment
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+# macOS/Linux:        source .venv/bin/activate
+
+# รันการทดสอบทั้งหมด (Full Suite 160+ ข้อ)
 pytest -v
 
-# รันเฉพาะการทดสอบความปลอดภัย (Safety & Blocking)
-pytest tests/test_safety.py -v
+# รันเฉพาะ Unit Tests
+pytest tests/unit/ -v
 
-# รันเฉพาะการทดสอบ Admin & Moderation
-pytest tests/test_admin.py -v
+# รันเฉพาะ Integration Tests (RBAC Matrix & Data Validation)
+pytest tests/integration/ -v
 
-# รันเฉพาะการทดสอบหน้าเอกสารทางกฎหมาย
-pytest tests/test_legal_pages.py -v
+# รันเฉพาะไฟล์โมดูลที่ต้องการ:
+pytest tests/unit/test_posts.py -v       # โพสต์, แก้ไข, ลบ, บุ๊กมาร์ก (Bookmarks)
+pytest tests/unit/test_profiles.py -v    # โปรไฟล์, อัปเดต Bio, การกรองฟิลด์ความปลอดภัย
+pytest tests/unit/test_comments.py -v    # ระบบความคิดเห็น
+pytest tests/unit/test_safety.py -v      # การรายงานเนื้อหา, การบล็อกผู้ใช้สองทาง
+pytest tests/unit/test_admin.py -v       # สถิติ, การจัดการรายงาน, การระงับบัญชี
+pytest tests/integration/test_rbac_boundaries.py -v # สิทธิ์การเข้าถึง Guest vs User vs Admin
 ```
 
-#### การรันการทดสอบแบบเต็มรูปแบบ (รวม Authenticated Tests ทั้งหมด)
-การทดสอบ API ที่ต้องมีการยืนยันตัวตน (เช่น การสร้างโพสต์, บุ๊กมาร์ก, คอมเมนต์, การแก้ไขโปรไฟล์) จำเป็นต้องระบุอีเมลและรหัสผ่านของบัญชีผู้ใช้ทดสอบ:
+#### การตั้งค่า Credentials สำหรับการทดสอบ (`.env.test`)
+การทดสอบ API ที่ต้องมีการยืนยันตัวตน (เช่น การสร้างโพสต์, บุ๊กมาร์ก, คอมเมนต์, การแก้ไขโปรไฟล์, สิทธิ์แอดมิน) ใช้ค่าจากไฟล์ `backend/.env.test`:
 
-**Windows (PowerShell):**
-```powershell
-$env:TEST_EMAIL="your_test_user@gmail.com"
-$env:TEST_PASSWORD="your_password"
-pytest tests/test_api.py -v
-```
-
-**macOS / Linux / Bash:**
-```bash
-TEST_EMAIL="your_test_user@gmail.com" TEST_PASSWORD="your_password" pytest tests/test_api.py -v
+```env
+# backend/.env.test
+TEST_EMAIL="your_test_user@gmail.com"
+TEST_PASSWORD="your_password"
+ADMIN_EMAIL="admin@gmail.com"
+ADMIN_PASSWORD="admin_password"
+ALLOW_ADMIN_TEST_LOGIN=true
 ```
 > [!NOTE]
-> หากไม่ได้ระบุ `TEST_EMAIL` และ `TEST_PASSWORD` ระบบจะทำการ **Skip (ข้าม)** การทดสอบ 9 ข้อที่ต้องใช้สิทธิ์ผู้ใช้โดยอัตโนมัติ เพื่อป้องกันการเกิด 401 Unauthorized
+> หากกำหนดค่าใน `.env.test` ระบบจะยิงล็อกอินผ่าน Supabase Auth เพื่อขอ Token จริงมารันเทสครอบคลุมครบ 100% โดยไม่ต้อง Mock ค่า
 
 ### 2. รัน Comprehensive End-to-End API Test Script
 สคริปต์ `test_system_apis.py` จะยิงทดสอบระบบจริงแบบครบวงจร (Root, Health, Foods, Categories, Posts, Legal Pages, Safety/Reports, Admin Auth):

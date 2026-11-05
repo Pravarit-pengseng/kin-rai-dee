@@ -65,10 +65,12 @@ export function RestaurantCard({
   const hasImage = /^https?:\/\//i.test(imageUri);
 
   // Reset states when restaurant or image changes
-  useEffect(() => {
+  const [prevCardKey, setPrevCardKey] = useState(restaurant.id + imageUri);
+  if (restaurant.id + imageUri !== prevCardKey) {
+    setPrevCardKey(restaurant.id + imageUri);
     setImageFailed(false);
     setImageLoading(true);
-  }, [restaurant.id, imageUri]);
+  }
 
   const handleOpenMap = () => {
     if (onMapPress) {

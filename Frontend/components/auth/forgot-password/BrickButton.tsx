@@ -4,7 +4,6 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  Platform,
   ViewStyle,
   StyleProp,
   View,

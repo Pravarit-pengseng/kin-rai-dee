@@ -5,7 +5,6 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
-  Platform,
 } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { Typography } from "@/constants/typography";

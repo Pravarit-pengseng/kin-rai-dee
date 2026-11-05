@@ -8,8 +8,7 @@ import {
   Flag,
   ChevronLeft,
   ChevronRight,
-  Search,
-  Filter
+  Search
 } from 'lucide-react';
 import { COMMUNITY_RULES } from '../services/moderationService';
 import { adminApi } from '../services/adminApi';

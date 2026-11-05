@@ -235,55 +235,116 @@ npm run dev
 
 ## 🧪 การทดสอบระบบ (Testing & Quality Assurance)
 
-โปรเจกต์ KIN RAI DEE มีชุดการทดสอบครอบคลุมทั้ง Unit Test, Integration Test, E2E Browser Testing และ System API Tests:
+โปรเจกต์ KIN RAI DEE มีชุดการทดสอบครอบคลุมทั้ง Playwright E2E Testing, Pytest Backend Suite, Maestro Mobile UI Flows และ Static Analysis:
 
-### 1. รัน Playwright E2E Tests (Admin, Backend & Frontend Web)
+### 1. คำสั่งลัดจาก Root Workspace (`kin-rai-dee/`)
 ```bash
-# รันแบบ Headless จาก Root
+# รัน Playwright E2E Tests ทั้งหมดแบบ Headless (47 Tests)
 npm run test:e2e
 
-# หรือเข้าไปที่ admin แล้วรันแบบ Interactive UI
-cd admin
-npx playwright test --ui
+# เปิดดูรายงานผลการทดสอบ Playwright ล่าสุดในเบราว์เซอร์ (HTML Report)
+npm run test:report
 
-# ดูรายงานผลการทดสอบ
-npx playwright show-report
+# รันตรวจสอบ Linter ของ Admin Dashboard ด้วย Oxlint (0 warnings, 0 errors)
+npm --prefix admin run lint
+
+# ทดสอบคอมไพล์ TypeScript และ Production Build ของ Admin
+npm --prefix admin run build
 ```
 
-### 2. รัน Backend Unit & Integration Tests (Pytest)
+### 2. รัน Playwright E2E Tests (`admin/`)
+ศูนย์กลางการทดสอบ End-to-End ครอบคลุมทั้ง Admin Dashboard, Moderation Queue, PDPA และ Backend API:
+*(ต้องเปิด Backend Server ที่ Port 8000 และ Admin Web ที่ Port 5173 ไว้ก่อน หรือรัน `npm run docker:up`)*
+
+```bash
+# 1. รันการทดสอบทั้งหมดแบบ Headless
+npm run test:e2e
+
+# 2. รันแบบ Interactive UI Mode (มี Time-travel, DOM snapshot และตัวจำลองขั้นตอนสด)
+npm --prefix admin run test:e2e -- --ui
+
+# 3. รันแบบเปิดหน้าต่าง Chrome จริง (Headed Mode)
+npm --prefix admin run test:e2e -- --headed
+
+# 4. รันเจาะจงเฉพาะไฟล์ที่ต้องการ:
+npm --prefix admin run test:e2e -- e2e/auth.spec.ts              # ยืนยันตัวตน (Login, Wrong Credentials, Logout)
+npm --prefix admin run test:e2e -- e2e/content.spec.ts           # จัดการโพสต์, แท็บความคิดเห็น, ซ่อน/แสดงโพสต์
+npm --prefix admin run test:e2e -- e2e/moderation.spec.ts        # คิวรายงาน, ฟิลเตอร์สถานะ, Drawer ตรวจสอบเคส
+npm --prefix admin run test:e2e -- e2e/deletion-requests.spec.ts # คำขอลบบัญชีตามสิทธิ์ PDPA & Admin API
+npm --prefix admin run test:e2e -- e2e/users.spec.ts             # ตารางสมาชิก, ฟิลด์ข้อมูล และการระงับบัญชี (Suspend)
+npm --prefix admin run test:e2e -- e2e/legal-pages.spec.ts       # หน้า HTML กฎหมาย (Privacy, Terms, Delete Account Responsive)
+npm --prefix admin run test:e2e -- e2e/api/admin-api.spec.ts     # ทดสอบ API ฝั่งผู้ดูแล (Stats, Reports, Audit Logs)
+npm --prefix admin run test:e2e -- e2e/api/public-endpoints.spec.ts # ทดสอบ API สาธารณะ (Categories, Foods, Feed)
+
+# 5. เปิดดูรายงานผลการทดสอบรอบล่าสุด
+npm run test:report
+# หรือ
+npx --prefix admin playwright show-report admin/playwright-report
+```
+
+### 3. รัน Backend Unit & Integration Tests (Pytest)
+ชุดการทดสอบ Backend REST API (FastAPI) ครอบคลุมการทำงานร่วมกับ Supabase Database จริงกว่า 160+ ข้อ:
+
 ```bash
 cd backend
 
-# รันการทดสอบพื้นฐานทั่วไป (Unauthenticated, Safety, Admin, Legal)
+# เปิดใช้งาน Virtual Environment
+# Windows PowerShell: .\.venv\Scripts\Activate.ps1
+# macOS/Linux:        source .venv/bin/activate
+
+# 1. รันการทดสอบทั้งหมด (Full Suite)
 pytest -v
 
-# รันแบบครบวงจร (รวม 9 Authenticated Tests ที่ต้องใช้ User Token)
-# Windows PowerShell:
-$env:TEST_EMAIL="user@gmail.com"; $env:TEST_PASSWORD="password"; pytest -v
-# macOS/Linux:
-TEST_EMAIL="user@gmail.com" TEST_PASSWORD="password" pytest -v
+# 2. รันเฉพาะหมวด Unit Tests (จำลอง Mock สิทธิ์เข้าถึง API)
+pytest tests/unit/ -v
+
+# 3. รันเฉพาะหมวด Integration Tests (RBAC Boundaries, Data Validation)
+pytest tests/integration/ -v
+
+# 4. รันเจาะจงเฉพาะโมดูลที่ต้องการ:
+pytest tests/unit/test_posts.py -v       # โพสต์, แก้ไข, ลบ, บุ๊กมาร์ก (Bookmarks)
+pytest tests/unit/test_profiles.py -v    # โปรไฟล์ส่วนตัว, อัปเดต Bio, สิทธิ์การเปิดเผยข้อมูล
+pytest tests/unit/test_comments.py -v    # คอมเมนต์ใต้โพสต์, การลบและซ่อนความคิดเห็น
+pytest tests/unit/test_safety.py -v      # การรายงานผู้ใช้, การบล็อก และการปลดบล็อกสองทาง
+pytest tests/unit/test_admin.py -v       # สถิติแอดมิน, จัดการรายงาน และการตัดสินลงโทษ
+pytest tests/integration/test_rbac_boundaries.py -v # สิทธิ์การเข้าถึง Guest vs User vs Admin
+
+# 5. การตั้งค่า Authenticated Tests (รันคำขอด้วย Token บัญชีจริง)
+# สร้างไฟล์ backend/.env.test แล้วใส่:
+# TEST_EMAIL="user@gmail.com"
+# TEST_PASSWORD="password"
+# ADMIN_EMAIL="admin@gmail.com"
+# ADMIN_PASSWORD="password"
+# ALLOW_ADMIN_TEST_LOGIN=true
+pytest -v
 ```
 
-### 3. รัน Comprehensive End-to-End API Health Test
-สคริปต์ทดสอบสุขภาพและ Endpoint ทั้งหมดของ Backend (ตรวจทั้ง Mobile API, Legal Pages และ Admin endpoints):
+### 4. รัน Comprehensive End-to-End API Smoke Test
+สคริปต์ยิงทดสอบสุขภาพของระบบ Backend ผ่านเครือข่ายจริง (Health, Master Data, Feed, Legal Pages, Admin Auth Guard):
 ```bash
-# ทดสอบ Local
+# ทดสอบ Local (Port 8000)
 python backend/test_system_apis.py --base-url http://localhost:8000
 
-# ทดสอบ Production Staging
-python backend/test_system_apis.py --base-url https://your-backend-api.com
+# ทดสอบ Staging / Production
+python backend/test_system_apis.py --base-url https://kin-rai-dee-backend.onrender.com
 ```
 
-### 4. รัน Typecheck และ Linter
+### 5. รัน Mobile App E2E UI Tests (Maestro)
+ชุดการทดสอบ UI Automation ของ Mobile App บน Android/iOS Device หรือ Emulator รวม 21 Scenarios ใน `frontend/.maestro/`:
 ```bash
-# ตรวจสอบ TypeScript ใน Frontend
 cd frontend
-npx tsc --noEmit
-npm run lint
 
-# ตรวจสอบ Linter ใน Admin Dashboard
-cd admin
-npm run lint
+# รันทุก Flow อัตโนมัติ (Auth, Feed, Post, Profile, Random, Report, Block ฯลฯ)
+npm run test:e2e
+# หรือ
+maestro test .maestro/
+
+# รันเฉพาะ Scenario ที่ต้องการ:
+maestro test .maestro/01_auth_flow.yaml
+maestro test .maestro/05_create_post_flow.yaml
+
+# ทดสอบสคริปต์ Reset Password และ Forgot Password Flow
+npm run test:auth
 ```
 
 ---

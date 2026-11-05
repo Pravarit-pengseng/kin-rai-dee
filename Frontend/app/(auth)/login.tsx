@@ -103,7 +103,7 @@ export default function LoginScreen() {
       } else {
         router.replace('/(tabs)');
       }
-    } catch (err: any) {
+    } catch {
       setGeneralError(AUTH_ERROR_MESSAGES.SYSTEM_ERROR);
     } finally {
       setIsLoading(false);

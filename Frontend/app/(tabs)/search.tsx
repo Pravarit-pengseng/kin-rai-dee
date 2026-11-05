@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 
 import { Header } from '@/components/Header';
@@ -74,7 +74,7 @@ export default function SearchScreen() {
             return;
           }
         }
-      } catch (e) {
+      } catch {
         // location optional
       }
       setUserLocation({ latitude: 14.0734, longitude: 100.6033 });
@@ -222,9 +222,9 @@ export default function SearchScreen() {
       >
         {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <Feather
-            name="search"
-            size={20}
+          <MaterialCommunityIcons
+            name="magnify"
+            size={22}
             color="#6B4F48"
             style={styles.searchIcon}
           />

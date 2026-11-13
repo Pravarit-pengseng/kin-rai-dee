@@ -25,6 +25,7 @@ import { ThemedText } from "@/components/themed-text";
 import { updateMyProfile } from "@/services/profileService";
 import { API_BASE_URL } from "@/services/api";
 import { supabase } from "@/lib/supabase";
+import { useKeyboardScroll } from "@/hooks/useKeyboardScroll";
 
 export default function EditProfile() {
   const params = useLocalSearchParams<{
@@ -36,6 +37,9 @@ export default function EditProfile() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
+  const { scrollRef, isKeyboardVisible, contentBottomPadding, scrollIntoView, scrollToEnd } = useKeyboardScroll({
+    defaultBottomPadding: 110,
+  });
 
   const [profileData, setProfileData] = useState({
     name: params.name ?? "",
@@ -166,9 +170,13 @@ export default function EditProfile() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <ScrollView
+            ref={scrollRef}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[styles.content, { paddingBottom: contentBottomPadding }]}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            bounces={isKeyboardVisible}
+            overScrollMode={isKeyboardVisible ? "always" : "never"}
           >
               {/* Profile Picture */}
               <View style={styles.avatarContainer}>
@@ -206,6 +214,11 @@ export default function EditProfile() {
                   profileData.username
                 }
                 initialBio={profileData.bio}
+                onFocusField={(field) => {
+                  if (field === 'bio') scrollToEnd();
+                  else if (field === 'username') scrollIntoView(140);
+                  else scrollIntoView(60);
+                }}
                 onChange={setProfileData}
               />
 

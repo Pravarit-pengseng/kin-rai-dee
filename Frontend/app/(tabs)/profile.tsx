@@ -201,10 +201,13 @@ export default function ProfileScreen() {
   }, [params.post, params.mode]);
 
   const handleLongPress = (post: PopupPostData) => {
+    const isMe = !post.userId || post.userId === user?.id || post.userId === 'me';
+    const myAvatar = params.avatarUrl || profileAvatarUrl || user?.avatarUrl;
     const updatedPost = {
       ...post,
-      displayName: post.userId === user?.id ? (params.name || profileName || post.displayName) : post.displayName,
-      username: post.userId === user?.id ? (params.username || profileUsername || post.username) : post.username,
+      avatarUrl: isMe ? (myAvatar || post.avatarUrl) : post.avatarUrl,
+      displayName: isMe ? (params.name || profileName || post.displayName) : post.displayName,
+      username: isMe ? (params.username || profileUsername || post.username) : post.username,
     };
     setSelectedPost(updatedPost);
     setPopupVisible(true);
@@ -311,7 +314,17 @@ export default function ProfileScreen() {
   };
 
   const handleOpenPost = (post: PopupPostData) => {
-    const allPosts = activeTab === "saved" ? savedPosts : posts;
+    const isMe = !post.userId || post.userId === user?.id || post.userId === 'me';
+    const myAvatar = params.avatarUrl || profileAvatarUrl || user?.avatarUrl;
+    const updatedPost = {
+      ...post,
+      avatarUrl: isMe ? (myAvatar || post.avatarUrl) : post.avatarUrl,
+      displayName: isMe ? (params.name || profileName || post.displayName) : post.displayName,
+      username: isMe ? (params.username || profileUsername || post.username) : post.username,
+    };
+    const allPosts = (activeTab === "saved" ? savedPosts : posts).map((p) =>
+      p.id === post.id ? updatedPost : p
+    );
     setCachedPostList(allPosts);
     router.push({
       pathname: "/MyPost",
@@ -319,7 +332,7 @@ export default function ProfileScreen() {
         postId: post.id,
         ownerId: activeTab === "saved" ? undefined : (post.userId ?? user?.id),
         mode: activeTab === "saved" ? "saved" : "feed",
-        post: JSON.stringify(post),
+        post: JSON.stringify(updatedPost),
       },
     });
   };

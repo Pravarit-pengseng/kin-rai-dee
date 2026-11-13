@@ -21,6 +21,7 @@ import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { recoveryService } from '@/services/recoveryService';
 import { useAuth } from '@/context/AuthContext';
 import { Typography } from '@/constants/typography';
+import { useKeyboardScroll } from '@/hooks/useKeyboardScroll';
 import {
   validateEmail,
   formatEmail,
@@ -58,6 +59,10 @@ export default function ForgotPasswordScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { scrollRef, isKeyboardVisible, contentBottomPadding, scrollToEnd } = useKeyboardScroll({
+    defaultBottomPadding: 40,
+  });
 
   // Pre-fill email if user is already logged in (e.g. from /settings)
   useEffect(() => {
@@ -259,9 +264,13 @@ export default function ForgotPasswordScreen() {
         style={styles.keyboardView}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          ref={scrollRef}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: contentBottomPadding }]}
           showsVerticalScrollIndicator={false}
+          bounces={isKeyboardVisible}
+          overScrollMode={isKeyboardVisible ? "always" : "never"}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           <View style={styles.container}>
             {/* General Error Banner */}
@@ -367,7 +376,10 @@ export default function ForgotPasswordScreen() {
                       setInputErrors((prev) => ({ ...prev, newPassword: null }));
                     }
                   }}
-                  onFocus={() => setIsPasswordFocused(true)}
+                  onFocus={() => {
+                    setIsPasswordFocused(true);
+                    scrollToEnd();
+                  }}
                   onBlur={() => {
                     setIsPasswordFocused(false);
                     if (newPassword) {
@@ -445,6 +457,7 @@ export default function ForgotPasswordScreen() {
                   isPassword
                   placeholder="ยืนยันรหัสผ่าน"
                   value={confirmPassword}
+                  onFocus={() => scrollToEnd()}
                   onChangeText={(val) => {
                     setConfirmPassword(val);
                     if (inputErrors.confirmPassword) {

@@ -13,6 +13,8 @@
     "android": {
       "package": "com.kinraidee.com.co.kinraidee",
       "versionCode": 1,
+      "softwareKeyboardLayoutMode": "resize",
+      "allowBackup": true,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png"

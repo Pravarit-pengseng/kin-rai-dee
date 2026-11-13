@@ -1,4 +1,4 @@
-import { fetchApi } from './api';
+import { fetchApi, getAuthUser } from './api';
 import { supabase } from '@/lib/supabase';
 
 export interface UserProfile {
@@ -50,12 +50,9 @@ export async function getMyProfile(): Promise<UserProfile | null> {
         return profile;
     }
 
-    // Supabase fallback
+    // Supabase direct
     try {
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
-
+        const user = await getAuthUser();
         if (!user) {
             return null;
         }
@@ -68,7 +65,7 @@ export async function getMyProfile(): Promise<UserProfile | null> {
 
         if (error) {
             console.warn(
-                'Supabase get my profile fallback error:',
+                'Supabase get my profile error:',
                 error,
             );
             return null;
@@ -80,7 +77,7 @@ export async function getMyProfile(): Promise<UserProfile | null> {
         return profile;
     } catch (e) {
         console.warn(
-            'Supabase get my profile fallback error:',
+            'Supabase get my profile error:',
             e,
         );
         return null;
@@ -110,12 +107,9 @@ export async function updateMyProfile(
         return profile;
     }
 
-    // Supabase fallback
+    // Supabase direct
     try {
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
-
+        const user = await getAuthUser();
         if (!user) {
             return null;
         }
@@ -129,7 +123,7 @@ export async function updateMyProfile(
 
         if (error) {
             console.warn(
-                'Supabase update profile fallback error:',
+                'Supabase update profile error:',
                 error,
             );
             return null;
@@ -141,7 +135,7 @@ export async function updateMyProfile(
         return profile;
     } catch (e) {
         console.warn(
-            'Supabase update profile fallback error:',
+            'Supabase update profile error:',
             e,
         );
         return null;
@@ -166,7 +160,7 @@ export async function getUserProfile(
         return data;
     }
 
-    // Supabase fallback
+    // Supabase direct
     try {
         const { data: profile, error } = await supabase
             .from('profiles')
@@ -176,7 +170,7 @@ export async function getUserProfile(
 
         if (error) {
             console.warn(
-                'Supabase get user profile fallback error:',
+                'Supabase get user profile error:',
                 error,
             );
             return null;
@@ -188,7 +182,7 @@ export async function getUserProfile(
         return profile;
     } catch (e) {
         console.warn(
-            'Supabase get user profile fallback error:',
+            'Supabase get user profile error:',
             e,
         );
         return null;
@@ -211,7 +205,7 @@ export async function getUserPosts(
         return list.filter((p: any) => !p.is_hidden);
     }
 
-    // Supabase fallback
+    // Supabase direct
     try {
         const { data: posts, error } = await supabase
             .from('posts')
@@ -226,16 +220,30 @@ export async function getUserPosts(
 
         if (error) {
             console.warn(
-                'Supabase get user posts fallback error:',
+                'Supabase get user posts error:',
                 error,
             );
             return [];
         }
 
-        return (posts || []).filter((p: any) => !p.is_hidden);
+        const nonHidden = (posts || []).filter((p: any) => !p.is_hidden);
+        if (nonHidden.length > 0) {
+            const { data: prof } = await supabase
+                .from('profiles')
+                .select('id, username, display_name, avatar_url')
+                .eq('id', userId)
+                .maybeSingle();
+            if (prof) {
+                return nonHidden.map((p: any) => ({
+                    ...p,
+                    profiles: prof,
+                }));
+            }
+        }
+        return nonHidden;
     } catch (e) {
         console.warn(
-            'Supabase get user posts fallback error:',
+            'Supabase get user posts error:',
             e,
         );
         return [];
@@ -263,11 +271,12 @@ export async function deleteMyAccount(): Promise<{ success: boolean; message?: s
         return { success: true, message: data.message || 'ลบบัญชีผู้ใช้เรียบร้อยแล้ว' };
     }
 
-    // Fallback via /api/auth/account
+    // Fallback via /api/auth/account with forceBackend
     const authData = await fetchApi<{ success: boolean; message?: string }>(
         '/api/auth/account',
         {
             method: 'DELETE',
+            forceBackend: true,
         },
     );
 
@@ -278,6 +287,23 @@ export async function deleteMyAccount(): Promise<{ success: boolean; message?: s
             console.warn('Signout after account deletion error:', e);
         }
         return { success: true, message: authData.message || 'ลบบัญชีผู้ใช้เรียบร้อยแล้ว' };
+    }
+
+    // Direct Supabase account deletion request fallback
+    try {
+        const user = await getAuthUser();
+        if (user) {
+            await supabase.from('account_deletion_requests').insert({
+                user_id: user.id,
+                email: user.email || '',
+                status: 'pending',
+                notes: 'Requested via mobile app direct Supabase'
+            });
+            await supabase.auth.signOut();
+            return { success: true, message: 'ส่งคำขอลบบัญชีผู้ใช้เรียบร้อยแล้ว' };
+        }
+    } catch (e) {
+        console.warn('Supabase account deletion request error:', e);
     }
 
     return { success: false, message: 'ไม่สามารถลบบัญชีได้ กรุณาลองใหม่อีกครั้ง' };

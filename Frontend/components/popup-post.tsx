@@ -25,6 +25,7 @@ import {
   Flag,
 } from "lucide-react-native";
 import { useRouter, usePathname } from "expo-router";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { getPostComments, addPostComment } from "@/services/postService";
 import { getMyProfile } from "@/services/profileService";
@@ -45,6 +46,7 @@ function formatBreakableText(text?: string): string {
 
 export type CommentItem = {
   id: string;
+  userId?: string;
   username: string;
   text: string;
   avatarBg?: string;
@@ -246,6 +248,35 @@ export default function PopupPost({
   const [profileAvatar, setProfileAvatar] = useState<string | undefined>();
   const currentUserAvatar = user?.avatarUrl || profileAvatar;
 
+  const [authorAvatar, setAuthorAvatar] = useState<string | undefined>(
+    post?.avatarUrl || ((isOwnPost || (user?.id && post?.userId === user.id)) ? user?.avatarUrl : undefined)
+  );
+
+  useEffect(() => {
+    if (post?.avatarUrl) {
+      setAuthorAvatar(post.avatarUrl);
+      return;
+    }
+    if (isOwnPost || (user?.id && post?.userId === user.id)) {
+      if (currentUserAvatar) {
+        setAuthorAvatar(currentUserAvatar);
+      }
+      return;
+    }
+    if (post?.userId && post.userId !== 'unknown') {
+      supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', post.userId)
+        .maybeSingle()
+        .then(({ data }: any) => {
+          if (data?.avatar_url) {
+            setAuthorAvatar(data.avatar_url);
+          }
+        });
+    }
+  }, [post?.avatarUrl, post?.userId, isOwnPost, user?.id, currentUserAvatar]);
+
   useEffect(() => {
     if (!user?.avatarUrl && isLoggedIn) {
       getMyProfile().then((p) => {
@@ -306,7 +337,7 @@ export default function PopupPost({
         damping: 24,
         mass: 0.8,
         stiffness: 200,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }).start();
     }
   }, [showComments, slideAnim]);
@@ -337,7 +368,7 @@ export default function PopupPost({
     Animated.timing(slideAnim, {
       toValue: 600,
       duration: 180,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start(() => {
       setShowComments(false);
     });
@@ -349,8 +380,9 @@ export default function PopupPost({
       getPostComments(post.id).then((apiComments) => {
         const visibleComments = (apiComments || []).filter((c: any) => !c.is_hidden);
         setComments(
-          visibleComments.map((c) => ({
+          visibleComments.map((c: any) => ({
             id: String(c.id),
+            userId: c.user_id ? String(c.user_id) : (c.profiles?.id ? String(c.profiles.id) : undefined),
             username: c.username || c.profiles?.display_name || c.profiles?.username || 'ผู้ใช้งาน',
             text: c.content || c.text || '',
             avatarUrl: c.profiles?.avatar_url,
@@ -383,6 +415,7 @@ export default function PopupPost({
       const created = await addPostComment(post.id, trimmed);
       const newComment: CommentItem = {
         id: created?.id ? String(created.id) : Date.now().toString(),
+        userId: user?.id,
         username: created?.username || created?.profiles?.display_name || user?.displayName || user?.username || displayUserName,
         text: created?.content || trimmed,
         avatarUrl: created?.profiles?.avatar_url || currentUserAvatar,
@@ -412,8 +445,49 @@ export default function PopupPost({
   const handleUserClick = () => {
     setShowMenu(false);
     if (post?.userId) {
-      onUserPress?.(post.userId);
+      if (onUserPress) {
+        onUserPress(post.userId);
+      } else {
+        if (user && post.userId === user.id) {
+          router.push("/(tabs)/profile" as any);
+        } else {
+          router.push({
+            pathname: "/OtherProfile",
+            params: { userId: post.userId },
+          });
+        }
+      }
     }
+  };
+
+  const handleCommentUserClick = (item: CommentItem) => {
+    if (!item.userId) return;
+    setShowMenu(false);
+    setShowComments(false);
+    if (!inline && onClose) {
+      onClose();
+    }
+    if (user?.id && item.userId === user.id) {
+      router.push("/(tabs)/profile" as any);
+    } else {
+      router.push({
+        pathname: "/OtherProfile",
+        params: { userId: item.userId },
+      });
+    }
+  };
+
+  const handleTagPress = (tag: string) => {
+    setShowMenu(false);
+    if (!inline && onClose) {
+      onClose();
+    }
+    const cleanTag = tag.replace(/^#+/, "").trim();
+    if (!cleanTag) return;
+    router.push({
+      pathname: "/(tabs)/search",
+      params: { query: cleanTag },
+    });
   };
 
   const handleOpenLocation = async () => {
@@ -458,9 +532,9 @@ export default function PopupPost({
         <Pressable style={styles.userProfileLink} onPress={handleUserClick}>
           {/* Avatar */}
           <View style={styles.avatarContainer}>
-            {post.avatarUrl && !avatarError ? (
+            {authorAvatar && !avatarError ? (
               <Image
-                source={{ uri: post.avatarUrl }}
+                source={{ uri: authorAvatar }}
                 style={styles.avatar}
                 contentFit="cover"
                 transition={200}
@@ -619,11 +693,19 @@ export default function PopupPost({
 
         <View style={styles.tagContainer}>
           {tags.map((t, index) => (
-            <View key={index} style={styles.tagPill}>
+            <Pressable
+              key={index}
+              style={({ pressed }) => [
+                styles.tagPill,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={() => handleTagPress(t)}
+              hitSlop={6}
+            >
               <ThemedText style={styles.tagText}>
                 #{t}
               </ThemedText>
-            </View>
+            </Pressable>
           ))}
         </View>
 
@@ -706,7 +788,14 @@ export default function PopupPost({
         ) : (
           comments.map((item, index) => (
             <View key={`comment-${item.id}-${index}`} style={styles.commentRow}>
-              <View style={styles.commentUserAvatarContainer}>
+              <Pressable
+                onPress={() => handleCommentUserClick(item)}
+                style={({ pressed }) => [
+                  styles.commentUserAvatarContainer,
+                  pressed && styles.buttonPressed,
+                ]}
+                hitSlop={6}
+              >
                 <Image
                   source={
                     item.avatarUrl
@@ -717,12 +806,18 @@ export default function PopupPost({
                   contentFit="cover"
                   transition={200}
                 />
-              </View>
+              </Pressable>
 
               <View style={styles.commentTextContainer}>
-                <ThemedText style={styles.commentUsername}>
-                  {item.username}
-                </ThemedText>
+                <Pressable
+                  onPress={() => handleCommentUserClick(item)}
+                  style={({ pressed }) => [pressed && styles.buttonPressed]}
+                  hitSlop={4}
+                >
+                  <ThemedText style={styles.commentUsername}>
+                    {item.username}
+                  </ThemedText>
+                </Pressable>
                 <ThemedText style={styles.commentText}>
                   {item.text}
                 </ThemedText>

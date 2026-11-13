@@ -7,7 +7,10 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { useKeyboardScroll } from '@/hooks/useKeyboardScroll';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import LegalNavbar from '../components/LegalNavbar';
@@ -23,6 +26,9 @@ export default function DeleteAccountScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
+  const { scrollRef, isKeyboardVisible, contentBottomPadding, scrollToEnd } = useKeyboardScroll({
+    defaultBottomPadding: 40,
+  });
 
   const handleSubmit = async () => {
     if (!email.trim() || !email.includes('@')) {
@@ -66,11 +72,20 @@ export default function DeleteAccountScreen() {
 
       <LegalNavbar activeTab="delete" />
 
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
       >
+        <ScrollView
+          ref={scrollRef}
+          style={styles.content}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: contentBottomPadding }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          bounces={isKeyboardVisible}
+          overScrollMode={isKeyboardVisible ? "always" : "never"}
+        >
         <Text style={styles.mainTitle}>คำขอลบบัญชีผู้ใช้และข้อมูลทั้งหมด</Text>
         <Text style={styles.updatedDate}>อัปเดตล่าสุด 21 ตุลาคม 2569</Text>
 
@@ -190,6 +205,7 @@ export default function DeleteAccountScreen() {
                 autoCapitalize="none"
                 value={email}
                 onChangeText={setEmail}
+                onFocus={() => scrollToEnd()}
               />
 
               <Text style={styles.label}>เหตุผลในการขอลบ (ไม่บังคับ)</Text>
@@ -201,6 +217,7 @@ export default function DeleteAccountScreen() {
                 numberOfLines={3}
                 value={reason}
                 onChangeText={setReason}
+                onFocus={() => scrollToEnd()}
               />
 
               <Pressable
@@ -235,7 +252,8 @@ export default function DeleteAccountScreen() {
         </View>
 
         <Text style={styles.copyright}>&copy; 2026 KIN RAI DEE Community. All rights reserved.</Text>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

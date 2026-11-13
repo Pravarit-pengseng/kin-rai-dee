@@ -125,6 +125,12 @@ def delete_account(user: dict = Depends(get_current_user)):
 
         # 2. Delete user from Supabase Auth (triggers ON DELETE CASCADE in PostgreSQL)
         try:
+            from app.services.device_session_service import unbind_user_devices
+            unbind_user_devices(user_id)
+        except Exception:
+            pass
+
+        try:
             supabase.auth.admin.delete_user(user_id)
         except Exception as auth_err:
             import logging
@@ -142,3 +148,78 @@ def delete_account(user: dict = Depends(get_current_user)):
             status_code=500,
             detail="Failed to delete account. Please try again or contact support.",
         )
+
+
+
+class DeviceBindBody(BaseModel):
+    device_id: str
+    refresh_token: str
+    platform: str = "unknown"
+
+
+class DeviceRecoverBody(BaseModel):
+    device_id: str
+
+
+class DeviceUnbindBody(BaseModel):
+    device_id: str
+
+
+@router.post("/device-session/bind")
+def bind_device(data: DeviceBindBody, user: dict = Depends(get_current_user)):
+    from app.services.device_session_service import bind_device_session
+    ok = bind_device_session(
+        device_id=data.device_id,
+        user_id=user["id"],
+        refresh_token=data.refresh_token,
+        platform=data.platform,
+    )
+    return {"success": ok}
+
+
+@router.post("/device-session/recover")
+def recover_device_session(data: DeviceRecoverBody):
+    from app.services.device_session_service import get_device_session
+    record = get_device_session(data.device_id)
+    if not record:
+        return {"success": False, "message": "No bound device session found"}
+
+    try:
+        refresh_res = supabase_auth.auth.refresh_session(record["refresh_token"])
+        if refresh_res and refresh_res.session:
+            from app.services.device_session_service import bind_device_session
+            bind_device_session(
+                device_id=data.device_id,
+                user_id=record["user_id"],
+                refresh_token=refresh_res.session.refresh_token,
+                platform=record.get("platform", "unknown"),
+            )
+            return {
+                "success": True,
+                "session": {
+                    "access_token": refresh_res.session.access_token,
+                    "refresh_token": refresh_res.session.refresh_token,
+                    "expires_in": refresh_res.session.expires_in,
+                    "user": {
+                        "id": refresh_res.user.id if refresh_res.user else record["user_id"],
+                        "email": refresh_res.user.email if refresh_res.user else "",
+                    },
+                },
+            }
+    except Exception as e:
+        import logging
+        logging.warning(f"Error refreshing Supabase session for device {data.device_id}: {e}")
+
+    return {
+        "success": True,
+        "session": {
+            "refresh_token": record["refresh_token"],
+        },
+    }
+
+
+@router.post("/device-session/unbind")
+def unbind_device(data: DeviceUnbindBody):
+    from app.services.device_session_service import unbind_device_session
+    ok = unbind_device_session(data.device_id)
+    return {"success": ok}

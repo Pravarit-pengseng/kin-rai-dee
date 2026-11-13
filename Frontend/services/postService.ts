@@ -1,4 +1,4 @@
-import { fetchApi } from './api';
+import { fetchApi, getAuthUser } from './api';
 import { supabase } from '@/lib/supabase';
 import { PopupPostData } from '@/components/popup-post';
 import { normalizeAvatarUrl } from './profileService';
@@ -84,20 +84,20 @@ export function mapPostToPopup(post: any): PopupPostData {
 
 export async function attachProfilesToPosts(posts: any[]): Promise<any[]> {
   if (!posts || posts.length === 0) return [];
-  const userIds = [...new Set(posts.map((p) => p.user_id).filter(Boolean))];
-  if (userIds.length === 0) return posts;
+  const missingUserIds = [...new Set(posts.filter((p) => !p.profiles).map((p) => p.user_id).filter(Boolean))];
+  if (missingUserIds.length === 0) return posts;
 
   try {
     const { data: profs } = await supabase
       .from('profiles')
       .select('id, username, display_name, avatar_url')
-      .in('id', userIds);
+      .in('id', missingUserIds);
 
     if (profs && profs.length > 0) {
       const map = Object.fromEntries(profs.map((pr) => [pr.id, pr]));
       return posts.map((p) => ({
         ...p,
-        profiles: map[p.user_id] || p.profiles || null,
+        profiles: p.profiles || map[p.user_id] || null,
       }));
     }
   } catch (err) {
@@ -220,9 +220,7 @@ export async function createPost(
 
   // Supabase fallback
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser();
 
     if (!user) {
       return null;
@@ -293,9 +291,7 @@ export async function updatePost(
 
   // Supabase fallback
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser();
 
     if (!user) {
       return null;
@@ -370,9 +366,7 @@ export async function deletePost(
 
   // Supabase fallback
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser();
 
     if (!user) {
       return false;
@@ -422,9 +416,7 @@ export async function bookmarkPost(
 
   // Supabase fallback
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser();
 
     if (!user) {
       return false;
@@ -481,9 +473,7 @@ export async function unbookmarkPost(
 
   // Supabase fallback
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser();
 
     if (!user) {
       return false;
@@ -546,9 +536,7 @@ export async function getSavedPosts(): Promise<PopupPostData[]> {
 
   // Supabase fallback
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser();
 
     if (!user) {
       return [];
@@ -656,7 +644,32 @@ export async function addPostComment(
       body: JSON.stringify({ content }),
     }
   );
-  return resp?.data || null;
+  if (resp?.data) return resp.data;
+
+  // Supabase direct fallback
+  try {
+    const user = await getAuthUser();
+    if (!user) return null;
+
+    const { data: comment, error } = await supabase
+      .from('comments')
+      .insert({
+        post_id: Number(postId),
+        user_id: user.id,
+        content,
+      })
+      .select('*, profiles(id, username, display_name, avatar_url)')
+      .single();
+
+    if (error || !comment) {
+      console.warn('Supabase add comment error:', error);
+      return null;
+    }
+    return comment as any;
+  } catch (e) {
+    console.warn('Supabase add comment error:', e);
+    return null;
+  }
 }
 
 export async function updatePostComment(
@@ -671,7 +684,22 @@ export async function updatePostComment(
       body: JSON.stringify({ content }),
     }
   );
-  return resp?.success ?? false;
+  if (resp?.success) return true;
+
+  try {
+    const user = await getAuthUser();
+    if (!user) return false;
+
+    const { error } = await supabase
+      .from('comments')
+      .update({ content, updated_at: new Date().toISOString() })
+      .eq('id', commentId)
+      .eq('user_id', user.id);
+
+    return !error;
+  } catch {
+    return false;
+  }
 }
 
 export async function deletePostComment(
@@ -684,5 +712,20 @@ export async function deletePostComment(
       method: 'DELETE',
     }
   );
-  return resp?.success ?? false;
+  if (resp?.success) return true;
+
+  try {
+    const user = await getAuthUser();
+    if (!user) return false;
+
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId)
+      .eq('user_id', user.id);
+
+    return !error;
+  } catch {
+    return false;
+  }
 }

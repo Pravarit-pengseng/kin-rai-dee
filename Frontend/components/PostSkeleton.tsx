@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, Animated, useWindowDimensions } from "react-native";
+import { View, StyleSheet, Animated, useWindowDimensions, Platform } from "react-native";
 
 function PostSkeletonCard() {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -7,8 +7,8 @@ function PostSkeletonCard() {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(shimmer, { toValue: 1, duration: 900, useNativeDriver: true }),
-        Animated.timing(shimmer, { toValue: 0, duration: 900, useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 1, duration: 900, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(shimmer, { toValue: 0, duration: 900, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, [shimmer]);
@@ -56,8 +56,8 @@ export function PostGridSkeleton({ count = 9 }: { count?: number }) {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(shimmer, { toValue: 1, duration: 900, useNativeDriver: true }),
-        Animated.timing(shimmer, { toValue: 0, duration: 900, useNativeDriver: true }),
+        Animated.timing(shimmer, { toValue: 1, duration: 900, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(shimmer, { toValue: 0, duration: 900, useNativeDriver: Platform.OS !== 'web' }),
       ])
     ).start();
   }, [shimmer]);

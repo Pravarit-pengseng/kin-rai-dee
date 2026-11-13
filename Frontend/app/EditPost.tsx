@@ -22,6 +22,7 @@ import { updatePost } from "@/services/postService";
 import { FOOD_CATEGORIES } from "@/constants/categories";
 import { Typography } from "@/constants/typography";
 import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
+import { useKeyboardScroll } from "@/hooks/useKeyboardScroll";
 
 export default function EditPost() {
     const { postId, post: postParam } = useLocalSearchParams<{
@@ -31,6 +32,9 @@ export default function EditPost() {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
+    const { scrollRef, isKeyboardVisible, contentBottomPadding, scrollIntoView } = useKeyboardScroll({
+        defaultBottomPadding: 40,
+    });
 
     const parsedPost = postParam ? (() => {
         try { return JSON.parse(postParam as string); } catch { return null; }
@@ -156,9 +160,13 @@ export default function EditPost() {
                     behavior={Platform.OS === "ios" ? "padding" : undefined}
                 >
                     <ScrollView
+                        ref={scrollRef}
                         showsVerticalScrollIndicator={false}
-                        contentContainerStyle={styles.content}
+                        contentContainerStyle={[styles.content, { paddingBottom: contentBottomPadding }]}
                         keyboardShouldPersistTaps="handled"
+                        keyboardDismissMode="on-drag"
+                        bounces={isKeyboardVisible}
+                        overScrollMode={isKeyboardVisible ? "always" : "never"}
                     >
                     <Pressable
                         onPress={pickImage}
@@ -192,6 +200,11 @@ export default function EditPost() {
 
                     <PostForm
                         initialData={post}
+                        onFocusField={(field) => {
+                            if (field === 'restaurant') scrollIntoView(380);
+                            else if (field === 'description') scrollIntoView(220);
+                            else scrollIntoView(100);
+                        }}
                         onChange={(data) => {
                             setPost((currentPost) => ({
                                 ...data,

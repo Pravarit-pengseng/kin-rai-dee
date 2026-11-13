@@ -4,6 +4,27 @@ import { supabase } from '@/lib/supabase';
 
 const PRODUCTION_API_URL = 'https://kin-rai-dee-backend.onrender.com';
 
+/**
+ * Direct Supabase Mode:
+ * เมื่อเปิดใช้งาน (true) จะส่งคำขอตรงเข้า Supabase ทันที ไม่ต้องรอ Render Backend spin up / timeout (4 วินาที)
+ * ทำให้แอปตอบสนองได้เร็วมาก (~100-250ms)
+ */
+export const USE_DIRECT_SUPABASE = process.env.EXPO_PUBLIC_USE_DIRECT_SUPABASE !== 'false';
+
+/**
+ * Helper ดึง user ปัจจุบันจาก Session ในหน่วยความจำ (0ms) แทนที่จะยิง HTTP ไป Supabase Auth ทุกครั้ง
+ */
+export async function getAuthUser() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) return session.user;
+    const { data: { user } } = await supabase.auth.getUser();
+    return user ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function resolveApiBaseUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 
@@ -40,9 +61,18 @@ function resolveApiBaseUrl(): string {
 
 export const API_BASE_URL = resolveApiBaseUrl();
 
-export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T | null> {
+export interface FetchApiOptions extends RequestInit {
+  forceBackend?: boolean;
+}
+
+export async function fetchApi<T>(endpoint: string, options?: FetchApiOptions): Promise<T | null> {
+  // เมื่อเปิด Direct Supabase และไม่ได้บังคับ forceBackend ให้ข้ามไปใช้ Supabase ทันทีโดยไม่ติด timeout 4s
+  if (USE_DIRECT_SUPABASE && !options?.forceBackend) {
+    return null;
+  }
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4000); // 4-second timeout to quickly fallback
+  const timeoutId = setTimeout(() => controller.abort(), 2000); // ลด timeout เหลือ 2s
 
   try {
     // ดึง JWT จาก Supabase session อัตโนมัติ

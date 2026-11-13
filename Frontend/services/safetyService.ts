@@ -1,4 +1,4 @@
-import { fetchApi, API_BASE_URL } from './api';
+import { fetchApi, API_BASE_URL, getAuthUser } from './api';
 import { supabase } from '@/lib/supabase';
 
 export interface ReportPayload {
@@ -89,7 +89,7 @@ export async function submitReport(payload: ReportPayload): Promise<{ success: b
     }
 
     // Supabase direct fallback if backend endpoint unreachable or 404
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUser();
     if (user) {
       const { error } = await supabase.from('reports').insert({
         reporter_id: user.id,
@@ -187,7 +187,7 @@ export async function blockUser(
     }
 
     // Supabase fallback
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUser();
     if (user) {
       await supabase.from('blocked_users').upsert({
         blocker_id: user.id,
@@ -218,7 +218,7 @@ export async function unblockUser(targetUserId: string): Promise<{ success: bool
     }
 
     // Supabase fallback
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUser();
     if (user) {
       await supabase.from('blocked_users').delete().match({
         blocker_id: user.id,
@@ -247,7 +247,7 @@ export async function checkBlockStatus(targetUserId: string): Promise<{ isBlocke
     }
 
     // Supabase fallback
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUser();
     if (!user) return { isBlocked: false, blockedByMe: false };
 
     const { data } = await supabase
@@ -284,7 +284,7 @@ export async function getBlockedUserIdsSet(): Promise<Set<string>> {
 
   // 2. Supabase blocks (ยิง 1 ครั้ง แล้ว cache ไว้ 5 นาที)
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUser();
     if (user) {
       const { data } = await supabase
         .from('blocked_users')
@@ -318,7 +318,7 @@ export async function getBlockedUsers(): Promise<BlockedUserItem[]> {
       resultList = res.data;
     } else {
       // Supabase fallback
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getAuthUser();
       if (user) {
         const { data: blocks } = await supabase
           .from('blocked_users')
@@ -438,7 +438,7 @@ export async function deleteAccount(): Promise<{ success: boolean; message: stri
     }
 
     // Fallback: Delete profile and sign out
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuthUser();
     if (user) {
       await supabase.from('profiles').delete().eq('id', user.id);
       await supabase.auth.signOut();

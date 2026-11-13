@@ -225,10 +225,15 @@ export default function MyPost() {
                 >
                   <PopupPost
                     visible={true}
-                    post={post}
+                    post={{
+                      ...post,
+                      avatarUrl: (!post.avatarUrl && (post.userId === user?.id || post.userId === 'me'))
+                        ? (user?.avatarUrl || post.avatarUrl)
+                        : post.avatarUrl,
+                    }}
                     onClose={() => { }}
                     inline
-                    isOwnPost={post.userId === user?.id}
+                    isOwnPost={post.userId === user?.id || post.userId === 'me'}
                     isBookmarked={bookmarkedIds.includes(post.id)}
                     onBookmark={handleToggleBookmark}
                     onEdit={handleEditPost}

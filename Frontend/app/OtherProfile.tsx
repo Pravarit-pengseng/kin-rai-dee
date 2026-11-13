@@ -27,7 +27,7 @@ import { Typography } from "@/constants/typography";
 import { UserX, Flag, UserCheck } from "lucide-react-native";
 import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
 
-const DEFAULT_AVATAR = require("../assets/images/ProfilePicture.png");
+const DEFAULT_AVATAR = require("@/assets/images/ProfilePicture.png");
 
 export default function OtherProfileScreen() {
   const { user } = useAuth();
@@ -36,6 +36,7 @@ export default function OtherProfileScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [avatarError, setAvatarError] = useState(false);
   const [posts, setPosts] = useState<any[]>([]);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(() => Boolean(userId));
 
   const [prevAvatarUrl, setPrevAvatarUrl] = useState(profile?.avatar_url);
@@ -54,11 +55,19 @@ export default function OtherProfileScreen() {
     useState<string[]>([]);
 
   const [isBlockedByMe, setIsBlockedByMe] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
 
   useEffect(() => {
     if (!userId) {
+      setLoadingProfile(false);
+      setLoadingPosts(false);
+      return;
+    }
+
+    if (user?.id && userId && user.id === userId) {
+      router.replace('/(tabs)/profile');
       return;
     }
 
@@ -67,12 +76,17 @@ export default function OtherProfileScreen() {
       checkBlockStatus(userId).then(status => {
         setIsBlocked(status.isBlocked);
         setIsBlockedByMe(status.blockedByMe);
+      }).catch(err => {
+        console.warn('Failed to check block status:', err);
       });
     }
 
     // โหลด profile
     getUserProfile(userId).then((data) => {
       setProfile(data);
+      setLoadingProfile(false);
+    }).catch(err => {
+      console.warn('Failed to get user profile:', err);
       setLoadingProfile(false);
     });
 
@@ -87,9 +101,14 @@ export default function OtherProfileScreen() {
           if (saved && saved.length > 0) {
             setBookmarkedIds(saved.map((s) => s.id));
           }
+        }).catch(err => {
+          console.warn('Failed to get saved posts:', err);
         });
       }
       
+      setLoadingPosts(false);
+    }).catch(err => {
+      console.warn('Failed to get user posts:', err);
       setLoadingPosts(false);
     });
   }, [userId, user?.id]);
@@ -97,6 +116,8 @@ export default function OtherProfileScreen() {
   const handleToggleBlock = () => {
     if (!user?.id || !userId) {
       router.push({ pathname: '/(auth)/login' });
+      setLoadingProfile(false);
+      setLoadingPosts(false);
       return;
     }
 
@@ -305,6 +326,14 @@ export default function OtherProfileScreen() {
                 <Pressable style={styles.unblockConfirmBtn} onPress={handleToggleBlock}>
                   <ThemedText style={styles.unblockConfirmBtnText}>ปลดบล็อกผู้ใช้</ThemedText>
                 </Pressable>
+              </View>
+            ) : isBlocked ? (
+              <View style={styles.blockedNoticeCard}>
+                <UserX size={36} color="#A7392A" />
+                <ThemedText style={styles.blockedNoticeTitle}>ไม่สามารถดูเนื้อหาได้</ThemedText>
+                <ThemedText style={styles.blockedNoticeSub}>
+                  คุณไม่สามารถดูโพสต์หรือข้อมูลของผู้ใช้นี้ได้
+                </ThemedText>
               </View>
             ) : (
               <>

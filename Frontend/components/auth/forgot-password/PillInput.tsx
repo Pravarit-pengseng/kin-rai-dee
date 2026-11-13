@@ -10,21 +10,24 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { Typography } from '@/constants/typography';
 
-interface PillInputProps extends TextInputProps {
+export interface PillInputProps extends TextInputProps {
   iconName: keyof typeof Feather.glyphMap;
   isPassword?: boolean;
   errorMessage?: string | null;
 }
 
-export function PillInput({
-  iconName,
-  isPassword = false,
-  errorMessage,
-  value,
-  onChangeText,
-  placeholder,
-  ...props
-}: PillInputProps) {
+export const PillInput = React.forwardRef<any, PillInputProps>(function PillInput(
+  {
+    iconName,
+    isPassword = false,
+    errorMessage,
+    value,
+    onChangeText,
+    placeholder,
+    ...props
+  },
+  ref
+) {
   const [showPassword, setShowPassword] = useState(!isPassword);
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<any>(null);
@@ -35,7 +38,7 @@ export function PillInput({
   };
 
   return (
-    <View style={styles.wrapper}>
+    <View ref={ref} style={styles.wrapper}>
       <Pressable
         onPress={handleContainerPress}
         style={[
@@ -97,7 +100,7 @@ export function PillInput({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   wrapper: {

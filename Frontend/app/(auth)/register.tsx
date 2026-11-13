@@ -1,4 +1,4 @@
-import  { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -55,9 +55,22 @@ export default function RegisterScreen() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsError, setTermsError] = useState(false);
 
-  const defaultBottomPadding = Platform.OS === 'ios' ? 12 : 20;
-  const { scrollRef, isKeyboardVisible, contentBottomPadding, scrollIntoView, scrollToEnd } = useKeyboardScroll({
+  const displayNameRef = useRef<View>(null);
+  const emailRef = useRef<View>(null);
+  const passwordRef = useRef<View>(null);
+  const confirmPasswordRef = useRef<View>(null);
+
+  const defaultBottomPadding = Platform.OS === 'ios' ? 8 : 12;
+  const {
+    scrollRef,
+    isKeyboardVisible,
+    contentBottomPadding,
+    handleScroll,
+    scrollToFocusedInput,
+  } = useKeyboardScroll({
     defaultBottomPadding,
+    resetOnHide: true,
+    extraOffset: 24,
   });
 
   // Password condition checks for dynamic hints
@@ -95,7 +108,7 @@ export default function RegisterScreen() {
             displayName: 'ชื่อที่แสดงนี้มีผู้ใช้แล้ว กรุณาใช้ชื่ออื่น',
           }));
         }
-      } catch {}
+      } catch { }
     }
   };
 
@@ -130,7 +143,7 @@ export default function RegisterScreen() {
     if (errors.password) {
       setErrors((prev) => ({ ...prev, password: null }));
     }
-    scrollToEnd();
+    scrollToFocusedInput(passwordRef);
   };
 
   const handlePasswordBlur = () => {
@@ -322,8 +335,10 @@ export default function RegisterScreen() {
           overScrollMode={isKeyboardVisible ? "always" : "never"}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
-          <View style={[styles.screenContainer, { paddingBottom: contentBottomPadding }]}>
+          <View style={[styles.screenContainer, isKeyboardVisible && { paddingBottom: contentBottomPadding }]}>
             {/* Top Navigation Bar */}
             <View style={styles.header}>
               <Pressable
@@ -345,7 +360,7 @@ export default function RegisterScreen() {
               <View style={[styles.logoSection, isSmallScreen && styles.logoSectionSmall]}>
                 <Image
                   source={require('@/assets/images/logo-nobg.png')}
-                  style={{ width: logoSize, height: logoSize ,borderRadius:999}}
+                  style={{ width: logoSize, height: logoSize, borderRadius: 999 }}
                   resizeMode="contain"
                 />
               </View>
@@ -363,200 +378,204 @@ export default function RegisterScreen() {
               {/* White Form Card */}
               <View style={[styles.formCard, isSmallScreen && styles.formCardSmall]}>
 
-              <AuthInput
-                iconName="user"
-                placeholder="ชื่อที่แสดง"
-                value={displayName}
-                onChangeText={handleDisplayNameChange}
-                onFocus={() => scrollIntoView(0)}
-                onBlur={handleDisplayNameBlur}
-                errorMessage={errors.displayName}
-                maxLength={35}
-              />
+                <AuthInput
+                  ref={displayNameRef}
+                  iconName="user"
+                  placeholder="ชื่อที่แสดง"
+                  value={displayName}
+                  onChangeText={handleDisplayNameChange}
+                  onFocus={() => scrollToFocusedInput(displayNameRef)}
+                  onBlur={handleDisplayNameBlur}
+                  errorMessage={errors.displayName}
+                  maxLength={35}
+                />
 
-              <AuthInput
-                iconName="mail"
-                placeholder="อีเมล"
-                value={email}
-                onChangeText={handleEmailChange}
-                onFocus={() => scrollIntoView(70)}
-                onBlur={handleEmailBlur}
-                keyboardType="email-address"
-                errorMessage={errors.email}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+                <AuthInput
+                  ref={emailRef}
+                  iconName="mail"
+                  placeholder="อีเมล"
+                  value={email}
+                  onChangeText={handleEmailChange}
+                  onFocus={() => scrollToFocusedInput(emailRef)}
+                  onBlur={handleEmailBlur}
+                  keyboardType="email-address"
+                  errorMessage={errors.email}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
 
-              <AuthInput
-                iconName="lock"
-                placeholder="รหัสผ่าน"
-                value={password}
-                onChangeText={handlePasswordChange}
-                onFocus={handlePasswordFocus}
-                onBlur={handlePasswordBlur}
-                isPassword
-                errorMessage={errors.password}
-                maxLength={25}
-              />
+                <AuthInput
+                  ref={passwordRef}
+                  iconName="lock"
+                  placeholder="รหัสผ่าน"
+                  value={password}
+                  onChangeText={handlePasswordChange}
+                  onFocus={handlePasswordFocus}
+                  onBlur={handlePasswordBlur}
+                  isPassword
+                  errorMessage={errors.password}
+                  maxLength={25}
+                />
 
-              {/* Password Requirement Guidelines (Visible only when password field is focused) */}
-              {isPasswordFocused && (
-                <View style={styles.passwordRulesContainer}>
-                  <Text style={styles.passwordRulesTitle}>เงื่อนไขการตั้งรหัสผ่าน:</Text>
+                {/* Password Requirement Guidelines (Visible only when password field is focused) */}
+                {isPasswordFocused && (
+                  <View style={styles.passwordRulesContainer}>
+                    <Text style={styles.passwordRulesTitle}>เงื่อนไขการตั้งรหัสผ่าน:</Text>
 
-                  <View style={styles.ruleItem}>
-                    <Feather
-                      name={isLenValid ? "check-circle" : "circle"}
-                      size={14}
-                      color={isLenValid ? "#2E7D32" : "#8C7A75"}
-                    />
-                    <Text style={[styles.ruleText, isLenValid && styles.ruleTextValid]}>
-                      ความยาว 8–20 ตัวอักษร
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={isLenValid ? "check-circle" : "circle"}
+                        size={14}
+                        color={isLenValid ? "#2E7D32" : "#8C7A75"}
+                      />
+                      <Text style={[styles.ruleText, isLenValid && styles.ruleTextValid]}>
+                        ความยาว 8–20 ตัวอักษร
+                      </Text>
+                    </View>
+
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={hasLetter ? "check-circle" : "circle"}
+                        size={14}
+                        color={hasLetter ? "#2E7D32" : "#8C7A75"}
+                      />
+                      <Text style={[styles.ruleText, hasLetter && styles.ruleTextValid]}>
+                        มีอักษรภาษาอังกฤษอย่างน้อย 1 ตัว (a-z, A-Z)
+                      </Text>
+                    </View>
+
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={hasNumber ? "check-circle" : "circle"}
+                        size={14}
+                        color={hasNumber ? "#2E7D32" : "#8C7A75"}
+                      />
+                      <Text style={[styles.ruleText, hasNumber && styles.ruleTextValid]}>
+                        มีตัวเลขอย่างน้อย 1 ตัว (0-9)
+                      </Text>
+                    </View>
+
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={hasSpecial ? "check-circle" : "circle"}
+                        size={14}
+                        color={hasSpecial ? "#2E7D32" : "#8C7A75"}
+                      />
+                      <Text style={[styles.ruleText, hasSpecial && styles.ruleTextValid]}>
+                        มีอักขระพิเศษอย่างน้อย 1 ตัว (# ? ! @ - _)
+                      </Text>
+                    </View>
+
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={hasOnlyAllowed ? "check-circle" : "circle"}
+                        size={14}
+                        color={hasOnlyAllowed ? "#2E7D32" : "#8C7A75"}
+                      />
+                      <Text style={[styles.ruleText, hasOnlyAllowed && styles.ruleTextValid]}>
+                        ไม่มีช่องว่าง และใช้อักขระที่กำหนดเท่านั้น
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                <AuthInput
+                  ref={confirmPasswordRef}
+                  iconName="check-circle"
+                  placeholder="ยืนยันรหัสผ่าน"
+                  value={confirmPassword}
+                  onChangeText={handleConfirmPasswordChange}
+                  onFocus={() => scrollToFocusedInput(confirmPasswordRef)}
+                  onBlur={handleConfirmPasswordBlur}
+                  isPassword
+                  errorMessage={errors.confirmPassword}
+                  maxLength={25}
+                />
+
+                {/* Terms of Use & Privacy Policy Checkbox */}
+                <Pressable
+                  style={styles.termsRow}
+                  onPress={() => {
+                    setAcceptedTerms((prev) => {
+                      const next = !prev;
+                      if (next) setTermsError(false);
+                      return next;
+                    });
+                  }}
+                  hitSlop={8}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      acceptedTerms && styles.checkboxChecked,
+                      termsError && !acceptedTerms && styles.checkboxError,
+                    ]}
+                  >
+                    {acceptedTerms && <Feather name="check" size={14} color="#FFFFFF" />}
+                  </View>
+                  <Text style={styles.termsText}>
+                    ฉันยอมรับ{' '}
+                    <Text
+                      style={styles.termsLink}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        router.push('/terms-of-use' as any);
+                      }}
+                    >
+                      ข้อกำหนดการใช้งาน
+                    </Text>
+                    {' '}และรับทราบ{' '}
+                    <Text
+                      style={styles.termsLink}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        router.push('/privacy-policy' as any);
+                      }}
+                    >
+                      นโยบายความเป็นส่วนตัว
+                    </Text>
+                  </Text>
+                </Pressable>
+
+                {termsError && !acceptedTerms && (
+                  <View style={styles.termsErrorContainer}>
+                    <Feather name="alert-circle" size={13} color="#C0392B" style={styles.termsErrorIcon} />
+                    <Text style={styles.termsErrorText}>
+                      กรุณากดยอมรับเงื่อนไขก่อนสมัครบัญชี
                     </Text>
                   </View>
+                )}
 
-                  <View style={styles.ruleItem}>
-                    <Feather
-                      name={hasLetter ? "check-circle" : "circle"}
-                      size={14}
-                      color={hasLetter ? "#2E7D32" : "#8C7A75"}
-                    />
-                    <Text style={[styles.ruleText, hasLetter && styles.ruleTextValid]}>
-                      มีอักษรภาษาอังกฤษอย่างน้อย 1 ตัว (a-z, A-Z)
-                    </Text>
-                  </View>
-
-                  <View style={styles.ruleItem}>
-                    <Feather
-                      name={hasNumber ? "check-circle" : "circle"}
-                      size={14}
-                      color={hasNumber ? "#2E7D32" : "#8C7A75"}
-                    />
-                    <Text style={[styles.ruleText, hasNumber && styles.ruleTextValid]}>
-                      มีตัวเลขอย่างน้อย 1 ตัว (0-9)
-                    </Text>
-                  </View>
-
-                  <View style={styles.ruleItem}>
-                    <Feather
-                      name={hasSpecial ? "check-circle" : "circle"}
-                      size={14}
-                      color={hasSpecial ? "#2E7D32" : "#8C7A75"}
-                    />
-                    <Text style={[styles.ruleText, hasSpecial && styles.ruleTextValid]}>
-                      มีอักขระพิเศษอย่างน้อย 1 ตัว (# ? ! @ - _)
-                    </Text>
-                  </View>
-
-                  <View style={styles.ruleItem}>
-                    <Feather
-                      name={hasOnlyAllowed ? "check-circle" : "circle"}
-                      size={14}
-                      color={hasOnlyAllowed ? "#2E7D32" : "#8C7A75"}
-                    />
-                    <Text style={[styles.ruleText, hasOnlyAllowed && styles.ruleTextValid]}>
-                      ไม่มีช่องว่าง และใช้อักขระที่กำหนดเท่านั้น
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              <AuthInput
-                iconName="check-circle"
-                placeholder="ยืนยันรหัสผ่าน"
-                value={confirmPassword}
-                onChangeText={handleConfirmPasswordChange}
-                onFocus={() => scrollToEnd()}
-                onBlur={handleConfirmPasswordBlur}
-                isPassword
-                errorMessage={errors.confirmPassword}
-                maxLength={25}
-              />
-
-              {/* Terms of Use & Privacy Policy Checkbox */}
-              <Pressable
-                style={styles.termsRow}
-                onPress={() => {
-                  setAcceptedTerms((prev) => {
-                    const next = !prev;
-                    if (next) setTermsError(false);
-                    return next;
-                  });
-                }}
-                hitSlop={8}
-              >
-                <View
-                  style={[
-                    styles.checkbox,
-                    acceptedTerms && styles.checkboxChecked,
-                    termsError && !acceptedTerms && styles.checkboxError,
+                <Pressable
+                  onPress={handleRegister}
+                  disabled={isLoading}
+                  style={({ pressed }) => [
+                    styles.submitButton,
+                    pressed && styles.buttonPressed,
+                    isLoading && styles.buttonDisabled,
                   ]}
                 >
-                  {acceptedTerms && <Feather name="check" size={14} color="#FFFFFF" />}
-                </View>
-                <Text style={styles.termsText}>
-                  ฉันยอมรับ{' '}
-                  <Text
-                    style={styles.termsLink}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      router.push('/terms-of-use' as any);
-                    }}
-                  >
-                    ข้อกำหนดการใช้งาน
-                  </Text>
-                  {' '}และรับทราบ{' '}
-                  <Text
-                    style={styles.termsLink}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      router.push('/privacy-policy' as any);
-                    }}
-                  >
-                    นโยบายความเป็นส่วนตัว
-                  </Text>
-                </Text>
-              </Pressable>
+                  {isLoading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>สมัครบัญชี →</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
 
-              {termsError && !acceptedTerms && (
-                <View style={styles.termsErrorContainer}>
-                  <Feather name="alert-circle" size={13} color="#C0392B" style={styles.termsErrorIcon} />
-                  <Text style={styles.termsErrorText}>
-                    กรุณากดยอมรับเงื่อนไขก่อนสมัครบัญชี
-                  </Text>
-                </View>
-              )}
-
+            {/* Bottom Footer Navigation */}
+            <View style={[styles.footer]}>
+              <Text style={styles.footerText}>มีบัญชีอยู่แล้ว? </Text>
               <Pressable
-                onPress={handleRegister}
-                disabled={isLoading}
-                style={({ pressed }) => [
-                  styles.submitButton,
-                  pressed && styles.buttonPressed,
-                  isLoading && styles.buttonDisabled,
-                ]}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                onPress={() => router.replace({ pathname: '/(auth)/login', params: { returnTo, from } })}
+                style={({ pressed }) => [pressed && styles.buttonPressed]}
               >
-                {isLoading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text style={styles.submitButtonText}>สมัครบัญชี →</Text>
-                )}
+                <Text style={styles.footerLink}>เข้าสู่ระบบ</Text>
               </Pressable>
             </View>
           </View>
-
-          {/* Bottom Footer Navigation */}
-          <View style={[styles.footer, isSmallScreen && styles.footerSmall]}>
-            <Text style={styles.footerText}>มีบัญชีอยู่แล้ว? </Text>
-            <Pressable
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              onPress={() => router.replace({ pathname: '/(auth)/login', params: { returnTo, from } })}
-              style={({ pressed }) => [pressed && styles.buttonPressed]}
-            >
-              <Text style={styles.footerLink}>เข้าสู่ระบบ</Text>
-            </Pressable>
-          </View>
-        </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -577,13 +596,12 @@ const styles = StyleSheet.create({
   },
   screenContainer: {
     flexGrow: 1,
-    minHeight: '100%',
     width: '100%',
     maxWidth: 420,
     backgroundColor: '#FFF8ED',
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'android' ? 10 : 4,
-    paddingBottom: Platform.OS === 'ios' ? 12 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 12,
     justifyContent: 'space-between',
     alignSelf: 'center',
   },
@@ -763,10 +781,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 14,
-    marginBottom: 8,
-  },
-  footerSmall: {
     marginTop: 8,
     marginBottom: 4,
   },

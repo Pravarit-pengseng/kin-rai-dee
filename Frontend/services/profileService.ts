@@ -1,4 +1,4 @@
-import { fetchApi } from './api';
+import { fetchApi, getAuthUser } from './api';
 import { supabase } from '@/lib/supabase';
 
 export interface UserProfile {
@@ -33,11 +33,43 @@ export function normalizeAvatarUrl(url?: string | null): string | undefined {
     return url;
 }
 
+// ── Profile Caches ──────────────────────────────────────────────────────────
+let _myProfileCache: { data: UserProfile; timestamp: number } | null = null;
+const MY_PROFILE_CACHE_TTL = 45 * 1000; // 45 วินาที
+
+export function invalidateMyProfileCache() {
+    _myProfileCache = null;
+}
+
+let _userPostsCache: Record<string, { data: any[]; timestamp: number }> = {};
+const USER_POSTS_CACHE_TTL = 45 * 1000; // 45 วินาที
+
+export function getCachedUserPosts(userId: string): any[] | null {
+    const item = _userPostsCache[userId];
+    if (item && Date.now() - item.timestamp < USER_POSTS_CACHE_TTL) {
+        return item.data;
+    }
+    return null;
+}
+
+export function invalidateUserPostsCache(userId?: string) {
+    if (userId) {
+        delete _userPostsCache[userId];
+    } else {
+        _userPostsCache = {};
+    }
+}
+
 /**
  * GET My Profile
  * Auth required
  */
-export async function getMyProfile(): Promise<UserProfile | null> {
+export async function getMyProfile(forceRefresh: boolean = false): Promise<UserProfile | null> {
+    const now = Date.now();
+    if (!forceRefresh && _myProfileCache && now - _myProfileCache.timestamp < MY_PROFILE_CACHE_TTL) {
+        return _myProfileCache.data;
+    }
+
     const resp = await fetchApi<{ success: boolean; data: UserProfile }>(
         '/api/profiles/me',
     );
@@ -47,15 +79,13 @@ export async function getMyProfile(): Promise<UserProfile | null> {
         if (profile?.avatar_url) {
             profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
         }
+        _myProfileCache = { data: profile, timestamp: now };
         return profile;
     }
 
-    // Supabase fallback
+    // Supabase direct
     try {
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
-
+        const user = await getAuthUser();
         if (!user) {
             return null;
         }
@@ -68,7 +98,7 @@ export async function getMyProfile(): Promise<UserProfile | null> {
 
         if (error) {
             console.warn(
-                'Supabase get my profile fallback error:',
+                'Supabase get my profile error:',
                 error,
             );
             return null;
@@ -77,10 +107,13 @@ export async function getMyProfile(): Promise<UserProfile | null> {
         if (profile?.avatar_url) {
             profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
         }
+        if (profile) {
+            _myProfileCache = { data: profile, timestamp: now };
+        }
         return profile;
     } catch (e) {
         console.warn(
-            'Supabase get my profile fallback error:',
+            'Supabase get my profile error:',
             e,
         );
         return null;
@@ -107,15 +140,13 @@ export async function updateMyProfile(
         if (profile?.avatar_url) {
             profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
         }
+        invalidateMyProfileCache();
         return profile;
     }
 
-    // Supabase fallback
+    // Supabase direct
     try {
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
-
+        const user = await getAuthUser();
         if (!user) {
             return null;
         }
@@ -129,7 +160,7 @@ export async function updateMyProfile(
 
         if (error) {
             console.warn(
-                'Supabase update profile fallback error:',
+                'Supabase update profile error:',
                 error,
             );
             return null;
@@ -138,10 +169,11 @@ export async function updateMyProfile(
         if (profile?.avatar_url) {
             profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
         }
+        invalidateMyProfileCache();
         return profile;
     } catch (e) {
         console.warn(
-            'Supabase update profile fallback error:',
+            'Supabase update profile error:',
             e,
         );
         return null;
@@ -166,7 +198,7 @@ export async function getUserProfile(
         return data;
     }
 
-    // Supabase fallback
+    // Supabase direct
     try {
         const { data: profile, error } = await supabase
             .from('profiles')
@@ -176,7 +208,7 @@ export async function getUserProfile(
 
         if (error) {
             console.warn(
-                'Supabase get user profile fallback error:',
+                'Supabase get user profile error:',
                 error,
             );
             return null;
@@ -185,10 +217,11 @@ export async function getUserProfile(
         if (profile?.avatar_url) {
             profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
         }
+        invalidateMyProfileCache();
         return profile;
     } catch (e) {
         console.warn(
-            'Supabase get user profile fallback error:',
+            'Supabase get user profile error:',
             e,
         );
         return null;
@@ -201,22 +234,30 @@ export async function getUserProfile(
  */
 export async function getUserPosts(
     userId: string,
+    forceRefresh: boolean = false,
 ): Promise<any[]> {
+    const now = Date.now();
+    if (!forceRefresh && _userPostsCache[userId] && now - _userPostsCache[userId].timestamp < USER_POSTS_CACHE_TTL) {
+        return _userPostsCache[userId].data;
+    }
+
     const data = await fetchApi<any[]>(
         `/api/profiles/${userId}/posts`,
     );
 
     if (data) {
         const list = Array.isArray(data) ? data : (data as any).data || [];
-        return list.filter((p: any) => !p.is_hidden);
+        const filtered = list.filter((p: any) => !p.is_hidden);
+        _userPostsCache[userId] = { data: filtered, timestamp: now };
+        return filtered;
     }
 
-    // Supabase fallback
+    // Supabase direct with joined profiles in a single query
     try {
         const { data: posts, error } = await supabase
             .from('posts')
             .select(
-                '*, post_categories(categories(id, name))',
+                '*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))',
             )
             .eq('user_id', userId)
             .or('is_hidden.is.null,is_hidden.eq.false')
@@ -226,16 +267,18 @@ export async function getUserPosts(
 
         if (error) {
             console.warn(
-                'Supabase get user posts fallback error:',
+                'Supabase get user posts error:',
                 error,
             );
             return [];
         }
 
-        return (posts || []).filter((p: any) => !p.is_hidden);
+        const nonHidden = (posts || []).filter((p: any) => !p.is_hidden);
+        _userPostsCache[userId] = { data: nonHidden, timestamp: now };
+        return nonHidden;
     } catch (e) {
         console.warn(
-            'Supabase get user posts fallback error:',
+            'Supabase get user posts error:',
             e,
         );
         return [];
@@ -263,11 +306,12 @@ export async function deleteMyAccount(): Promise<{ success: boolean; message?: s
         return { success: true, message: data.message || 'ลบบัญชีผู้ใช้เรียบร้อยแล้ว' };
     }
 
-    // Fallback via /api/auth/account
+    // Fallback via /api/auth/account with forceBackend
     const authData = await fetchApi<{ success: boolean; message?: string }>(
         '/api/auth/account',
         {
             method: 'DELETE',
+            forceBackend: true,
         },
     );
 
@@ -278,6 +322,23 @@ export async function deleteMyAccount(): Promise<{ success: boolean; message?: s
             console.warn('Signout after account deletion error:', e);
         }
         return { success: true, message: authData.message || 'ลบบัญชีผู้ใช้เรียบร้อยแล้ว' };
+    }
+
+    // Direct Supabase account deletion request fallback
+    try {
+        const user = await getAuthUser();
+        if (user) {
+            await supabase.from('account_deletion_requests').insert({
+                user_id: user.id,
+                email: user.email || '',
+                status: 'pending',
+                notes: 'Requested via mobile app direct Supabase'
+            });
+            await supabase.auth.signOut();
+            return { success: true, message: 'ส่งคำขอลบบัญชีผู้ใช้เรียบร้อยแล้ว' };
+        }
+    } catch (e) {
+        console.warn('Supabase account deletion request error:', e);
     }
 
     return { success: false, message: 'ไม่สามารถลบบัญชีได้ กรุณาลองใหม่อีกครั้ง' };

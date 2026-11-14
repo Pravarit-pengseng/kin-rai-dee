@@ -31,6 +31,7 @@ export type PostData = {
 type PostFormProps = {
   initialData?: PostData;
   onChange?: (data: PostData) => void;
+  onFocusField?: (field: 'title' | 'description' | 'restaurant') => void;
 };
 
 type InputFieldProps = {
@@ -39,8 +40,10 @@ type InputFieldProps = {
   placeholder: string;
   icon: React.ReactNode;
   onChangeText: (text: string) => void;
+  onFocus?: () => void;
   multiline?: boolean;
   maxLength?: number;
+  required?: boolean;
 };
 
 function InputField({
@@ -49,15 +52,22 @@ function InputField({
   placeholder,
   icon,
   onChangeText,
+  onFocus,
   multiline = false,
   maxLength = 45,
+  required = false,
 }: InputFieldProps) {
   return (
     <View style={styles.field}>
       <View style={styles.labelRow}>
-        <ThemedText style={styles.label}>
-          {label}
-        </ThemedText>
+        <View style={styles.labelTitleRow}>
+          <ThemedText style={styles.label}>
+            {label}
+          </ThemedText>
+          {required && (
+            <ThemedText style={styles.requiredAsterisk}> *</ThemedText>
+          )}
+        </View>
 
         <ThemedText style={styles.counter}>
           ({value.length}/{maxLength})
@@ -72,6 +82,7 @@ function InputField({
         <TextInput
           value={value}
           onChangeText={onChangeText}
+          onFocus={onFocus}
           placeholder={placeholder}
           placeholderTextColor="#A9A09D"
           style={[styles.input, multiline && styles.multilineInput]}
@@ -90,6 +101,7 @@ function InputField({
 export default function PostForm({
   initialData,
   onChange,
+  onFocusField,
 }: PostFormProps) {
   const [post, setPost] = useState<PostData>(
     initialData ?? {
@@ -139,6 +151,8 @@ export default function PostForm({
       {/* Menu Name */}
       <InputField
         label="ชื่อเมนู"
+        required={true}
+        onFocus={() => onFocusField?.('title')}
         value={post.title}
         placeholder="เช่น ข้าวกะเพราไข่ดาว"
         onChangeText={(text) =>
@@ -158,6 +172,8 @@ export default function PostForm({
       {/* Description */}
       <InputField
         label="เล่าความอร่อย"
+        required={true}
+        onFocus={() => onFocusField?.('description')}
         value={post.description}
         placeholder="รสชาติเป็นยังไงบ้าง? บรรยากาศร้านดีไหม?..."
         onChangeText={(text) =>
@@ -179,8 +195,10 @@ export default function PostForm({
       {/* Restaurant */}
       <InputField
         label="ลิงก์ร้านอาหาร"
+        required={false}
+        onFocus={() => onFocusField?.('restaurant')}
         value={post.restaurant}
-        placeholder="บอกชื่อพิกัดร้านอาหาร"
+        placeholder="บอกชื่อพิกัดร้านอาหาร (ไม่บังคับ)"
         onChangeText={(text) =>
           updatePost({
             restaurant: text,
@@ -197,9 +215,12 @@ export default function PostForm({
 
       {/* Category */}
       <View style={styles.field}>
-        <ThemedText style={styles.label}>
-          ประเภทอาหาร
-        </ThemedText>
+        <View style={styles.labelTitleRow}>
+          <ThemedText style={styles.label}>
+            ประเภทอาหาร
+          </ThemedText>
+          <ThemedText style={styles.requiredAsterisk}> *</ThemedText>
+        </View>
 
         <Pressable
           onPress={() => setOpen((prev) => !prev)}
@@ -286,6 +307,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 10,
+  },
+
+  labelTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  requiredAsterisk: {
+    fontSize: 16,
+    color: "#C62828",
+    fontWeight: "700",
   },
 
   label: {

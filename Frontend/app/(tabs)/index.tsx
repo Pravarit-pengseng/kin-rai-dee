@@ -12,44 +12,65 @@ import PostSkeleton from "@/components/PostSkeleton";
 import DeletePopup from "@/components/DeletePopup";
 import { ThemedText } from "@/components/themed-text";
 import { useAuth } from "@/context/AuthContext";
-import { fetchFeedPosts, bookmarkPost, unbookmarkPost, deletePost, getSavedPosts } from "@/services/postService";
+import {
+  fetchFeedPosts,
+  bookmarkPost,
+  unbookmarkPost,
+  deletePost,
+  getSavedPostIds,
+  getCachedFeedPosts,
+  FEED_PAGE_SIZE,
+} from "@/services/postService";
 import { Typography } from "@/constants/typography";
-
-
 
 export default function HomeScreen() {
   const { isLoggedIn, user } = useAuth();
-  const [posts, setPosts] = useState<PopupPostData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [posts, setPosts] = useState<PopupPostData[]>(() => getCachedFeedPosts());
+  const [loading, setLoading] = useState(() => getCachedFeedPosts().length === 0);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
   const scrollRef = useRef<any>(null);
   const params = useLocalSearchParams<{ refresh?: string }>();
   const postsRef = useRef<PopupPostData[]>([]);
+  const loadingMoreRef = useRef(false);
+  const hasMoreRef = useRef(true);
 
   useEffect(() => {
     postsRef.current = posts;
   }, [posts]);
 
   useEffect(() => {
+    loadingMoreRef.current = loadingMore;
+  }, [loadingMore]);
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
+
+  useEffect(() => {
     if (params.refresh) {
       scrollRef.current?.scrollTo({ y: 0, animated: true });
-      loadFeed();
+      loadFeed(true);
     }
   }, [params.refresh]);
 
-  const loadFeed = useCallback(async () => {
+  const loadFeed = useCallback(async (forceRefresh = false) => {
     if (postsRef.current.length === 0) {
       setLoading(true);
     }
 
     try {
-      // 1. Fetch posts and display immediately without delay
-      const fetched = await fetchFeedPosts();
+      // 1. Fetch initial batch (fast direct join, 6 posts)
+      const fetched = await fetchFeedPosts(FEED_PAGE_SIZE, 0, forceRefresh);
       if (fetched && fetched.length > 0) {
         setPosts(fetched);
+        setHasMore(fetched.length >= FEED_PAGE_SIZE);
+      } else {
+        setHasMore(false);
       }
     } catch (e) {
       console.warn("Failed to load feed:", e);
@@ -58,23 +79,59 @@ export default function HomeScreen() {
       setLoading(false);
     }
 
-    // 2. Sync bookmarks in background without blocking post display
+    // 2. Sync bookmarks in background with lightweight ID query (~100 bytes)
     if (isLoggedIn) {
-      getSavedPosts().then((saved) => {
-        if (saved && saved.length > 0) {
-          setBookmarkedIds(saved.map((s) => s.id));
-        } else {
-          setBookmarkedIds([]);
-        }
+      getSavedPostIds().then((ids) => {
+        setBookmarkedIds(ids);
       }).catch(() => { });
     } else {
       setBookmarkedIds([]);
     }
   }, [isLoggedIn]);
 
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMoreRef.current || !hasMoreRef.current || loading || refreshing) {
+      return;
+    }
+
+    const currentOffset = postsRef.current.length;
+    if (currentOffset === 0) return;
+
+    setLoadingMore(true);
+    try {
+      const nextBatch = await fetchFeedPosts(FEED_PAGE_SIZE, currentOffset);
+      if (nextBatch && nextBatch.length > 0) {
+        setPosts((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id));
+          const uniqueNew = nextBatch.filter((p) => !existingIds.has(p.id));
+          return [...prev, ...uniqueNew];
+        });
+        if (nextBatch.length < FEED_PAGE_SIZE) {
+          setHasMore(false);
+        }
+      } else {
+        setHasMore(false);
+      }
+    } catch (e) {
+      console.warn("Failed to load more posts:", e);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loading, refreshing]);
+
+  const handleScroll = (event: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    // Trigger load more when 250px from bottom
+    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 250;
+    if (isCloseToBottom) {
+      handleLoadMore();
+    }
+  };
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadFeed();
+    setHasMore(true);
+    await loadFeed(true);
     setRefreshing(false);
   }, [loadFeed]);
 
@@ -149,6 +206,8 @@ export default function HomeScreen() {
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        onScroll={handleScroll}
+        scrollEventThrottle={32}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -165,7 +224,7 @@ export default function HomeScreen() {
         </View>
 
         {!refreshing && loading && posts.length === 0 && (
-          <PostSkeleton count={3} />
+          <PostSkeleton count={2} />
         )}
 
         {/* Posts */}
@@ -188,6 +247,12 @@ export default function HomeScreen() {
             />
           </View>
         ))}
+
+        {loadingMore && (
+          <View style={styles.loadMoreContainer}>
+            <ActivityIndicator size="small" color="#DCA64E" />
+          </View>
+        )}
       </ScrollView>
 
       {/* Floating Action Button */}
@@ -239,6 +304,11 @@ const styles = StyleSheet.create({
     color: "#46302B",
   },
   postWrapper: { marginBottom: 16 },
+  loadMoreContainer: {
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   fab: {
     position: "absolute",
     bottom: 90,

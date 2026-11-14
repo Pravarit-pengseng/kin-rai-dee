@@ -25,6 +25,7 @@ import { ThemedText } from "@/components/themed-text";
 import { updateMyProfile } from "@/services/profileService";
 import { API_BASE_URL } from "@/services/api";
 import { supabase } from "@/lib/supabase";
+import { useKeyboardScroll } from "@/hooks/useKeyboardScroll";
 
 export default function EditProfile() {
   const params = useLocalSearchParams<{
@@ -36,6 +37,9 @@ export default function EditProfile() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
+  const { scrollRef, isKeyboardVisible, contentBottomPadding, scrollIntoView, scrollToEnd } = useKeyboardScroll({
+    defaultBottomPadding: 110,
+  });
 
   const [profileData, setProfileData] = useState({
     name: params.name ?? "",
@@ -44,7 +48,7 @@ export default function EditProfile() {
   });
 
   const [profileImage, setProfileImage] = useState<any>(
-    params.avatarUrl ? { uri: params.avatarUrl } : require("../assets/images/ProfilePicture.png")
+    params.avatarUrl ? { uri: params.avatarUrl } : require("@/assets/images/ProfilePicture.png")
   );
 
   const handlePickImage = async () => {
@@ -166,9 +170,13 @@ export default function EditProfile() {
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <ScrollView
+            ref={scrollRef}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[styles.content, { paddingBottom: contentBottomPadding }]}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            bounces={isKeyboardVisible}
+            overScrollMode={isKeyboardVisible ? "always" : "never"}
           >
               {/* Profile Picture */}
               <View style={styles.avatarContainer}>
@@ -206,6 +214,11 @@ export default function EditProfile() {
                   profileData.username
                 }
                 initialBio={profileData.bio}
+                onFocusField={(field) => {
+                  if (field === 'bio') scrollToEnd();
+                  else if (field === 'username') scrollIntoView(140);
+                  else scrollIntoView(60);
+                }}
                 onChange={setProfileData}
               />
 
@@ -261,22 +274,21 @@ const styles = StyleSheet.create({
   },
 
   avatarOuter: {
-    position: "relative",
     width: 110,
     height: 110,
     marginBottom: 10,
-    borderRadius: 55,
+    borderRadius: 100,
     borderWidth: 3,
     borderColor: "#F3D6D0",
     backgroundColor: "#FFF1B8",
-    padding: 4,
+
   },
 
   avatarInner: {
     width: "100%",
     height: "100%",
     overflow: "hidden",
-    borderRadius: 40,
+    borderRadius: 100,
     backgroundColor: "#FFF8E5",
     alignItems: "center",
     justifyContent: "center",

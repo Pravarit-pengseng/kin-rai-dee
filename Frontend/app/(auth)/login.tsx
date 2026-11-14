@@ -1,5 +1,4 @@
-// import React;
-import  { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -24,6 +23,7 @@ import {
   AUTH_ERROR_MESSAGES,
 } from '@/utils/authValidation';
 import { Typography } from '@/constants/typography';
+import { useKeyboardScroll } from '@/hooks/useKeyboardScroll';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -44,6 +44,21 @@ export default function LoginScreen() {
   }>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const emailInputRef = useRef<View>(null);
+  const passwordInputRef = useRef<View>(null);
+
+  const defaultBottomPadding = Platform.OS === 'ios' ? 8 : 12;
+  const {
+    scrollRef,
+    isKeyboardVisible,
+    contentBottomPadding,
+    handleScroll,
+    scrollToFocusedInput,
+  } = useKeyboardScroll({
+    defaultBottomPadding,
+    resetOnHide: true,
+    extraOffset: 24,
+  });
 
   const handleEmailChange = (text: string) => {
     setEmail(text);
@@ -130,13 +145,17 @@ export default function LoginScreen() {
         style={styles.keyboardView}
       >
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          bounces={false}
-          overScrollMode="never"
+          bounces={isKeyboardVisible}
+          overScrollMode={isKeyboardVisible ? "always" : "never"}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
-          <View style={styles.screenContainer}>
+          <View style={[styles.screenContainer, isKeyboardVisible && { paddingBottom: contentBottomPadding }]}>
             {/* Top Navigation Bar */}
             <View style={styles.header}>
               <Pressable
@@ -157,9 +176,9 @@ export default function LoginScreen() {
               {/* Mascot / Logo */}
               <View style={[styles.logoSection, isSmallScreen && styles.logoSectionSmall]}>
                 <Image
-                  source={require('@/assets/images/kin-rai-dee-logo.png')}
+                  source={require('@/assets/images/logo-nobg.png')}
                   style={{ width: logoSize, height: logoSize }}
-                  resizeMode="contain"
+                  resizeMode="cover"
                 />
               </View>
 
@@ -177,62 +196,66 @@ export default function LoginScreen() {
               <View style={[styles.formCard, isSmallScreen && styles.formCardSmall]}>
                 <AuthErrorBanner message={generalError} />
 
-              <AuthInput
-                iconName="user"
-                placeholder="อีเมล"
-                value={email}
-                onChangeText={handleEmailChange}
-                onBlur={() => {
-                  if (email.trim()) {
-                    const err = validateEmail(formatEmail(email));
-                    if (err) setErrors((prev) => ({ ...prev, email: err }));
-                  }
-                }}
-                keyboardType="email-address"
-                errorMessage={errors.email}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+                <AuthInput
+                  ref={emailInputRef}
+                  iconName="user"
+                  placeholder="อีเมล"
+                  value={email}
+                  onChangeText={handleEmailChange}
+                  onFocus={() => scrollToFocusedInput(emailInputRef)}
+                  onBlur={() => {
+                    if (email.trim()) {
+                      const err = validateEmail(formatEmail(email));
+                      if (err) setErrors((prev) => ({ ...prev, email: err }));
+                    }
+                  }}
+                  keyboardType="email-address"
+                  errorMessage={errors.email}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
 
                 <AuthInput
+                  ref={passwordInputRef}
                   iconName="lock"
                   placeholder="รหัสผ่าน"
                   value={password}
                   onChangeText={handlePasswordChange}
+                  onFocus={() => scrollToFocusedInput(passwordInputRef)}
                   isPassword
                   errorMessage={errors.password}
                 />
 
-              <View style={styles.forgotPasswordRow}>
+                <View style={styles.forgotPasswordRow}>
+                  <Pressable
+                    onPress={() => router.push({ pathname: '/(auth)/forgot-password', params: { returnTo, from } })}
+                    hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+                    style={({ pressed }) => [pressed && styles.buttonPressed]}
+                  >
+                    <Text style={styles.forgotPasswordText}>ลืมรหัสผ่าน</Text>
+                  </Pressable>
+                </View>
+
                 <Pressable
-                  onPress={() => router.push({ pathname: '/(auth)/forgot-password', params: { returnTo, from } })}
-                  hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
-                  style={({ pressed }) => [pressed && styles.buttonPressed]}
+                  onPress={handleLogin}
+                  disabled={isLoading}
+                  style={({ pressed }) => [
+                    styles.submitButton,
+                    pressed && styles.buttonPressed,
+                    isLoading && styles.buttonDisabled,
+                  ]}
                 >
-                  <Text style={styles.forgotPasswordText}>ลืมรหัสผ่าน</Text>
+                  {isLoading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>เข้าสู่ระบบ →</Text>
+                  )}
                 </Pressable>
               </View>
-
-              <Pressable
-                onPress={handleLogin}
-                disabled={isLoading}
-                style={({ pressed }) => [
-                  styles.submitButton,
-                  pressed && styles.buttonPressed,
-                  isLoading && styles.buttonDisabled,
-                ]}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text style={styles.submitButtonText}>เข้าสู่ระบบ →</Text>
-                )}
-              </Pressable>
             </View>
-          </View>
 
-          {/* Bottom Footer Navigation */}
-            <View style={[styles.footer, isSmallScreen && styles.footerSmall]}>
+            {/* Bottom Footer Navigation */}
+            <View style={[styles.footer]}>
               <Text style={styles.footerText}>ยังไม่มีบัญชีผู้ใช้งาน? </Text>
               <Pressable
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -262,13 +285,13 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   screenContainer: {
-    flex: 1,
+    flexGrow: 1,
     width: '100%',
     maxWidth: 420,
     backgroundColor: '#FFF8ED',
     paddingHorizontal: 24,
     paddingTop: Platform.OS === 'android' ? 12 : 6,
-    paddingBottom: Platform.OS === 'ios' ? 12 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 12,
     justifyContent: 'space-between',
     alignSelf: 'center',
   },
@@ -367,7 +390,7 @@ const styles = StyleSheet.create({
     fontFamily: Typography.semiBold,
   },
   submitButton: {
-    backgroundColor: '#A7392A', 
+    backgroundColor: '#A7392A',
     height: 52,
     borderRadius: 26,
     justifyContent: 'center',
@@ -399,10 +422,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  footerSmall: {
     marginTop: 8,
     marginBottom: 4,
   },

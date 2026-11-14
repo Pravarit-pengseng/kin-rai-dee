@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
     View,
     Pressable,
@@ -22,16 +22,30 @@ import { createPost } from "@/services/postService";
 import { FOOD_CATEGORIES } from "@/constants/categories";
 import { Typography } from "@/constants/typography";
 import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
+import { useKeyboardScroll } from "@/hooks/useKeyboardScroll";
 
 export default function AddPost() {
     const { isLoggedIn } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
+    const { scrollRef, isKeyboardVisible, contentBottomPadding, scrollIntoView } = useKeyboardScroll({
+        defaultBottomPadding: 40,
+    });
+
+    const permissionGrantedRef = useRef(false);
 
     useEffect(() => {
         if (!isLoggedIn) {
             router.replace({ pathname: '/(auth)/login', params: { returnTo: '/' } });
         }
+        // Pre-check and warm up image picker permissions in the background for instant opening
+        ImagePicker.getMediaLibraryPermissionsAsync()
+            .then((res) => {
+                if (res.granted) {
+                    permissionGrantedRef.current = true;
+                }
+            })
+            .catch(() => {});
     }, [isLoggedIn]);
 
     const [post, setPost] = useState<PostData>({
@@ -39,16 +53,21 @@ export default function AddPost() {
         title: "",
         description: "",
         restaurant: "",
-        categories: ["อาหารจานเดียว"],
+        categories: [],
     });
+    const [imageError, setImageError] = useState(false);
 
     const pickImage = async () => {
-        const permission =
-            await ImagePicker.requestMediaLibraryPermissionsAsync();
+        // Only request if not already granted to eliminate the 300-500ms permission latency
+        if (!permissionGrantedRef.current) {
+            const permission =
+                await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-        if (!permission.granted) {
-            showAlert("ไม่สามารถเข้าถึงรูปภาพ", "กรุณาอนุญาตให้แอปเข้าถึงรูปภาพ");
-            return;
+            if (!permission.granted) {
+                showAlert("ไม่สามารถเข้าถึงรูปภาพ", "กรุณาอนุญาตให้แอปเข้าถึงรูปภาพ");
+                return;
+            }
+            permissionGrantedRef.current = true;
         }
 
         const result =
@@ -56,12 +75,14 @@ export default function AddPost() {
                 mediaTypes: ["images"],
                 allowsEditing: true,
                 aspect: [4, 3],
-                quality: 0.5,
+                quality: 0.6,
                 base64: true,
             });
 
-        if (!result.canceled) {
-            const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            const asset = result.assets[0];
+            const base64Img = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+            setImageError(false);
             setPost((currentPost) => ({
                 ...currentPost,
                 image: base64Img,
@@ -70,8 +91,24 @@ export default function AddPost() {
     };
 
     const handlePost = async () => {
+        if (!post.image) {
+            setImageError(true);
+            showAlert("กรุณาใส่รูปภาพ", "กรุณาเลือกรูปภาพอาหารก่อนโพสต์");
+            return;
+        }
+
         if (!post.title.trim()) {
-            showAlert("กรุณากรอกข้อมูล", "กรอกชื่อเมนูก่อนโพสต์");
+            showAlert("กรุณากรอกข้อมูล", "กรุณากรอกชื่อเมนูก่อนโพสต์");
+            return;
+        }
+
+        if (!post.description.trim()) {
+            showAlert("กรุณากรอกข้อมูล", "กรุณากรอกเล่าความอร่อย");
+            return;
+        }
+
+        if (!post.categories || post.categories.length === 0) {
+            showAlert("กรุณาเลือกประเภทอาหาร", "กรุณาเลือกประเภทอาหารอย่างน้อย 1 ประเภท");
             return;
         }
 
@@ -94,8 +131,9 @@ export default function AddPost() {
 
         setIsSubmitting(false);
 
-        if (!result) {
-            showAlert("โพสต์ไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
+        if (!result || result.success === false) {
+            const errorMsg = result?.error || "กรุณาลองใหม่อีกครั้ง";
+            showAlert("โพสต์ไม่สำเร็จ", errorMsg);
             return;
         }
 
@@ -142,63 +180,78 @@ export default function AddPost() {
                     behavior={Platform.OS === "ios" ? "padding" : undefined}
                 >
                     <ScrollView
+                        ref={scrollRef}
                         showsVerticalScrollIndicator={false}
-                        contentContainerStyle={styles.content}
+                        contentContainerStyle={[styles.content, { paddingBottom: contentBottomPadding }]}
                         keyboardShouldPersistTaps="handled"
+                        keyboardDismissMode="on-drag"
+                        bounces={isKeyboardVisible}
+                        overScrollMode={isKeyboardVisible ? "always" : "never"}
                     >
-                    <Pressable
-                        onPress={pickImage}
-                        style={({ pressed }) => [
-                            styles.imageBox,
-                            pressed && styles.postButtonPressed,
-                        ]}
-                    >
-                        {post.image ? (
-                            <Image
-                                source={{ uri: post.image }}
-                                style={styles.image}
-                                resizeMode="cover"
-                            />
-                        ) : (
-                            <View style={styles.emptyImage}>
-                                <Camera
-                                    size={50}
-                                    color="#DEC0BB"
-                                    strokeWidth={2}
+                        <Pressable
+                            onPress={pickImage}
+                            style={({ pressed }) => [
+                                styles.imageBox,
+                                imageError && styles.imageBoxError,
+                                pressed && styles.postButtonPressed,
+                            ]}
+                        >
+                            {post.image ? (
+                                <Image
+                                    source={{ uri: post.image }}
+                                    style={styles.image}
+                                    resizeMode="cover"
                                 />
+                            ) : (
+                                <View style={styles.emptyImage}>
+                                    <Camera
+                                        size={50}
+                                        color={imageError ? "#C62828" : "#DEC0BB"}
+                                        strokeWidth={2}
+                                    />
 
-                                <ThemedText
-                                    style={styles.imageText}
-                                >
-                                    แตะเพื่อเลือกรูปภาพ
-                                </ThemedText>
-                            </View>
-                        )}
-                    </Pressable>
+                                    <ThemedText
+                                        style={[
+                                            styles.imageText,
+                                            imageError && styles.imageTextError,
+                                        ]}
+                                    >
+                                        {imageError
+                                            ? "กรุณาเลือกรูปภาพอาหาร *"
+                                            : "แตะเพื่อเลือกรูปภาพอาหาร *"}
+                                    </ThemedText>
+                                </View>
+                            )}
+                        </Pressable>
 
-                    <PostForm
-                        initialData={post}
-                        onChange={(data) => {
-                            setPost((currentPost) => ({
-                                ...data,
-                                image: currentPost.image,
-                            }));
-                        }}
-                    />
+                        <PostForm
+                            initialData={post}
+                            onFocusField={(field) => {
+                                if (field === 'restaurant') scrollIntoView(380);
+                                else if (field === 'description') scrollIntoView(220);
+                                else scrollIntoView(100);
+                            }}
+                            onChange={(data) => {
+                                setPost((currentPost) => ({
+                                    ...data,
+                                    image: currentPost.image,
+                                }));
+                            }}
+                        />
 
-                    <Pressable
-                        style={({ pressed }) => [
-                            styles.postButton,
-                            pressed && styles.postButtonPressed,
-                            isSubmitting && styles.postButtonDisabled,
-                        ]}
-                        onPress={handlePost}
-                        disabled={isSubmitting}
-                    >
-                        <ThemedText style={styles.postText}>
-                            {isSubmitting ? "กำลังโพสต์..." : "โพสต์"}
-                        </ThemedText>
-                    </Pressable>
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.postButton,
+                                pressed && styles.postButtonPressed,
+                                isSubmitting && styles.postButtonDisabled,
+                            ]}
+                            onPress={handlePost}
+                            disabled={isSubmitting}
+                        >
+                            <ThemedText style={styles.postText}>
+                                {isSubmitting ? "กำลังโพสต์..." : "โพสต์"}
+                            </ThemedText>
+                        </Pressable>
                     </ScrollView>
                 </KeyboardAvoidingView>
             </SafeAreaView>
@@ -233,6 +286,12 @@ const styles = StyleSheet.create({
         marginTop: 10,
     },
 
+    imageBoxError: {
+        borderColor: "#C62828",
+        borderWidth: 2,
+        backgroundColor: "#FFF5F5",
+    },
+
     emptyImage: {
         alignItems: "center",
         justifyContent: "center",
@@ -248,6 +307,11 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: "#9D8179",
         fontFamily: Typography.regular,
+    },
+
+    imageTextError: {
+        color: "#C62828",
+        fontWeight: "600",
     },
 
     postButton: {

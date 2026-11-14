@@ -6,6 +6,7 @@ import {
   ImageSourcePropType,
 } from "react-native";
 import { Image } from "expo-image";
+import * as Haptics from "expo-haptics";
 
 export type Post = {
   id: string;
@@ -22,12 +23,14 @@ type PostGridProps = {
   posts: Post[];
   onPressPost?: (post: Post) => void;
   onLongPressPost?: (post: Post) => void;
+  delayLongPress?: number;
 };
 
 export default function PostGrid({
   posts,
   onPressPost,
   onLongPressPost,
+  delayLongPress = 250,
 }: PostGridProps) {
   return (
     <View style={styles.container}>
@@ -35,16 +38,18 @@ export default function PostGrid({
         <Pressable
           key={post.id}
           onPress={() => onPressPost?.(post)}
-          onLongPress={() =>
-            onLongPressPost?.(post)
-          }
+          delayLongPress={delayLongPress}
+          onLongPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+            onLongPressPost?.(post);
+          }}
           style={styles.post}
         >
           <Image
             source={post.image}
             style={styles.image}
             contentFit="cover"
-            transition={200}
+            transition={150}
           />
         </Pressable>
       ))}

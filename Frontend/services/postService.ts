@@ -1,10 +1,25 @@
-import { fetchApi } from './api';
+import { fetchApi, getAuthUser, USE_DIRECT_SUPABASE } from './api';
 import { supabase } from '@/lib/supabase';
 import { PopupPostData } from '@/components/popup-post';
-import { normalizeAvatarUrl } from './profileService';
+import { normalizeAvatarUrl, invalidateUserPostsCache } from './profileService';
 import { getBlockedUserIdsSet } from './safetyService';
 
 const DEFAULT_IMAGE = require('@/assets/images/StirFriedHolyBasil.png');
+
+// ── Feed Posts Cache (ลดเวลา Skeleton / แสดงผลทันที) ──────────────────────────
+let _feedPostsCache: PopupPostData[] | null = null;
+let _feedPostsCacheTime = 0;
+const FEED_POSTS_CACHE_TTL = 45 * 1000; // 45 วินาที
+
+export function getCachedFeedPosts(): PopupPostData[] {
+  return _feedPostsCache || [];
+}
+
+export function invalidateFeedPostsCache() {
+  _feedPostsCache = null;
+  _feedPostsCacheTime = 0;
+  invalidateUserPostsCache();
+}
 
 // ── Saved Posts Cache (ลด Supabase egress) ────────────────────────────────────
 let _savedPostsCache: PopupPostData[] | null = null;
@@ -84,20 +99,20 @@ export function mapPostToPopup(post: any): PopupPostData {
 
 export async function attachProfilesToPosts(posts: any[]): Promise<any[]> {
   if (!posts || posts.length === 0) return [];
-  const userIds = [...new Set(posts.map((p) => p.user_id).filter(Boolean))];
-  if (userIds.length === 0) return posts;
+  const missingUserIds = [...new Set(posts.filter((p) => !p.profiles).map((p) => p.user_id).filter(Boolean))];
+  if (missingUserIds.length === 0) return posts;
 
   try {
     const { data: profs } = await supabase
       .from('profiles')
       .select('id, username, display_name, avatar_url')
-      .in('id', userIds);
+      .in('id', missingUserIds);
 
     if (profs && profs.length > 0) {
       const map = Object.fromEntries(profs.map((pr) => [pr.id, pr]));
       return posts.map((p) => ({
         ...p,
-        profiles: map[p.user_id] || p.profiles || null,
+        profiles: p.profiles || map[p.user_id] || null,
       }));
     }
   } catch (err) {
@@ -106,19 +121,67 @@ export async function attachProfilesToPosts(posts: any[]): Promise<any[]> {
   return posts;
 }
 
+export const FEED_PAGE_SIZE = 6;
+
 /**
  * GET Feed Posts
  * Public
  */
 export async function fetchFeedPosts(
-  limit: number = 20,
+  limit: number = FEED_PAGE_SIZE,
   offset: number = 0,
+  forceRefresh: boolean = false,
 ): Promise<PopupPostData[]> {
+  const now = Date.now();
+  if (offset === 0 && !forceRefresh && _feedPostsCache && now - _feedPostsCacheTime < FEED_POSTS_CACHE_TTL) {
+    return _feedPostsCache;
+  }
+
   let posts: PopupPostData[] = [];
 
-  const data = await fetchApi<any[]>(
-    `/api/posts/feed?limit=${limit}&offset=${offset}`,
-  );
+  // 1. Direct Supabase Query (Single round-trip with joined profiles and categories)
+  if (USE_DIRECT_SUPABASE) {
+    try {
+      const [supaRes, blockedIds] = await Promise.all([
+        supabase
+          .from('posts')
+          .select('*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))')
+          .or('is_hidden.is.null,is_hidden.eq.false')
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1),
+        getBlockedUserIdsSet().catch(() => new Set<string>()),
+      ]);
+
+      if (supaRes.data && supaRes.data.length > 0) {
+        const nonHidden = supaRes.data.filter((p: any) => !p.is_hidden);
+        const needsProfiles = nonHidden.filter((p: any) => !p.profiles && p.user_id);
+        let populated = nonHidden;
+        if (needsProfiles.length > 0) {
+          populated = await attachProfilesToPosts(nonHidden);
+        }
+        posts = populated.map(mapPostToPopup);
+      }
+
+      if (blockedIds && blockedIds.size > 0) {
+        posts = posts.filter(p => !p.userId || !blockedIds.has(String(p.userId)));
+      }
+
+      if (offset === 0 && posts.length > 0) {
+        _feedPostsCache = posts;
+        _feedPostsCacheTime = Date.now();
+      }
+
+      return posts;
+    } catch (e) {
+      console.warn('Direct Supabase fetchFeedPosts error, trying fallback:', e);
+    }
+  }
+
+  // 2. Fallback to API if Direct Supabase is false or failed
+  const [data, blockedIds] = await Promise.all([
+    fetchApi<any[]>(`/api/posts/feed?limit=${limit}&offset=${offset}`),
+    getBlockedUserIdsSet().catch(() => new Set<string>()),
+  ]);
 
   if (data && data.length > 0) {
     posts = data
@@ -129,14 +192,18 @@ export async function fetchFeedPosts(
     try {
       const { data: supaData } = await supabase
         .from('posts')
-        .select('*, post_categories(categories(id, name))')
+        .select('*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))')
         .or('is_hidden.is.null,is_hidden.eq.false')
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (supaData && supaData.length > 0) {
         const nonHidden = supaData.filter((p: any) => !p.is_hidden);
-        const populated = await attachProfilesToPosts(nonHidden);
+        const needsProfiles = nonHidden.filter((p: any) => !p.profiles && p.user_id);
+        let populated = nonHidden;
+        if (needsProfiles.length > 0) {
+          populated = await attachProfilesToPosts(nonHidden);
+        }
         posts = populated.map(mapPostToPopup);
       }
     } catch (e) {
@@ -148,13 +215,13 @@ export async function fetchFeedPosts(
   }
 
   // ซ่อนโพสต์จากผู้ใช้ที่ถูกบล็อก
-  try {
-    const blockedIds = await getBlockedUserIdsSet();
-    if (blockedIds.size > 0) {
-      posts = posts.filter(p => !p.userId || !blockedIds.has(String(p.userId)));
-    }
-  } catch (err) {
-    console.warn('Filter blocked posts error:', err);
+  if (blockedIds && blockedIds.size > 0) {
+    posts = posts.filter(p => !p.userId || !blockedIds.has(String(p.userId)));
+  }
+
+  if (offset === 0 && posts.length > 0) {
+    _feedPostsCache = posts;
+    _feedPostsCacheTime = Date.now();
   }
 
   return posts;
@@ -215,17 +282,17 @@ export async function createPost(
   );
 
   if (data) {
+    invalidateFeedPostsCache();
     return data;
   }
 
   // Supabase fallback
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser();
 
     if (!user) {
-      return null;
+      console.warn('[PostService] createPost: no session');
+      return { success: false, error: 'เซสชันหมดอายุหรือไม่พบผู้ใช้ กรุณาออกจากระบบแล้วเข้าสู่ระบบใหม่' };
     }
 
     const { category_ids, ...postData } = payload;
@@ -240,15 +307,12 @@ export async function createPost(
       .single();
 
     if (error || !post) {
-      console.warn(
-        'Supabase create post fallback error:',
-        error,
-      );
-      return null;
+      console.warn('[PostService] create post error:', error);
+      return { success: false, error: error?.message || 'บันทึกโพสต์ไม่สำเร็จ' };
     }
 
     if (category_ids && category_ids.length > 0) {
-      await supabase
+      const { error: catError } = await supabase
         .from('post_categories')
         .insert(
           category_ids.map((categoryId) => ({
@@ -256,18 +320,17 @@ export async function createPost(
             category_id: categoryId,
           })),
         );
+      if (catError) console.warn('[PostService] insert categories error:', catError);
     }
 
+    invalidateFeedPostsCache();
     return {
       success: true,
       data: post,
     };
-  } catch (e) {
-    console.warn(
-      'Supabase create post fallback error:',
-      e,
-    );
-    return null;
+  } catch (e: any) {
+    console.warn('[PostService] create post exception:', e);
+    return { success: false, error: e?.message || 'เกิดข้อผิดพลาดในการสร้างโพสต์' };
   }
 }
 
@@ -288,17 +351,17 @@ export async function updatePost(
   );
 
   if (data) {
+    invalidateFeedPostsCache();
     return data;
   }
 
   // Supabase fallback
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser();
 
     if (!user) {
-      return null;
+      console.warn('[PostService] updatePost: no session');
+      return { success: false, error: 'เซสชันหมดอายุหรือไม่พบผู้ใช้ กรุณาออกจากระบบแล้วเข้าสู่ระบบใหม่' };
     }
 
     const { category_ids, ...updateData } = payload;
@@ -311,11 +374,8 @@ export async function updatePost(
         .eq('user_id', user.id);
 
       if (error) {
-        console.warn(
-          'Supabase update post fallback error:',
-          error,
-        );
-        return null;
+        console.warn('[PostService] update post error:', error);
+        return { success: false, error: error?.message || 'บันทึกไม่สำเร็จ' };
       }
     }
 
@@ -337,16 +397,14 @@ export async function updatePost(
       }
     }
 
+    invalidateFeedPostsCache();
     return {
       success: true,
       id: postId,
     };
-  } catch (e) {
-    console.warn(
-      'Supabase update post fallback error:',
-      e,
-    );
-    return null;
+  } catch (e: any) {
+    console.warn('[PostService] update post exception:', e);
+    return { success: false, error: e?.message || 'เกิดข้อผิดพลาดในการบันทึกโพสต์' };
   }
 }
 
@@ -365,14 +423,13 @@ export async function deletePost(
   );
 
   if (data) {
+    invalidateFeedPostsCache();
     return true;
   }
 
   // Supabase fallback
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser();
 
     if (!user) {
       return false;
@@ -392,6 +449,7 @@ export async function deletePost(
       return false;
     }
 
+    invalidateFeedPostsCache();
     return true;
   } catch (e) {
     console.warn(
@@ -422,9 +480,7 @@ export async function bookmarkPost(
 
   // Supabase fallback
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser();
 
     if (!user) {
       return false;
@@ -481,9 +537,7 @@ export async function unbookmarkPost(
 
   // Supabase fallback
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser();
 
     if (!user) {
       return false;
@@ -511,6 +565,25 @@ export async function unbookmarkPost(
       e,
     );
     return false;
+  }
+}
+
+/**
+ * GET Saved Post IDs (lightweight query for feed / bookmarks sync)
+ * Auth required
+ */
+export async function getSavedPostIds(): Promise<string[]> {
+  try {
+    const user = await getAuthUser();
+    if (!user) return [];
+    const { data } = await supabase
+      .from('saved_posts')
+      .select('post_id')
+      .eq('user_id', user.id);
+    return (data || []).map((row: any) => String(row.post_id));
+  } catch (err) {
+    console.warn('getSavedPostIds error:', err);
+    return [];
   }
 }
 
@@ -546,9 +619,7 @@ export async function getSavedPosts(): Promise<PopupPostData[]> {
 
   // Supabase fallback
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getAuthUser();
 
     if (!user) {
       return [];
@@ -557,14 +628,18 @@ export async function getSavedPosts(): Promise<PopupPostData[]> {
     const { data: savedData } = await supabase
       .from('saved_posts')
       .select(
-        'post_id, created_at, posts(*, post_categories(categories(id, name)))',
+        'post_id, created_at, posts(*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name)))',
       )
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (savedData) {
       const rawPosts = savedData.filter((item: any) => item.posts).map((item: any) => item.posts);
-      const populated = await attachProfilesToPosts(rawPosts);
+      const needsProfiles = rawPosts.filter((p: any) => !p.profiles && p.user_id);
+      let populated = rawPosts;
+      if (needsProfiles.length > 0) {
+        populated = await attachProfilesToPosts(rawPosts);
+      }
       const result = populated.map(mapPostToPopup);
       _savedPostsCache = result;
       _savedPostsCacheTime = now;
@@ -656,7 +731,32 @@ export async function addPostComment(
       body: JSON.stringify({ content }),
     }
   );
-  return resp?.data || null;
+  if (resp?.data) return resp.data;
+
+  // Supabase direct fallback
+  try {
+    const user = await getAuthUser();
+    if (!user) return null;
+
+    const { data: comment, error } = await supabase
+      .from('comments')
+      .insert({
+        post_id: Number(postId),
+        user_id: user.id,
+        content,
+      })
+      .select('*, profiles(id, username, display_name, avatar_url)')
+      .single();
+
+    if (error || !comment) {
+      console.warn('Supabase add comment error:', error);
+      return null;
+    }
+    return comment as any;
+  } catch (e) {
+    console.warn('Supabase add comment error:', e);
+    return null;
+  }
 }
 
 export async function updatePostComment(
@@ -671,7 +771,22 @@ export async function updatePostComment(
       body: JSON.stringify({ content }),
     }
   );
-  return resp?.success ?? false;
+  if (resp?.success) return true;
+
+  try {
+    const user = await getAuthUser();
+    if (!user) return false;
+
+    const { error } = await supabase
+      .from('comments')
+      .update({ content, updated_at: new Date().toISOString() })
+      .eq('id', commentId)
+      .eq('user_id', user.id);
+
+    return !error;
+  } catch {
+    return false;
+  }
 }
 
 export async function deletePostComment(
@@ -684,5 +799,20 @@ export async function deletePostComment(
       method: 'DELETE',
     }
   );
-  return resp?.success ?? false;
+  if (resp?.success) return true;
+
+  try {
+    const user = await getAuthUser();
+    if (!user) return false;
+
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId)
+      .eq('user_id', user.id);
+
+    return !error;
+  } catch {
+    return false;
+  }
 }

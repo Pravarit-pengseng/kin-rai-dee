@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import {
+  syncDeviceSession,
+  recoverDeviceSession,
+  clearDeviceSession,
+} from '@/services/persistentAuthService';
 
 export type UserProfile = {
   id: string;
@@ -127,19 +132,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    // ดึง session ปัจจุบันตอน mount
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-      syncUserProfile(currentSession?.user ?? null).finally(() => setLoading(false));
-    });
+    let isMounted = true;
+
+    const initAuth = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (currentSession) {
+          if (isMounted) {
+            setSession(currentSession);
+            syncDeviceSession(currentSession);
+            await syncUserProfile(currentSession.user);
+          }
+        } else {
+          // If no local session (e.g. fresh reinstall on Android):
+          // Recover session bound to persistent hardware device ID
+          const recovered = await recoverDeviceSession();
+          if (recovered?.refresh_token) {
+            const { data: refreshed } = await supabase.auth.setSession({
+              access_token: recovered.access_token || '',
+              refresh_token: recovered.refresh_token,
+            });
+            if (refreshed?.session && isMounted) {
+              setSession(refreshed.session);
+              syncDeviceSession(refreshed.session);
+              await syncUserProfile(refreshed.session.user);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Auth initialization notice:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    initAuth();
 
     // ฟัง auth state เปลี่ยนแปลง (login / logout / token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      syncUserProfile(newSession?.user ?? null).finally(() => setLoading(false));
+      if (isMounted) {
+        setSession(newSession);
+        if (newSession) {
+          syncDeviceSession(newSession);
+        }
+        syncUserProfile(newSession?.user ?? null).finally(() => {
+          if (isMounted) setLoading(false);
+        });
+      }
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -202,6 +245,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    try {
+      await clearDeviceSession();
+    } catch (e) {
+      console.warn('Error clearing device session on logout:', e);
+    }
     await supabase.auth.signOut();
   };
 

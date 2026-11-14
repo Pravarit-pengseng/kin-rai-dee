@@ -1,4 +1,4 @@
-import  { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { AuthInput } from '@/components/auth/AuthInput';
-import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -27,6 +26,7 @@ import {
   formatEmail,
 } from '@/utils/authValidation';
 import { Typography } from '@/constants/typography';
+import { useKeyboardScroll } from '@/hooks/useKeyboardScroll';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function RegisterScreen() {
   // Responsive scale factors
   const isSmallScreen = windowHeight < 720;
   const isMediumScreen = windowHeight >= 720 && windowHeight < 840;
-  const logoSize = isSmallScreen ? 70 : isMediumScreen ? 85 : 105;
+  const logoSize = isSmallScreen ? 100 : isMediumScreen ? 125 : 150;
 
   const [errors, setErrors] = useState<{
     displayName?: string | null;
@@ -54,6 +54,24 @@ export default function RegisterScreen() {
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsError, setTermsError] = useState(false);
+
+  const displayNameRef = useRef<View>(null);
+  const emailRef = useRef<View>(null);
+  const passwordRef = useRef<View>(null);
+  const confirmPasswordRef = useRef<View>(null);
+
+  const defaultBottomPadding = Platform.OS === 'ios' ? 8 : 12;
+  const {
+    scrollRef,
+    isKeyboardVisible,
+    contentBottomPadding,
+    handleScroll,
+    scrollToFocusedInput,
+  } = useKeyboardScroll({
+    defaultBottomPadding,
+    resetOnHide: true,
+    extraOffset: 24,
+  });
 
   // Password condition checks for dynamic hints
   const isLenValid = password.length >= 8 && password.length <= 20;
@@ -69,10 +87,28 @@ export default function RegisterScreen() {
     }
   };
 
-  const handleDisplayNameBlur = () => {
-    if (displayName.trim()) {
-      const err = validateDisplayName(displayName);
+  const handleDisplayNameBlur = async () => {
+    const trimmed = displayName.trim();
+    if (trimmed) {
+      const err = validateDisplayName(trimmed);
       setErrors((prev) => ({ ...prev, displayName: err }));
+      if (err) return;
+
+      // ตรวจสอบชื่อผู้ใช้ซ้ำแบบ Real-time เมื่อพิมพ์เสร็จ
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id')
+          .ilike('display_name', trimmed)
+          .maybeSingle();
+
+        if (data) {
+          setErrors((prev) => ({
+            ...prev,
+            displayName: 'ชื่อที่แสดงนี้มีผู้ใช้แล้ว กรุณาใช้ชื่ออื่น',
+          }));
+        }
+      } catch { }
     }
   };
 
@@ -107,6 +143,7 @@ export default function RegisterScreen() {
     if (errors.password) {
       setErrors((prev) => ({ ...prev, password: null }));
     }
+    scrollToFocusedInput(passwordRef);
   };
 
   const handlePasswordBlur = () => {
@@ -147,8 +184,9 @@ export default function RegisterScreen() {
       return;
     }
 
+    const trimmedDisplayName = displayName.trim();
     const formattedEmail = formatEmail(email);
-    const displayNameError = validateDisplayName(displayName);
+    const displayNameError = validateDisplayName(trimmedDisplayName);
     const emailError = validateEmail(formattedEmail);
     const passwordError = validatePassword(password);
     const confirmPasswordError = validateConfirmPassword(password, confirmPassword);
@@ -160,6 +198,9 @@ export default function RegisterScreen() {
         password: passwordError,
         confirmPassword: confirmPasswordError,
       });
+      const firstError = displayNameError || emailError || passwordError || confirmPasswordError;
+      setGeneralError(firstError || 'กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง');
+      showAlert('ข้อมูลไม่ถูกต้อง', firstError || 'กรุณาตรวจสอบและกรอกข้อมูลให้ครบถ้วน');
       return;
     }
 
@@ -167,32 +208,98 @@ export default function RegisterScreen() {
     setIsLoading(true);
 
     try {
-      // สมัครบัญชีผ่าน Supabase Auth
+      // 1. ตรวจสอบชื่อผู้ใช้ (display_name) ซ้ำในฐานข้อมูล Supabase ก่อน
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('display_name', trimmedDisplayName)
+        .maybeSingle();
+
+      if (existingProfile) {
+        setIsLoading(false);
+        setErrors((prev) => ({
+          ...prev,
+          displayName: 'ชื่อที่แสดงนี้มีผู้ใช้แล้ว กรุณาใช้ชื่ออื่น',
+        }));
+        setGeneralError(`ชื่อผู้ใช้ "${trimmedDisplayName}" มีผู้ใช้งานแล้ว กรุณาใช้ชื่ออื่น`);
+        showAlert(
+          'ชื่อผู้ใช้ซ้ำ',
+          `ชื่อผู้ใช้ "${trimmedDisplayName}" มีผู้ใช้งานแล้วในระบบ กรุณาเลือกใช้ชื่ออื่น`
+        );
+        return;
+      }
+
+      // 2. สมัครบัญชีผ่าน Supabase Auth
       const { error: signUpError } = await supabase.auth.signUp({
         email: formattedEmail,
         password,
         options: {
           data: {
-            display_name: displayName,
+            display_name: trimmedDisplayName,
           },
         },
       });
 
       if (signUpError) {
-        if (signUpError.message.toLowerCase().includes('already registered') ||
-            signUpError.message.toLowerCase().includes('already been registered')) {
+        setIsLoading(false);
+        const msg = signUpError.message.toLowerCase();
+
+        if (
+          msg.includes('already registered') ||
+          msg.includes('already been registered') ||
+          msg.includes('user already exists')
+        ) {
           setErrors((prev) => ({ ...prev, email: 'อีเมลนี้ถูกใช้สมัครบัญชีแล้ว' }));
+          setGeneralError('อีเมลนี้ถูกใช้สมัครบัญชีแล้ว กรุณาใช้อีเมลอื่น หรือเข้าสู่ระบบ');
+          showAlert(
+            'อีเมลนี้มีผู้ใช้แล้ว',
+            'อีเมลนี้ถูกใช้สมัครบัญชีแล้วในระบบ กรุณาใช้อีเมลอื่น หรือไปที่หน้าเข้าสู่ระบบ'
+          );
+        } else if (
+          msg.includes('profiles_display_name_unique') ||
+          msg.includes('display_name') ||
+          msg.includes('duplicate key')
+        ) {
+          setErrors((prev) => ({
+            ...prev,
+            displayName: 'ชื่อที่แสดงนี้มีผู้ใช้แล้ว กรุณาใช้ชื่ออื่น',
+          }));
+          setGeneralError(`ชื่อผู้ใช้ "${trimmedDisplayName}" มีผู้ใช้งานแล้ว กรุณาใช้ชื่ออื่น`);
+          showAlert(
+            'ชื่อผู้ใช้ซ้ำ',
+            `ชื่อผู้ใช้ "${trimmedDisplayName}" มีผู้ใช้งานแล้วในระบบ กรุณาเลือกใช้ชื่ออื่น`
+          );
+        } else if (msg.includes('password')) {
+          setErrors((prev) => ({ ...prev, password: 'รหัสผ่านไม่ผ่านเกณฑ์ความปลอดภัย' }));
+          setGeneralError('รหัสผ่านไม่ถูกต้องตามเงื่อนไขความปลอดภัย');
+          showAlert(
+            'รหัสผ่านไม่ถูกต้อง',
+            'รหัสผ่านไม่ผ่านเกณฑ์ความปลอดภัย กรุณาตรวจสอบเงื่อนไขการตั้งรหัสผ่าน'
+          );
         } else {
-          setGeneralError('ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง');
+          setGeneralError(signUpError.message || 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง');
+          showAlert(
+            'สมัครสมาชิกไม่สำเร็จ',
+            signUpError.message || 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง'
+          );
         }
         return;
       }
 
-      // Auto-login หลัง signup สำเร็จ
+      // 3. Auto-login หลัง signup สำเร็จ
       const { error: loginError } = await login(formattedEmail, password);
       if (loginError) {
-        // signup สำเร็จแต่ login ไม่ได้ → ให้ไป login ใหม่เอง
-        router.replace({ pathname: '/(auth)/login', params: { returnTo, from } });
+        // signup สำเร็จแต่ login ไม่ได้ → แจ้งเตือนแล้วนำทางไปหน้า login
+        showAlert('สมัครสมาชิกสำเร็จ', 'สร้างบัญชีเรียบร้อยแล้ว กรุณาเข้าสู่ระบบ', [
+          {
+            text: 'ตกลง',
+            style: 'confirm',
+            onPress: () => {
+              hideAlert();
+              router.replace({ pathname: '/(auth)/login', params: { returnTo, from } });
+            },
+          },
+        ]);
         return;
       }
 
@@ -203,6 +310,7 @@ export default function RegisterScreen() {
       }
     } catch {
       setGeneralError('ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง');
+      showAlert('เกิดข้อผิดพลาด', 'ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsLoading(false);
     }
@@ -220,13 +328,17 @@ export default function RegisterScreen() {
         style={styles.keyboardView}
       >
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          bounces={false}
-          overScrollMode="never"
+          bounces={isKeyboardVisible}
+          overScrollMode={isKeyboardVisible ? "always" : "never"}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
-          <View style={styles.screenContainer}>
+          <View style={[styles.screenContainer, isKeyboardVisible && { paddingBottom: contentBottomPadding }]}>
             {/* Top Navigation Bar */}
             <View style={styles.header}>
               <Pressable
@@ -247,8 +359,8 @@ export default function RegisterScreen() {
               {/* Mascot / Logo */}
               <View style={[styles.logoSection, isSmallScreen && styles.logoSectionSmall]}>
                 <Image
-                  source={require('@/assets/images/kin-rai-dee-logo.png')}
-                  style={{ width: logoSize, height: logoSize }}
+                  source={require('@/assets/images/logo-nobg.png')}
+                  style={{ width: logoSize, height: logoSize, borderRadius: 999 }}
                   resizeMode="contain"
                 />
               </View>
@@ -265,199 +377,205 @@ export default function RegisterScreen() {
 
               {/* White Form Card */}
               <View style={[styles.formCard, isSmallScreen && styles.formCardSmall]}>
-              <AuthErrorBanner message={generalError} />
 
-              <AuthInput
-                iconName="user"
-                placeholder="ชื่อที่แสดง"
-                value={displayName}
-                onChangeText={handleDisplayNameChange}
-                onBlur={handleDisplayNameBlur}
-                errorMessage={errors.displayName}
-                maxLength={35}
-              />
+                <AuthInput
+                  ref={displayNameRef}
+                  iconName="user"
+                  placeholder="ชื่อที่แสดง"
+                  value={displayName}
+                  onChangeText={handleDisplayNameChange}
+                  onFocus={() => scrollToFocusedInput(displayNameRef)}
+                  onBlur={handleDisplayNameBlur}
+                  errorMessage={errors.displayName}
+                  maxLength={35}
+                />
 
-              <AuthInput
-                iconName="mail"
-                placeholder="อีเมล"
-                value={email}
-                onChangeText={handleEmailChange}
-                onBlur={handleEmailBlur}
-                keyboardType="email-address"
-                errorMessage={errors.email}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+                <AuthInput
+                  ref={emailRef}
+                  iconName="mail"
+                  placeholder="อีเมล"
+                  value={email}
+                  onChangeText={handleEmailChange}
+                  onFocus={() => scrollToFocusedInput(emailRef)}
+                  onBlur={handleEmailBlur}
+                  keyboardType="email-address"
+                  errorMessage={errors.email}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
 
-              <AuthInput
-                iconName="lock"
-                placeholder="รหัสผ่าน"
-                value={password}
-                onChangeText={handlePasswordChange}
-                onFocus={handlePasswordFocus}
-                onBlur={handlePasswordBlur}
-                isPassword
-                errorMessage={errors.password}
-                maxLength={25}
-              />
+                <AuthInput
+                  ref={passwordRef}
+                  iconName="lock"
+                  placeholder="รหัสผ่าน"
+                  value={password}
+                  onChangeText={handlePasswordChange}
+                  onFocus={handlePasswordFocus}
+                  onBlur={handlePasswordBlur}
+                  isPassword
+                  errorMessage={errors.password}
+                  maxLength={25}
+                />
 
-              {/* Password Requirement Guidelines (Visible only when password field is focused) */}
-              {isPasswordFocused && (
-                <View style={styles.passwordRulesContainer}>
-                  <Text style={styles.passwordRulesTitle}>เงื่อนไขการตั้งรหัสผ่าน:</Text>
+                {/* Password Requirement Guidelines (Visible only when password field is focused) */}
+                {isPasswordFocused && (
+                  <View style={styles.passwordRulesContainer}>
+                    <Text style={styles.passwordRulesTitle}>เงื่อนไขการตั้งรหัสผ่าน:</Text>
 
-                  <View style={styles.ruleItem}>
-                    <Feather
-                      name={isLenValid ? "check-circle" : "circle"}
-                      size={14}
-                      color={isLenValid ? "#2E7D32" : "#8C7A75"}
-                    />
-                    <Text style={[styles.ruleText, isLenValid && styles.ruleTextValid]}>
-                      ความยาว 8–20 ตัวอักษร
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={isLenValid ? "check-circle" : "circle"}
+                        size={14}
+                        color={isLenValid ? "#2E7D32" : "#8C7A75"}
+                      />
+                      <Text style={[styles.ruleText, isLenValid && styles.ruleTextValid]}>
+                        ความยาว 8–20 ตัวอักษร
+                      </Text>
+                    </View>
+
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={hasLetter ? "check-circle" : "circle"}
+                        size={14}
+                        color={hasLetter ? "#2E7D32" : "#8C7A75"}
+                      />
+                      <Text style={[styles.ruleText, hasLetter && styles.ruleTextValid]}>
+                        มีอักษรภาษาอังกฤษอย่างน้อย 1 ตัว (a-z, A-Z)
+                      </Text>
+                    </View>
+
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={hasNumber ? "check-circle" : "circle"}
+                        size={14}
+                        color={hasNumber ? "#2E7D32" : "#8C7A75"}
+                      />
+                      <Text style={[styles.ruleText, hasNumber && styles.ruleTextValid]}>
+                        มีตัวเลขอย่างน้อย 1 ตัว (0-9)
+                      </Text>
+                    </View>
+
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={hasSpecial ? "check-circle" : "circle"}
+                        size={14}
+                        color={hasSpecial ? "#2E7D32" : "#8C7A75"}
+                      />
+                      <Text style={[styles.ruleText, hasSpecial && styles.ruleTextValid]}>
+                        มีอักขระพิเศษอย่างน้อย 1 ตัว (# ? ! @ - _)
+                      </Text>
+                    </View>
+
+                    <View style={styles.ruleItem}>
+                      <Feather
+                        name={hasOnlyAllowed ? "check-circle" : "circle"}
+                        size={14}
+                        color={hasOnlyAllowed ? "#2E7D32" : "#8C7A75"}
+                      />
+                      <Text style={[styles.ruleText, hasOnlyAllowed && styles.ruleTextValid]}>
+                        ไม่มีช่องว่าง และใช้อักขระที่กำหนดเท่านั้น
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                <AuthInput
+                  ref={confirmPasswordRef}
+                  iconName="check-circle"
+                  placeholder="ยืนยันรหัสผ่าน"
+                  value={confirmPassword}
+                  onChangeText={handleConfirmPasswordChange}
+                  onFocus={() => scrollToFocusedInput(confirmPasswordRef)}
+                  onBlur={handleConfirmPasswordBlur}
+                  isPassword
+                  errorMessage={errors.confirmPassword}
+                  maxLength={25}
+                />
+
+                {/* Terms of Use & Privacy Policy Checkbox */}
+                <Pressable
+                  style={styles.termsRow}
+                  onPress={() => {
+                    setAcceptedTerms((prev) => {
+                      const next = !prev;
+                      if (next) setTermsError(false);
+                      return next;
+                    });
+                  }}
+                  hitSlop={8}
+                >
+                  <View
+                    style={[
+                      styles.checkbox,
+                      acceptedTerms && styles.checkboxChecked,
+                      termsError && !acceptedTerms && styles.checkboxError,
+                    ]}
+                  >
+                    {acceptedTerms && <Feather name="check" size={14} color="#FFFFFF" />}
+                  </View>
+                  <Text style={styles.termsText}>
+                    ฉันยอมรับ{' '}
+                    <Text
+                      style={styles.termsLink}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        router.push('/terms-of-use' as any);
+                      }}
+                    >
+                      ข้อกำหนดการใช้งาน
+                    </Text>
+                    {' '}และรับทราบ{' '}
+                    <Text
+                      style={styles.termsLink}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        router.push('/privacy-policy' as any);
+                      }}
+                    >
+                      นโยบายความเป็นส่วนตัว
+                    </Text>
+                  </Text>
+                </Pressable>
+
+                {termsError && !acceptedTerms && (
+                  <View style={styles.termsErrorContainer}>
+                    <Feather name="alert-circle" size={13} color="#C0392B" style={styles.termsErrorIcon} />
+                    <Text style={styles.termsErrorText}>
+                      กรุณากดยอมรับเงื่อนไขก่อนสมัครบัญชี
                     </Text>
                   </View>
+                )}
 
-                  <View style={styles.ruleItem}>
-                    <Feather
-                      name={hasLetter ? "check-circle" : "circle"}
-                      size={14}
-                      color={hasLetter ? "#2E7D32" : "#8C7A75"}
-                    />
-                    <Text style={[styles.ruleText, hasLetter && styles.ruleTextValid]}>
-                      มีอักษรภาษาอังกฤษอย่างน้อย 1 ตัว (a-z, A-Z)
-                    </Text>
-                  </View>
-
-                  <View style={styles.ruleItem}>
-                    <Feather
-                      name={hasNumber ? "check-circle" : "circle"}
-                      size={14}
-                      color={hasNumber ? "#2E7D32" : "#8C7A75"}
-                    />
-                    <Text style={[styles.ruleText, hasNumber && styles.ruleTextValid]}>
-                      มีตัวเลขอย่างน้อย 1 ตัว (0-9)
-                    </Text>
-                  </View>
-
-                  <View style={styles.ruleItem}>
-                    <Feather
-                      name={hasSpecial ? "check-circle" : "circle"}
-                      size={14}
-                      color={hasSpecial ? "#2E7D32" : "#8C7A75"}
-                    />
-                    <Text style={[styles.ruleText, hasSpecial && styles.ruleTextValid]}>
-                      มีอักขระพิเศษอย่างน้อย 1 ตัว (# ? ! @ - _)
-                    </Text>
-                  </View>
-
-                  <View style={styles.ruleItem}>
-                    <Feather
-                      name={hasOnlyAllowed ? "check-circle" : "circle"}
-                      size={14}
-                      color={hasOnlyAllowed ? "#2E7D32" : "#8C7A75"}
-                    />
-                    <Text style={[styles.ruleText, hasOnlyAllowed && styles.ruleTextValid]}>
-                      ไม่มีช่องว่าง และใช้อักขระที่กำหนดเท่านั้น
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              <AuthInput
-                iconName="check-circle"
-                placeholder="ยืนยันรหัสผ่าน"
-                value={confirmPassword}
-                onChangeText={handleConfirmPasswordChange}
-                onBlur={handleConfirmPasswordBlur}
-                isPassword
-                errorMessage={errors.confirmPassword}
-                maxLength={25}
-              />
-
-              {/* Terms of Use & Privacy Policy Checkbox */}
-              <Pressable
-                style={styles.termsRow}
-                onPress={() => {
-                  setAcceptedTerms((prev) => {
-                    const next = !prev;
-                    if (next) setTermsError(false);
-                    return next;
-                  });
-                }}
-                hitSlop={8}
-              >
-                <View
-                  style={[
-                    styles.checkbox,
-                    acceptedTerms && styles.checkboxChecked,
-                    termsError && !acceptedTerms && styles.checkboxError,
+                <Pressable
+                  onPress={handleRegister}
+                  disabled={isLoading}
+                  style={({ pressed }) => [
+                    styles.submitButton,
+                    pressed && styles.buttonPressed,
+                    isLoading && styles.buttonDisabled,
                   ]}
                 >
-                  {acceptedTerms && <Feather name="check" size={14} color="#FFFFFF" />}
-                </View>
-                <Text style={styles.termsText}>
-                  ฉันยอมรับ{' '}
-                  <Text
-                    style={styles.termsLink}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      router.push('/terms-of-use' as any);
-                    }}
-                  >
-                    ข้อกำหนดการใช้งาน
-                  </Text>
-                  {' '}และรับทราบ{' '}
-                  <Text
-                    style={styles.termsLink}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      router.push('/privacy-policy' as any);
-                    }}
-                  >
-                    นโยบายความเป็นส่วนตัว
-                  </Text>
-                </Text>
-              </Pressable>
+                  {isLoading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <Text style={styles.submitButtonText}>สมัครบัญชี →</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
 
-              {termsError && !acceptedTerms && (
-                <View style={styles.termsErrorContainer}>
-                  <Feather name="alert-circle" size={13} color="#C0392B" style={styles.termsErrorIcon} />
-                  <Text style={styles.termsErrorText}>
-                    กรุณากดยอมรับเงื่อนไขก่อนสมัครบัญชี
-                  </Text>
-                </View>
-              )}
-
+            {/* Bottom Footer Navigation */}
+            <View style={[styles.footer]}>
+              <Text style={styles.footerText}>มีบัญชีอยู่แล้ว? </Text>
               <Pressable
-                onPress={handleRegister}
-                disabled={isLoading}
-                style={({ pressed }) => [
-                  styles.submitButton,
-                  pressed && styles.buttonPressed,
-                  isLoading && styles.buttonDisabled,
-                ]}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                onPress={() => router.replace({ pathname: '/(auth)/login', params: { returnTo, from } })}
+                style={({ pressed }) => [pressed && styles.buttonPressed]}
               >
-                {isLoading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text style={styles.submitButtonText}>สมัครบัญชี →</Text>
-                )}
+                <Text style={styles.footerLink}>เข้าสู่ระบบ</Text>
               </Pressable>
             </View>
           </View>
-
-          {/* Bottom Footer Navigation */}
-          <View style={[styles.footer, isSmallScreen && styles.footerSmall]}>
-            <Text style={styles.footerText}>มีบัญชีอยู่แล้ว? </Text>
-            <Pressable
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              onPress={() => router.replace({ pathname: '/(auth)/login', params: { returnTo, from } })}
-              style={({ pressed }) => [pressed && styles.buttonPressed]}
-            >
-              <Text style={styles.footerLink}>เข้าสู่ระบบ</Text>
-            </Pressable>
-          </View>
-        </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -477,13 +595,13 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   screenContainer: {
-    flex: 1,
+    flexGrow: 1,
     width: '100%',
     maxWidth: 420,
     backgroundColor: '#FFF8ED',
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'android' ? 10 : 4,
-    paddingBottom: Platform.OS === 'ios' ? 12 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 12,
     justifyContent: 'space-between',
     alignSelf: 'center',
   },
@@ -663,10 +781,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 14,
-    marginBottom: 8,
-  },
-  footerSmall: {
     marginTop: 8,
     marginBottom: 4,
   },

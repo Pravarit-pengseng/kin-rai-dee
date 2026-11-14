@@ -1,16 +1,31 @@
 import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, Animated, useWindowDimensions } from "react-native";
+import { View, StyleSheet, Animated, Platform } from "react-native";
 
 function PostSkeletonCard() {
   const shimmer = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(shimmer, { toValue: 1, duration: 900, useNativeDriver: true }),
-        Animated.timing(shimmer, { toValue: 0, duration: 900, useNativeDriver: true }),
+        Animated.timing(shimmer, {
+          toValue: 1,
+          duration: 450,
+          useNativeDriver: Platform.OS !== 'web',
+          isInteraction: false,
+        }),
+        Animated.timing(shimmer, {
+          toValue: 0,
+          duration: 450,
+          useNativeDriver: Platform.OS !== 'web',
+          isInteraction: false,
+        }),
       ])
-    ).start();
+    );
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
   }, [shimmer]);
 
   const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.85] });
@@ -54,12 +69,27 @@ export function PostGridSkeleton({ count = 9 }: { count?: number }) {
   const shimmer = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(shimmer, { toValue: 1, duration: 900, useNativeDriver: true }),
-        Animated.timing(shimmer, { toValue: 0, duration: 900, useNativeDriver: true }),
+        Animated.timing(shimmer, {
+          toValue: 1,
+          duration: 450,
+          useNativeDriver: Platform.OS !== 'web',
+          isInteraction: false,
+        }),
+        Animated.timing(shimmer, {
+          toValue: 0,
+          duration: 450,
+          useNativeDriver: Platform.OS !== 'web',
+          isInteraction: false,
+        }),
       ])
-    ).start();
+    );
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
   }, [shimmer]);
 
   const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.85] });
@@ -99,21 +129,105 @@ const gridStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  card: { width: "100%", backgroundColor: "#FFFFFF", borderRadius: 16, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.08, shadowRadius: 9, elevation: 3, marginBottom: 16 },
-  header: { padding: 16 },
-  userRow: { flexDirection: "row", alignItems: "center" },
-  avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: BASE, marginTop: 5 },
-  userInfo: { flex: 1, marginLeft: 10, gap: 6 },
-  nameLine: { height: 13, width: "45%", borderRadius: 6, backgroundColor: BASE },
-  timeLine: { height: 10, width: "28%", borderRadius: 6, backgroundColor: BASE },
-  image: { width: "92%", height: 300, alignSelf: "center", borderRadius: 16, backgroundColor: BASE },
-  content: { padding: 16, paddingTop: 12 },
-  titleLine: { height: 20, width: "60%", borderRadius: 6, backgroundColor: BASE, marginBottom: 10, marginTop: 5 },
-  descLine1: { height: 13, width: "100%", borderRadius: 6, backgroundColor: BASE, marginBottom: 7 },
-  descLine2: { height: 13, width: "75%", borderRadius: 6, backgroundColor: BASE, marginBottom: 12 },
-  tagRow: { flexDirection: "row", marginBottom: 10 },
-  tagPill: { height: 28, width: 80, borderRadius: 20, backgroundColor: BASE },
-  divider: { height: 1, backgroundColor: "#E8DCD7", marginTop: 4, marginBottom: 8 },
-  footer: { alignItems: "flex-end" },
-  bookmarkIcon: { width: 22, height: 22, borderRadius: 4, backgroundColor: BASE },
+  card: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    overflow: Platform.OS === "android" ? "visible" : "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 9,
+    elevation: 3,
+    marginBottom: 16,
+  },
+  header: {
+    padding: 16,
+  },
+  userRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: BASE,
+    marginTop: 5,
+  },
+  userInfo: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  nameLine: {
+    height: 13,
+    width: "45%",
+    borderRadius: 6,
+    backgroundColor: BASE,
+    marginBottom: 6,
+  },
+  timeLine: {
+    height: 10,
+    width: "28%",
+    borderRadius: 6,
+    backgroundColor: BASE,
+  },
+  image: {
+    width: "92%",
+    height: 300,
+    alignSelf: "center",
+    borderRadius: 16,
+    backgroundColor: BASE,
+  },
+  content: {
+    padding: 16,
+    paddingTop: 12,
+  },
+  titleLine: {
+    height: 20,
+    width: "60%",
+    borderRadius: 6,
+    backgroundColor: BASE,
+    marginBottom: 10,
+    marginTop: 5,
+  },
+  descLine1: {
+    height: 13,
+    width: "100%",
+    borderRadius: 6,
+    backgroundColor: BASE,
+    marginBottom: 7,
+  },
+  descLine2: {
+    height: 13,
+    width: "75%",
+    borderRadius: 6,
+    backgroundColor: BASE,
+    marginBottom: 12,
+  },
+  tagRow: {
+    flexDirection: "row",
+    marginBottom: 10,
+  },
+  tagPill: {
+    height: 28,
+    width: 80,
+    borderRadius: 20,
+    backgroundColor: BASE,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#E8DCD7",
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  footer: {
+    alignItems: "flex-end",
+  },
+  bookmarkIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    backgroundColor: BASE,
+  },
 });

@@ -1,4 +1,4 @@
-import { fetchApi } from './api';
+import { fetchApi, USE_DIRECT_SUPABASE } from './api';
 import { supabase } from '@/lib/supabase';
 import { FOOD_LIST, FoodItem } from '@/constants/foodData';
 
@@ -9,16 +9,46 @@ export interface FoodApiItem {
   category_id: number | string;
 }
 
+let _foodsCache: Record<string, FoodApiItem[]> = {};
+
 export async function fetchFoods(categoryId?: string): Promise<FoodApiItem[]> {
+  const cacheKey = categoryId || 'all';
+  if (_foodsCache[cacheKey] && _foodsCache[cacheKey].length > 0) {
+    return _foodsCache[cacheKey];
+  }
+
+  // 1. Direct Supabase query if enabled
+  if (USE_DIRECT_SUPABASE) {
+    try {
+      let query = supabase.from('foods').select('*');
+      if (categoryId) query = query.eq('category_id', categoryId);
+      const { data: supaData } = await query;
+      if (supaData && supaData.length > 0) {
+        _foodsCache[cacheKey] = supaData;
+        return supaData;
+      }
+    } catch (e) {
+      console.warn('Supabase fetch foods error:', e);
+    }
+    return [];
+  }
+
+  // Try Backend API first
   const queryParam = categoryId ? `?category_id=${categoryId}` : '';
   const data = await fetchApi<FoodApiItem[]>(`/api/foods${queryParam}`);
-  if (data && data.length > 0) return data;
+  if (data && data.length > 0) {
+    _foodsCache[cacheKey] = data;
+    return data;
+  }
 
   try {
     let query = supabase.from('foods').select('*');
     if (categoryId) query = query.eq('category_id', categoryId);
     const { data: supaData } = await query;
-    if (supaData && supaData.length > 0) return supaData;
+    if (supaData && supaData.length > 0) {
+      _foodsCache[cacheKey] = supaData;
+      return supaData;
+    }
   } catch (e) {
     console.warn('Supabase fetch foods fallback error:', e);
   }
@@ -27,6 +57,18 @@ export async function fetchFoods(categoryId?: string): Promise<FoodApiItem[]> {
 }
 
 export async function getRandomFood(categoryIds: string[]): Promise<FoodItem | null> {
+  // If Direct Supabase mode is on, immediately randomize locally for instant response (0ms)
+  if (USE_DIRECT_SUPABASE) {
+    const pool = categoryIds.length > 0
+      ? FOOD_LIST.filter(item => categoryIds.includes(item.categoryId))
+      : FOOD_LIST;
+
+    if (pool.length > 0) {
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+    return null;
+  }
+
   const queryParam = categoryIds.length > 0 ? `?category_ids=${categoryIds.join(',')}` : '';
   const data = await fetchApi<FoodApiItem>(`/api/random/food${queryParam}`);
 
@@ -51,6 +93,23 @@ export async function getRandomFood(categoryIds: string[]): Promise<FoodItem | n
 }
 
 export async function getRandomIngredient(veg: boolean, meat: boolean): Promise<{ veg: FoodItem | null; meat: FoodItem | null }> {
+  // If Direct Supabase mode is on, randomize locally for instant response (0ms)
+  if (USE_DIRECT_SUPABASE) {
+    let resVeg: FoodItem | null = null;
+    let resMeat: FoodItem | null = null;
+
+    if (veg) {
+      const vegPool = FOOD_LIST.filter(item => item.categoryId === '7'); // 7 = ผัก
+      if (vegPool.length > 0) resVeg = vegPool[Math.floor(Math.random() * vegPool.length)];
+    }
+    if (meat) {
+      const meatPool = FOOD_LIST.filter(item => item.categoryId === '5'); // 5 = เนื้อสัตว์
+      if (meatPool.length > 0) resMeat = meatPool[Math.floor(Math.random() * meatPool.length)];
+    }
+
+    return { veg: resVeg, meat: resMeat };
+  }
+
   const params = new URLSearchParams();
   if (veg) params.append('veg', 'true');
   if (meat) params.append('meat', 'true');

@@ -16,6 +16,7 @@ type ProfileFormProps = {
   initialName?: string;
   initialUsername?: string;
   initialBio?: string;
+  onFocusField?: (field: 'name' | 'username' | 'bio') => void;
   onChange?: (data: {
     name: string;
     username: string;
@@ -27,6 +28,7 @@ export default function ProfileForm({
   initialName = "บุคคลที่ชอบกิน",
   initialUsername = "@mookmhee",
   initialBio = "กินเก่ง ทำอาหารกินเองบ่อย 🔍✨",
+  onFocusField,
   onChange,
 }: ProfileFormProps) {
   const [name, setName] = useState(initialName);
@@ -81,6 +83,7 @@ export default function ProfileForm({
           <TextInput
             value={name}
             onChangeText={handleNameChange}
+            onFocus={() => onFocusField?.('name')}
             style={styles.input}
             placeholder="ชื่อที่แสดง"
             placeholderTextColor="#A9A09D"
@@ -105,6 +108,7 @@ export default function ProfileForm({
           <TextInput
             value={username}
             onChangeText={handleUsernameChange}
+            onFocus={() => onFocusField?.('username')}
             style={styles.input}
             placeholder="@username"
             placeholderTextColor="#241917"
@@ -129,6 +133,7 @@ export default function ProfileForm({
           <TextInput
             value={bio}
             onChangeText={handleBioChange}
+            onFocus={() => onFocusField?.('bio')}
             style={styles.input}
             placeholder="บอกเกี่ยวกับตัวคุณ"
             placeholderTextColor="#241917"

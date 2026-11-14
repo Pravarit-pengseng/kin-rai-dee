@@ -43,7 +43,7 @@ export default function ProfileHeader({
         <View style={styles.avatarOuter}>
           <View style={styles.avatarInner}>
             <Image
-              source={avatarUrl && !avatarError ? { uri: avatarUrl } : require("../assets/images/ProfilePicture.png")}
+              source={avatarUrl && !avatarError ? { uri: avatarUrl } : require("@/assets/images/ProfilePicture.png")}
               style={styles.avatar}
               contentFit="cover"
               transition={200}
@@ -128,18 +128,18 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     marginBottom: 10,
-    borderRadius: 55,
+    borderRadius: 100,
     borderWidth: 3,
     borderColor: "#F3D6D0",
     backgroundColor: "#FFF1B8",
-    padding: 4,
+
   },
 
   avatarInner: {
     width: "100%",
     height: "100%",
     overflow: "hidden",
-    borderRadius: 40,
+    borderRadius: 100,
     backgroundColor: "#FFF8E5",
     alignItems: "center",
     justifyContent: "center",

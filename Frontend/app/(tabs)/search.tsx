@@ -52,7 +52,14 @@ export default function SearchScreen() {
   const [popupPost, setPopupPost] = useState<PopupPostData | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
 
-  const { from } = useLocalSearchParams<{ from?: string }>();
+  const { from, query, tag } = useLocalSearchParams<{ from?: string; query?: string; tag?: string }>();
+
+  useEffect(() => {
+    const targetQuery = (query || tag)?.trim();
+    if (targetQuery) {
+      handleSearch(targetQuery);
+    }
+  }, [query, tag]);
 
   // Fetch user location for nearby restaurants
   useEffect(() => {
@@ -219,6 +226,8 @@ export default function SearchScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         {/* Search Bar */}
         <View style={styles.searchContainer}>

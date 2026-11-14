@@ -4,6 +4,30 @@ import { supabase } from '@/lib/supabase';
 
 const PRODUCTION_API_URL = 'https://kin-rai-dee-backend.onrender.com';
 
+/**
+ * Direct Supabase Mode:
+ * เมื่อเปิดใช้งาน (true) จะส่งคำขอตรงเข้า Supabase ทันที ไม่ต้องรอ Render Backend spin up / timeout (4 วินาที)
+ * ทำให้แอปตอบสนองได้เร็วมาก (~100-250ms)
+ */
+export const USE_DIRECT_SUPABASE = process.env.EXPO_PUBLIC_USE_DIRECT_SUPABASE !== 'false';
+
+/**
+ * Helper ดึง user ปัจจุบันจาก session ใน storage
+ * หมายเหตุ: supabase.auth.getSession() จะ refresh token ให้เองถ้าใกล้หมดอายุ ไม่ต้อง refresh เอง
+ */
+export async function getAuthUser() {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) console.warn('[Auth] getSession error:', error.message);
+    if (session?.user) return session.user;
+    console.warn('[Auth] getAuthUser: ไม่พบ session ใน storage');
+    return null;
+  } catch (e) {
+    console.warn('[Auth] getAuthUser exception:', e);
+    return null;
+  }
+}
+
 function resolveApiBaseUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 
@@ -40,15 +64,22 @@ function resolveApiBaseUrl(): string {
 
 export const API_BASE_URL = resolveApiBaseUrl();
 
-export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T | null> {
+export interface FetchApiOptions extends RequestInit {
+  forceBackend?: boolean;
+}
+
+export async function fetchApi<T>(endpoint: string, options?: FetchApiOptions): Promise<T | null> {
+  // เมื่อเปิด Direct Supabase และไม่ได้บังคับ forceBackend ให้ข้ามไปใช้ Supabase ทันทีโดยไม่ติด timeout 4s
+  if (USE_DIRECT_SUPABASE && !options?.forceBackend) {
+    return null;
+  }
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4000); // 4-second timeout to quickly fallback
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout สำหรับ mobile connection
 
   try {
-    // ดึง JWT จาก Supabase session อัตโนมัติ
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    // ดึง JWT จาก Supabase session (getSession refresh ให้เองถ้าใกล้หมดอายุ)
+    const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
 
     const headers: Record<string, string> = {

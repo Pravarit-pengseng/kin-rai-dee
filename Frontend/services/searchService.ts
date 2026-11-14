@@ -1,4 +1,4 @@
-import { fetchApi } from './api';
+import { fetchApi, getAuthUser } from './api';
 import { supabase } from '@/lib/supabase';
 import { PopupPostData } from '@/components/popup-post';
 import { resolveCategoryNames, mapPostToPopup, attachProfilesToPosts } from './postService';
@@ -26,11 +26,34 @@ export async function searchPosts(query: string): Promise<PopupPostData[]> {
   } else {
     // Supabase fallback
     try {
+      // 1. Search category IDs matching query
+      const { data: catData } = await supabase
+        .from('categories')
+        .select('id')
+        .ilike('name', `%${query}%`);
+
+      let catPostIds: any[] = [];
+      if (catData && catData.length > 0) {
+        const catIds = catData.map((c: any) => c.id);
+        const { data: pcData } = await supabase
+          .from('post_categories')
+          .select('post_id')
+          .in('category_id', catIds);
+        if (pcData && pcData.length > 0) {
+          catPostIds = pcData.map((pc: any) => pc.post_id);
+        }
+      }
+
+      let orConds = [`food_name.ilike.%${query}%`, `description.ilike.%${query}%`];
+      if (catPostIds.length > 0) {
+        orConds.push(`id.in.(${catPostIds.join(',')})`);
+      }
+
       const { data: posts, error } = await supabase
         .from('posts')
         .select('*, post_categories(categories(id, name))')
         .or('is_hidden.is.null,is_hidden.eq.false')
-        .ilike('food_name', `%${query}%`)
+        .or(orConds.join(','))
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -64,8 +87,8 @@ export async function fetchSearchHistory(): Promise<SearchHistoryItem[]> {
 
   // Supabase fallback: ดึง userId จาก session แทน
   try {
-    const { data: authData } = await supabase.auth.getUser();
-    const userId = authData.user?.id;
+    const user = await getAuthUser();
+    const userId = user?.id;
     if (!userId) return [];
 
     const { data: supaData } = await supabase
@@ -91,8 +114,8 @@ export async function addSearchHistory(queryText: string): Promise<boolean> {
 
   // Supabase fallback
   try {
-    const { data: authData } = await supabase.auth.getUser();
-    const userId = authData.user?.id;
+    const user = await getAuthUser();
+    const userId = user?.id;
     if (!userId) return false;
 
     await supabase.from('search_history').insert({ user_id: userId, query: queryText });
@@ -126,8 +149,8 @@ export async function clearAllSearchHistory(): Promise<boolean> {
   if (res) return true;
 
   try {
-    const { data: authData } = await supabase.auth.getUser();
-    const userId = authData.user?.id;
+    const user = await getAuthUser();
+    const userId = user?.id;
     if (!userId) return false;
 
     await supabase.from('search_history').delete().eq('user_id', userId);

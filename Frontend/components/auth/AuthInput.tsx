@@ -10,27 +10,30 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { Typography } from '@/constants/typography';
 
-interface AuthInputProps extends TextInputProps {
+export interface AuthInputProps extends TextInputProps {
   iconName: keyof typeof Feather.glyphMap;
   isPassword?: boolean;
   errorMessage?: string | null;
 }
 
-export function AuthInput({
-  iconName,
-  isPassword = false,
-  errorMessage,
-  value,
-  onChangeText,
-  placeholder,
-  ...props
-}: AuthInputProps) {
+export const AuthInput = React.forwardRef<any, AuthInputProps>(function AuthInput(
+  {
+    iconName,
+    isPassword = false,
+    errorMessage,
+    value,
+    onChangeText,
+    placeholder,
+    ...props
+  },
+  ref
+) {
   const [showPassword, setShowPassword] = useState(!isPassword);
   const [isFocused, setIsFocused] = useState(false);
   const hasError = Boolean(errorMessage);
 
   return (
-    <View style={styles.wrapper}>
+    <View ref={ref} style={styles.wrapper}>
       <View
         style={[
           styles.container,
@@ -88,7 +91,7 @@ export function AuthInput({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   wrapper: {

@@ -59,9 +59,20 @@ export default function ForgotPasswordScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const emailInputRef = useRef<View>(null);
+  const newPasswordRef = useRef<View>(null);
+  const confirmPasswordRef = useRef<View>(null);
 
-  const { scrollRef, isKeyboardVisible, contentBottomPadding, scrollToEnd } = useKeyboardScroll({
-    defaultBottomPadding: 40,
+  const {
+    scrollRef,
+    isKeyboardVisible,
+    contentBottomPadding,
+    handleScroll,
+    scrollToFocusedInput,
+  } = useKeyboardScroll({
+    defaultBottomPadding: 24,
+    resetOnHide: true,
+    extraOffset: 24,
   });
 
   // Pre-fill email if user is already logged in (e.g. from /settings)
@@ -271,6 +282,8 @@ export default function ForgotPasswordScreen() {
           overScrollMode={isKeyboardVisible ? "always" : "never"}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
           <View style={styles.container}>
             {/* General Error Banner */}
@@ -288,9 +301,11 @@ export default function ForgotPasswordScreen() {
                 </Text>
 
                 <PillInput
+                  ref={emailInputRef}
                   iconName="user"
                   placeholder="อีเมล"
                   value={email}
+                  onFocus={() => scrollToFocusedInput(emailInputRef)}
                   onChangeText={(val) => {
                     setEmail(val);
                     if (inputErrors.email) setInputErrors((prev) => ({ ...prev, email: null }));
@@ -366,6 +381,7 @@ export default function ForgotPasswordScreen() {
                 <Text style={styles.description}>กรุณาตั้งรหัสผ่านใหม่</Text>
 
                 <PillInput
+                  ref={newPasswordRef}
                   iconName="lock"
                   isPassword
                   placeholder="รหัสผ่านใหม่"
@@ -378,7 +394,7 @@ export default function ForgotPasswordScreen() {
                   }}
                   onFocus={() => {
                     setIsPasswordFocused(true);
-                    scrollToEnd();
+                    scrollToFocusedInput(newPasswordRef);
                   }}
                   onBlur={() => {
                     setIsPasswordFocused(false);
@@ -453,11 +469,12 @@ export default function ForgotPasswordScreen() {
                 )}
 
                 <PillInput
+                  ref={confirmPasswordRef}
                   iconName="check-circle"
                   isPassword
                   placeholder="ยืนยันรหัสผ่าน"
                   value={confirmPassword}
-                  onFocus={() => scrollToEnd()}
+                  onFocus={() => scrollToFocusedInput(confirmPasswordRef)}
                   onChangeText={(val) => {
                     setConfirmPassword(val);
                     if (inputErrors.confirmPassword) {

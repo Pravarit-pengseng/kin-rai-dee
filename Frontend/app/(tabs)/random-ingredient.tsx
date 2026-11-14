@@ -93,8 +93,14 @@ export default function RandomIngredientScreen() {
 
     setIsRandomizing(true);
     setHasRandomized(true);
-    setRandomVeg(null);
-    setRandomMeat(null);
+
+    // Set initial random items immediately so the images never disappear or flicker
+    if (isVegSelected) {
+      setRandomVeg(vegPool[Math.floor(Math.random() * vegPool.length)]);
+    }
+    if (isMeatSelected) {
+      setRandomMeat(meatPool[Math.floor(Math.random() * meatPool.length)]);
+    }
 
     let count = 0;
     intervalRef.current = setInterval(() => {
@@ -116,14 +122,15 @@ export default function RandomIngredientScreen() {
     }, 100);
   };
 
-  const renderIngredientCard = (ingredient: IngredientItem) => (
+  const renderIngredientCard = (ingredient: IngredientItem, slotKey: string) => (
     <Image
-      key={`${ingredient.categoryId}-${ingredient.name}`}
+      key={slotKey}
       source={ingredient.image}
       style={[
         styles.ingredientCardImage,
         { width: cardWidth, height: ingredientCardHeight },
       ]}
+      fadeDuration={0}
       resizeMode="contain"
       accessibilityLabel={ingredient.name}
     />
@@ -230,13 +237,14 @@ export default function RandomIngredientScreen() {
                 <Image
                   source={require('@/assets/images/kinraidee-logo.png')}
                   style={styles.placeholderLogo}
+                  fadeDuration={0}
                   resizeMode="contain"
                 />
               </View>
             ) : (
               <View style={[styles.resultRow, { gap: cardGap }]}>
-                {isVegSelected && randomVeg && renderIngredientCard(randomVeg)}
-                {isMeatSelected && randomMeat && renderIngredientCard(randomMeat)}
+                {isVegSelected && randomVeg && renderIngredientCard(randomVeg, 'slot-veg')}
+                {isMeatSelected && randomMeat && renderIngredientCard(randomMeat, 'slot-meat')}
               </View>
             )}
           </View>

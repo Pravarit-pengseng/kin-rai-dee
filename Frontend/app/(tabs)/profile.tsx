@@ -23,8 +23,8 @@ import { ThemedText } from "@/components/themed-text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/context/AuthContext";
-import { getMyProfile, getUserPosts } from "@/services/profileService";
-import { getSavedPosts, deletePost, mapPostToPopup, bookmarkPost, unbookmarkPost } from "@/services/postService";
+import { getMyProfile, getUserPosts, getCachedUserPosts } from "@/services/profileService";
+import { getSavedPosts, getSavedPostIds, deletePost, mapPostToPopup, bookmarkPost, unbookmarkPost } from "@/services/postService";
 import { PostGridSkeleton } from "@/components/PostSkeleton";
 import { setCachedPostList } from "@/services/postCache";
 
@@ -45,64 +45,40 @@ export default function ProfileScreen() {
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
 
-  // Profile data จาก API
-  const [profileName, setProfileName] = useState<string | undefined>(undefined);
-  const [profileUsername, setProfileUsername] = useState<string | undefined>(undefined);
-  const [profileBio, setProfileBio] = useState<string | undefined>(undefined);
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | undefined>(undefined);
+  // Profile data จาก AuthContext ทันที (0ms) และอัปเดตจาก API
+  const [profileName, setProfileName] = useState<string | undefined>(() => user?.displayName);
+  const [profileUsername, setProfileUsername] = useState<string | undefined>(() => user?.username);
+  const [profileBio, setProfileBio] = useState<string | undefined>(() => user?.bio);
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | undefined>(() => user?.avatarUrl);
 
   useEffect(() => {
     if (!isLoggedIn) {
       router.replace({ pathname: '/(auth)/login', params: { returnTo: '/(tabs)/profile', from: '/' } });
     }
-    // โหลด profile จาก useFocusEffect แทน เพื่อไม่ดึงซ้ำ
   }, [isLoggedIn]);
 
-  const [posts, setPosts] = useState<PopupPostData[]>([]);
+  const [posts, setPosts] = useState<PopupPostData[]>(() => {
+    if (user?.id) {
+      const cached = getCachedUserPosts(user.id);
+      if (cached && cached.length > 0) return cached.map(mapPostToPopup);
+    }
+    return [];
+  });
   const [savedPosts, setSavedPosts] = useState<PopupPostData[]>([]);
-  const [loadingPosts, setLoadingPosts] = useState(true);
-  const [loadingSaved, setLoadingSaved] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(() => {
+    if (user?.id) {
+      const cached = getCachedUserPosts(user.id);
+      return !cached || cached.length === 0;
+    }
+    return true;
+  });
+  const [loadingSaved, setLoadingSaved] = useState(false);
   const [selectedPost, setSelectedPost] =
     useState<PopupPostData | null>(null);
   const [popupVisible, setPopupVisible] = useState(false);
   const [deletePopupVisible, setDeletePopupVisible] =
     useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    if (user?.id) {
-      try {
-        const [profileData, apiPosts, saved] = await Promise.all([
-          getMyProfile(),
-          getUserPosts(user.id),
-          getSavedPosts()
-        ]);
-        if (profileData) {
-          setProfileName(profileData.display_name ?? undefined);
-          setProfileUsername(profileData.username ?? undefined);
-          setProfileBio(profileData.bio ?? undefined);
-          setProfileAvatarUrl(profileData.avatar_url ?? undefined);
-        }
-        setPosts((apiPosts || []).map(mapPostToPopup));
-        setSavedPosts(Array.isArray(saved) ? saved : []);
-        setLoadingPosts(false);
-        setLoadingSaved(false);
-      } catch (e) {
-        console.warn("Refresh profile error:", e);
-        setLoadingPosts(false);
-        setLoadingSaved(false);
-      }
-    }
-    setRefreshing(false);
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (params.refresh) {
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
-      onRefresh();
-    }
-  }, [params.refresh, onRefresh]);
   const [logoutPopupVisible, setLogoutPopupVisible] =
     useState(false);
   const [deletePostId, setDeletePostId] =
@@ -111,6 +87,71 @@ export default function ProfileScreen() {
     useState<string[]>([]);
   const [activeTab, setActiveTab] =
     useState<"posts" | "saved">("posts");
+
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  const savedPostsRef = useRef(savedPosts);
+  useEffect(() => {
+    savedPostsRef.current = savedPosts;
+  }, [savedPosts]);
+
+  const loadSavedPosts = useCallback(async (force = false) => {
+    if (!user?.id) return;
+    if (!force && savedPostsRef.current.length > 0) return;
+    setLoadingSaved(true);
+    try {
+      const saved = await getSavedPosts();
+      const safeSaved = Array.isArray(saved) ? saved : [];
+      setSavedPosts(safeSaved);
+      if (safeSaved.length > 0) {
+        setBookmarkedIds(safeSaved.map((s) => s.id));
+      }
+    } catch (e) {
+      console.warn("loadSavedPosts error:", e);
+    } finally {
+      setLoadingSaved(false);
+    }
+  }, [user?.id]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (user?.id) {
+      try {
+        const [profileData, apiPosts] = await Promise.all([
+          getMyProfile(true),
+          getUserPosts(user.id, true),
+        ]);
+        if (profileData) {
+          setProfileName(profileData.display_name ?? undefined);
+          setProfileUsername(profileData.username ?? undefined);
+          setProfileBio(profileData.bio ?? undefined);
+          setProfileAvatarUrl(profileData.avatar_url ?? undefined);
+        }
+        setPosts((apiPosts || []).map(mapPostToPopup));
+        setLoadingPosts(false);
+
+        // If saved tab is open, also refresh saved posts
+        if (activeTabRef.current === "saved") {
+          await loadSavedPosts(true);
+        }
+      } catch (e) {
+        console.warn("Refresh profile error:", e);
+        setLoadingPosts(false);
+        setLoadingSaved(false);
+      }
+    }
+    setRefreshing(false);
+  }, [user?.id, loadSavedPosts]);
+
+  useEffect(() => {
+    if (params.refresh) {
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      onRefresh();
+    }
+  }, [params.refresh, onRefresh]);
 
   const currentParamsKey = `${params.name}|${params.username}|${params.bio}|${params.avatarUrl}`;
   const [prevParamsKey, setPrevParamsKey] = useState(currentParamsKey);
@@ -122,12 +163,12 @@ export default function ProfileScreen() {
     if (params.avatarUrl !== undefined) setProfileAvatarUrl(params.avatarUrl || undefined);
   }
 
-  // โหลดโพสต์ของตัวเองและโพสต์ที่บันทึกไว้ รวมถึง profile เมื่อโฟกัสหน้าจอ
+  // โหลดโพสต์ของตัวเองและ profile เมื่อโฟกัสหน้าจอ (รวดเร็ว ไม่บล็อกด้วย saved posts)
   useFocusEffect(
     useCallback(() => {
       if (!isLoggedIn || !user?.id) return;
 
-      // โหลด profile จริงจาก DB เพื่อให้ข้อมูลและรูปโปรไฟล์ตรงกับฐานข้อมูลเสมอ
+      // 1. โหลด profile ใน background
       getMyProfile().then((profile) => {
         if (profile) {
           setProfileName(profile.display_name ?? undefined);
@@ -139,7 +180,7 @@ export default function ProfileScreen() {
         console.warn("Fetch my profile on focus error:", err);
       });
 
-      // โหลดโพสต์ตัวเอง ผ่าน API
+      // 2. โหลดโพสต์ตัวเอง ผ่าน cache / query เดี่ยว (รวดเร็วมาก)
       getUserPosts(user.id).then((apiPosts) => {
         const safePosts = Array.isArray(apiPosts) ? apiPosts : [];
         setPosts(safePosts.map(mapPostToPopup));
@@ -148,20 +189,16 @@ export default function ProfileScreen() {
         setLoadingPosts(false);
       });
 
-      // โหลดโพสต์ที่บันทึกไว้
-      getSavedPosts().then((saved) => {
-        const safeSaved = Array.isArray(saved) ? saved : [];
-        setSavedPosts(safeSaved);
-        if (safeSaved.length > 0) {
-          setBookmarkedIds(safeSaved.map((s) => s.id));
-        } else {
-          setBookmarkedIds([]);
-        }
-        setLoadingSaved(false);
-      }).catch(() => {
-        setLoadingSaved(false);
-      });
-    }, [isLoggedIn, user?.id])
+      // 3. Sync bookmark IDs แบบ lightweight (~100 bytes)
+      getSavedPostIds().then((ids) => {
+        setBookmarkedIds(ids);
+      }).catch(() => {});
+
+      // 4. ถ้ากำลังดูแท็บ "saved" อยู่ ค่อยโหลด saved posts
+      if (activeTabRef.current === "saved") {
+        loadSavedPosts();
+      }
+    }, [isLoggedIn, user?.id, loadSavedPosts])
   );
   // รับโพสต์ใหม่จาก AddPost/EditPost ผ่าน navigation params
   useEffect(() => {
@@ -381,7 +418,12 @@ export default function ProfileScreen() {
                 styles.tab,
                 pressed && styles.buttonPressed,
               ]}
-              onPress={() => setActiveTab(tab)}
+              onPress={() => {
+                setActiveTab(tab);
+                if (tab === "saved" && savedPostsRef.current.length === 0) {
+                  loadSavedPosts();
+                }
+              }}
             >
               <ThemedText
                 style={[

@@ -33,11 +33,43 @@ export function normalizeAvatarUrl(url?: string | null): string | undefined {
     return url;
 }
 
+// ── Profile Caches ──────────────────────────────────────────────────────────
+let _myProfileCache: { data: UserProfile; timestamp: number } | null = null;
+const MY_PROFILE_CACHE_TTL = 45 * 1000; // 45 วินาที
+
+export function invalidateMyProfileCache() {
+    _myProfileCache = null;
+}
+
+let _userPostsCache: Record<string, { data: any[]; timestamp: number }> = {};
+const USER_POSTS_CACHE_TTL = 45 * 1000; // 45 วินาที
+
+export function getCachedUserPosts(userId: string): any[] | null {
+    const item = _userPostsCache[userId];
+    if (item && Date.now() - item.timestamp < USER_POSTS_CACHE_TTL) {
+        return item.data;
+    }
+    return null;
+}
+
+export function invalidateUserPostsCache(userId?: string) {
+    if (userId) {
+        delete _userPostsCache[userId];
+    } else {
+        _userPostsCache = {};
+    }
+}
+
 /**
  * GET My Profile
  * Auth required
  */
-export async function getMyProfile(): Promise<UserProfile | null> {
+export async function getMyProfile(forceRefresh: boolean = false): Promise<UserProfile | null> {
+    const now = Date.now();
+    if (!forceRefresh && _myProfileCache && now - _myProfileCache.timestamp < MY_PROFILE_CACHE_TTL) {
+        return _myProfileCache.data;
+    }
+
     const resp = await fetchApi<{ success: boolean; data: UserProfile }>(
         '/api/profiles/me',
     );
@@ -47,6 +79,7 @@ export async function getMyProfile(): Promise<UserProfile | null> {
         if (profile?.avatar_url) {
             profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
         }
+        _myProfileCache = { data: profile, timestamp: now };
         return profile;
     }
 
@@ -73,6 +106,9 @@ export async function getMyProfile(): Promise<UserProfile | null> {
 
         if (profile?.avatar_url) {
             profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
+        }
+        if (profile) {
+            _myProfileCache = { data: profile, timestamp: now };
         }
         return profile;
     } catch (e) {
@@ -104,6 +140,7 @@ export async function updateMyProfile(
         if (profile?.avatar_url) {
             profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
         }
+        invalidateMyProfileCache();
         return profile;
     }
 
@@ -132,6 +169,7 @@ export async function updateMyProfile(
         if (profile?.avatar_url) {
             profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
         }
+        invalidateMyProfileCache();
         return profile;
     } catch (e) {
         console.warn(
@@ -179,6 +217,7 @@ export async function getUserProfile(
         if (profile?.avatar_url) {
             profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
         }
+        invalidateMyProfileCache();
         return profile;
     } catch (e) {
         console.warn(
@@ -195,22 +234,30 @@ export async function getUserProfile(
  */
 export async function getUserPosts(
     userId: string,
+    forceRefresh: boolean = false,
 ): Promise<any[]> {
+    const now = Date.now();
+    if (!forceRefresh && _userPostsCache[userId] && now - _userPostsCache[userId].timestamp < USER_POSTS_CACHE_TTL) {
+        return _userPostsCache[userId].data;
+    }
+
     const data = await fetchApi<any[]>(
         `/api/profiles/${userId}/posts`,
     );
 
     if (data) {
         const list = Array.isArray(data) ? data : (data as any).data || [];
-        return list.filter((p: any) => !p.is_hidden);
+        const filtered = list.filter((p: any) => !p.is_hidden);
+        _userPostsCache[userId] = { data: filtered, timestamp: now };
+        return filtered;
     }
 
-    // Supabase direct
+    // Supabase direct with joined profiles in a single query
     try {
         const { data: posts, error } = await supabase
             .from('posts')
             .select(
-                '*, post_categories(categories(id, name))',
+                '*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))',
             )
             .eq('user_id', userId)
             .or('is_hidden.is.null,is_hidden.eq.false')
@@ -227,19 +274,7 @@ export async function getUserPosts(
         }
 
         const nonHidden = (posts || []).filter((p: any) => !p.is_hidden);
-        if (nonHidden.length > 0) {
-            const { data: prof } = await supabase
-                .from('profiles')
-                .select('id, username, display_name, avatar_url')
-                .eq('id', userId)
-                .maybeSingle();
-            if (prof) {
-                return nonHidden.map((p: any) => ({
-                    ...p,
-                    profiles: prof,
-                }));
-            }
-        }
+        _userPostsCache[userId] = { data: nonHidden, timestamp: now };
         return nonHidden;
     } catch (e) {
         console.warn(

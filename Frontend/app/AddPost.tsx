@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
     View,
     Pressable,
@@ -32,10 +32,20 @@ export default function AddPost() {
         defaultBottomPadding: 40,
     });
 
+    const permissionGrantedRef = useRef(false);
+
     useEffect(() => {
         if (!isLoggedIn) {
             router.replace({ pathname: '/(auth)/login', params: { returnTo: '/' } });
         }
+        // Pre-check and warm up image picker permissions in the background for instant opening
+        ImagePicker.getMediaLibraryPermissionsAsync()
+            .then((res) => {
+                if (res.granted) {
+                    permissionGrantedRef.current = true;
+                }
+            })
+            .catch(() => {});
     }, [isLoggedIn]);
 
     const [post, setPost] = useState<PostData>({
@@ -48,12 +58,16 @@ export default function AddPost() {
     const [imageError, setImageError] = useState(false);
 
     const pickImage = async () => {
-        const permission =
-            await ImagePicker.requestMediaLibraryPermissionsAsync();
+        // Only request if not already granted to eliminate the 300-500ms permission latency
+        if (!permissionGrantedRef.current) {
+            const permission =
+                await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-        if (!permission.granted) {
-            showAlert("ไม่สามารถเข้าถึงรูปภาพ", "กรุณาอนุญาตให้แอปเข้าถึงรูปภาพ");
-            return;
+            if (!permission.granted) {
+                showAlert("ไม่สามารถเข้าถึงรูปภาพ", "กรุณาอนุญาตให้แอปเข้าถึงรูปภาพ");
+                return;
+            }
+            permissionGrantedRef.current = true;
         }
 
         const result =
@@ -61,12 +75,13 @@ export default function AddPost() {
                 mediaTypes: ["images"],
                 allowsEditing: true,
                 aspect: [4, 3],
-                quality: 0.5,
+                quality: 0.6,
                 base64: true,
             });
 
-        if (!result.canceled) {
-            const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            const asset = result.assets[0];
+            const base64Img = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
             setImageError(false);
             setPost((currentPost) => ({
                 ...currentPost,

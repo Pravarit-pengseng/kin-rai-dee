@@ -1,10 +1,25 @@
-import { fetchApi, getAuthUser } from './api';
+import { fetchApi, getAuthUser, USE_DIRECT_SUPABASE } from './api';
 import { supabase } from '@/lib/supabase';
 import { PopupPostData } from '@/components/popup-post';
-import { normalizeAvatarUrl } from './profileService';
+import { normalizeAvatarUrl, invalidateUserPostsCache } from './profileService';
 import { getBlockedUserIdsSet } from './safetyService';
 
 const DEFAULT_IMAGE = require('@/assets/images/StirFriedHolyBasil.png');
+
+// ── Feed Posts Cache (ลดเวลา Skeleton / แสดงผลทันที) ──────────────────────────
+let _feedPostsCache: PopupPostData[] | null = null;
+let _feedPostsCacheTime = 0;
+const FEED_POSTS_CACHE_TTL = 45 * 1000; // 45 วินาที
+
+export function getCachedFeedPosts(): PopupPostData[] {
+  return _feedPostsCache || [];
+}
+
+export function invalidateFeedPostsCache() {
+  _feedPostsCache = null;
+  _feedPostsCacheTime = 0;
+  invalidateUserPostsCache();
+}
 
 // ── Saved Posts Cache (ลด Supabase egress) ────────────────────────────────────
 let _savedPostsCache: PopupPostData[] | null = null;
@@ -106,19 +121,67 @@ export async function attachProfilesToPosts(posts: any[]): Promise<any[]> {
   return posts;
 }
 
+export const FEED_PAGE_SIZE = 6;
+
 /**
  * GET Feed Posts
  * Public
  */
 export async function fetchFeedPosts(
-  limit: number = 20,
+  limit: number = FEED_PAGE_SIZE,
   offset: number = 0,
+  forceRefresh: boolean = false,
 ): Promise<PopupPostData[]> {
+  const now = Date.now();
+  if (offset === 0 && !forceRefresh && _feedPostsCache && now - _feedPostsCacheTime < FEED_POSTS_CACHE_TTL) {
+    return _feedPostsCache;
+  }
+
   let posts: PopupPostData[] = [];
 
-  const data = await fetchApi<any[]>(
-    `/api/posts/feed?limit=${limit}&offset=${offset}`,
-  );
+  // 1. Direct Supabase Query (Single round-trip with joined profiles and categories)
+  if (USE_DIRECT_SUPABASE) {
+    try {
+      const [supaRes, blockedIds] = await Promise.all([
+        supabase
+          .from('posts')
+          .select('*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))')
+          .or('is_hidden.is.null,is_hidden.eq.false')
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1),
+        getBlockedUserIdsSet().catch(() => new Set<string>()),
+      ]);
+
+      if (supaRes.data && supaRes.data.length > 0) {
+        const nonHidden = supaRes.data.filter((p: any) => !p.is_hidden);
+        const needsProfiles = nonHidden.filter((p: any) => !p.profiles && p.user_id);
+        let populated = nonHidden;
+        if (needsProfiles.length > 0) {
+          populated = await attachProfilesToPosts(nonHidden);
+        }
+        posts = populated.map(mapPostToPopup);
+      }
+
+      if (blockedIds && blockedIds.size > 0) {
+        posts = posts.filter(p => !p.userId || !blockedIds.has(String(p.userId)));
+      }
+
+      if (offset === 0 && posts.length > 0) {
+        _feedPostsCache = posts;
+        _feedPostsCacheTime = Date.now();
+      }
+
+      return posts;
+    } catch (e) {
+      console.warn('Direct Supabase fetchFeedPosts error, trying fallback:', e);
+    }
+  }
+
+  // 2. Fallback to API if Direct Supabase is false or failed
+  const [data, blockedIds] = await Promise.all([
+    fetchApi<any[]>(`/api/posts/feed?limit=${limit}&offset=${offset}`),
+    getBlockedUserIdsSet().catch(() => new Set<string>()),
+  ]);
 
   if (data && data.length > 0) {
     posts = data
@@ -129,14 +192,18 @@ export async function fetchFeedPosts(
     try {
       const { data: supaData } = await supabase
         .from('posts')
-        .select('*, post_categories(categories(id, name))')
+        .select('*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))')
         .or('is_hidden.is.null,is_hidden.eq.false')
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (supaData && supaData.length > 0) {
         const nonHidden = supaData.filter((p: any) => !p.is_hidden);
-        const populated = await attachProfilesToPosts(nonHidden);
+        const needsProfiles = nonHidden.filter((p: any) => !p.profiles && p.user_id);
+        let populated = nonHidden;
+        if (needsProfiles.length > 0) {
+          populated = await attachProfilesToPosts(nonHidden);
+        }
         posts = populated.map(mapPostToPopup);
       }
     } catch (e) {
@@ -148,13 +215,13 @@ export async function fetchFeedPosts(
   }
 
   // ซ่อนโพสต์จากผู้ใช้ที่ถูกบล็อก
-  try {
-    const blockedIds = await getBlockedUserIdsSet();
-    if (blockedIds.size > 0) {
-      posts = posts.filter(p => !p.userId || !blockedIds.has(String(p.userId)));
-    }
-  } catch (err) {
-    console.warn('Filter blocked posts error:', err);
+  if (blockedIds && blockedIds.size > 0) {
+    posts = posts.filter(p => !p.userId || !blockedIds.has(String(p.userId)));
+  }
+
+  if (offset === 0 && posts.length > 0) {
+    _feedPostsCache = posts;
+    _feedPostsCacheTime = Date.now();
   }
 
   return posts;
@@ -215,6 +282,7 @@ export async function createPost(
   );
 
   if (data) {
+    invalidateFeedPostsCache();
     return data;
   }
 
@@ -255,6 +323,7 @@ export async function createPost(
       if (catError) console.warn('[PostService] insert categories error:', catError);
     }
 
+    invalidateFeedPostsCache();
     return {
       success: true,
       data: post,
@@ -282,6 +351,7 @@ export async function updatePost(
   );
 
   if (data) {
+    invalidateFeedPostsCache();
     return data;
   }
 
@@ -327,6 +397,7 @@ export async function updatePost(
       }
     }
 
+    invalidateFeedPostsCache();
     return {
       success: true,
       id: postId,
@@ -352,6 +423,7 @@ export async function deletePost(
   );
 
   if (data) {
+    invalidateFeedPostsCache();
     return true;
   }
 
@@ -377,6 +449,7 @@ export async function deletePost(
       return false;
     }
 
+    invalidateFeedPostsCache();
     return true;
   } catch (e) {
     console.warn(
@@ -496,6 +569,25 @@ export async function unbookmarkPost(
 }
 
 /**
+ * GET Saved Post IDs (lightweight query for feed / bookmarks sync)
+ * Auth required
+ */
+export async function getSavedPostIds(): Promise<string[]> {
+  try {
+    const user = await getAuthUser();
+    if (!user) return [];
+    const { data } = await supabase
+      .from('saved_posts')
+      .select('post_id')
+      .eq('user_id', user.id);
+    return (data || []).map((row: any) => String(row.post_id));
+  } catch (err) {
+    console.warn('getSavedPostIds error:', err);
+    return [];
+  }
+}
+
+/**
  * GET Saved Posts
  * Auth required
  */
@@ -536,14 +628,18 @@ export async function getSavedPosts(): Promise<PopupPostData[]> {
     const { data: savedData } = await supabase
       .from('saved_posts')
       .select(
-        'post_id, created_at, posts(*, post_categories(categories(id, name)))',
+        'post_id, created_at, posts(*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name)))',
       )
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     if (savedData) {
       const rawPosts = savedData.filter((item: any) => item.posts).map((item: any) => item.posts);
-      const populated = await attachProfilesToPosts(rawPosts);
+      const needsProfiles = rawPosts.filter((p: any) => !p.profiles && p.user_id);
+      let populated = rawPosts;
+      if (needsProfiles.length > 0) {
+        populated = await attachProfilesToPosts(rawPosts);
+      }
       const result = populated.map(mapPostToPopup);
       _savedPostsCache = result;
       _savedPostsCacheTime = now;

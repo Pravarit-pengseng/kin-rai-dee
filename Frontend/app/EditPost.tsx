@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
     View,
     Pressable,
@@ -52,13 +52,30 @@ export default function EditPost() {
         parsedPost?.image ?? require("@/assets/images/StirFriedHolyBasil.png")
     );
 
-    const pickImage = async () => {
-        const permission =
-            await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permissionGrantedRef = useRef(false);
 
-        if (!permission.granted) {
-            showAlert("ไม่สามารถเข้าถึงรูปภาพ", "กรุณาอนุญาตให้แอปเข้าถึงรูปภาพ");
-            return;
+    useEffect(() => {
+        // Pre-check and warm up image picker permissions in the background for instant opening
+        ImagePicker.getMediaLibraryPermissionsAsync()
+            .then((res) => {
+                if (res.granted) {
+                    permissionGrantedRef.current = true;
+                }
+            })
+            .catch(() => {});
+    }, []);
+
+    const pickImage = async () => {
+        // Only request if not already granted to eliminate permission latency
+        if (!permissionGrantedRef.current) {
+            const permission =
+                await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+            if (!permission.granted) {
+                showAlert("ไม่สามารถเข้าถึงรูปภาพ", "กรุณาอนุญาตให้แอปเข้าถึงรูปภาพ");
+                return;
+            }
+            permissionGrantedRef.current = true;
         }
 
         const result =
@@ -66,13 +83,14 @@ export default function EditPost() {
                 mediaTypes: ["images"],
                 allowsEditing: true,
                 aspect: [4, 3],
-                quality: 0.5,
+                quality: 0.6,
                 base64: true,
             });
 
-        if (!result.canceled) {
-            const uri = result.assets[0].uri;
-            const base64Img = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            const asset = result.assets[0];
+            const uri = asset.uri;
+            const base64Img = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
 
             setImageUri({ uri });
 

@@ -274,22 +274,21 @@ const styles = StyleSheet.create({
   },
 
   avatarOuter: {
-    position: "relative",
     width: 110,
     height: 110,
     marginBottom: 10,
-    borderRadius: 55,
+    borderRadius: 100,
     borderWidth: 3,
     borderColor: "#F3D6D0",
     backgroundColor: "#FFF1B8",
-    padding: 4,
+
   },
 
   avatarInner: {
     width: "100%",
     height: "100%",
     overflow: "hidden",
-    borderRadius: 40,
+    borderRadius: 100,
     backgroundColor: "#FFF8E5",
     alignItems: "center",
     justifyContent: "center",

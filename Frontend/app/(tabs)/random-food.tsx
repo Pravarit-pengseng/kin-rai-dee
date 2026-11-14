@@ -128,6 +128,10 @@ export default function RandomFoodScreen() {
       setRestaurantLoading(true);
     }
 
+    // Set first random item immediately so the image never disappears or flickers
+    const firstChosen = pool[Math.floor(Math.random() * pool.length)];
+    setRandomFood(firstChosen);
+
     let count = 0;
     const maxCount = 15;
 
@@ -218,6 +222,7 @@ export default function RandomFoodScreen() {
             <Image
               source={require('@/assets/images/kinraidee-logo.png')}
               style={{ width: logoSize, height: logoSize }}
+              fadeDuration={0}
               resizeMode="contain"
             />
           ) : (
@@ -225,6 +230,7 @@ export default function RandomFoodScreen() {
               <Image
                 source={randomFood.image}
                 style={[styles.foodImage, { height: foodImageHeight }]}
+                fadeDuration={0}
                 resizeMode="contain"
               />
             </View>

@@ -43,6 +43,7 @@ type InputFieldProps = {
   onFocus?: () => void;
   multiline?: boolean;
   maxLength?: number;
+  required?: boolean;
 };
 
 function InputField({
@@ -54,13 +55,19 @@ function InputField({
   onFocus,
   multiline = false,
   maxLength = 45,
+  required = false,
 }: InputFieldProps) {
   return (
     <View style={styles.field}>
       <View style={styles.labelRow}>
-        <ThemedText style={styles.label}>
-          {label}
-        </ThemedText>
+        <View style={styles.labelTitleRow}>
+          <ThemedText style={styles.label}>
+            {label}
+          </ThemedText>
+          {required && (
+            <ThemedText style={styles.requiredAsterisk}> *</ThemedText>
+          )}
+        </View>
 
         <ThemedText style={styles.counter}>
           ({value.length}/{maxLength})
@@ -144,6 +151,7 @@ export default function PostForm({
       {/* Menu Name */}
       <InputField
         label="ชื่อเมนู"
+        required={true}
         onFocus={() => onFocusField?.('title')}
         value={post.title}
         placeholder="เช่น ข้าวกะเพราไข่ดาว"
@@ -164,6 +172,7 @@ export default function PostForm({
       {/* Description */}
       <InputField
         label="เล่าความอร่อย"
+        required={true}
         onFocus={() => onFocusField?.('description')}
         value={post.description}
         placeholder="รสชาติเป็นยังไงบ้าง? บรรยากาศร้านดีไหม?..."
@@ -186,9 +195,10 @@ export default function PostForm({
       {/* Restaurant */}
       <InputField
         label="ลิงก์ร้านอาหาร"
+        required={false}
         onFocus={() => onFocusField?.('restaurant')}
         value={post.restaurant}
-        placeholder="บอกชื่อพิกัดร้านอาหาร"
+        placeholder="บอกชื่อพิกัดร้านอาหาร (ไม่บังคับ)"
         onChangeText={(text) =>
           updatePost({
             restaurant: text,
@@ -205,9 +215,12 @@ export default function PostForm({
 
       {/* Category */}
       <View style={styles.field}>
-        <ThemedText style={styles.label}>
-          ประเภทอาหาร
-        </ThemedText>
+        <View style={styles.labelTitleRow}>
+          <ThemedText style={styles.label}>
+            ประเภทอาหาร
+          </ThemedText>
+          <ThemedText style={styles.requiredAsterisk}> *</ThemedText>
+        </View>
 
         <Pressable
           onPress={() => setOpen((prev) => !prev)}
@@ -294,6 +307,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 10,
+  },
+
+  labelTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  requiredAsterisk: {
+    fontSize: 16,
+    color: "#C62828",
+    fontWeight: "700",
   },
 
   label: {

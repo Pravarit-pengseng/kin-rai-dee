@@ -45,19 +45,15 @@ export async function getPersistentDeviceId(): Promise<string> {
     }
   }
 
-  // iOS or fallback: Read/write to Keychain
+  // iOS or fallback: Read/write to SecureStore
   if (Platform.OS === 'ios') {
     try {
       const ss = getSecureStore();
       if (ss) {
-        let id = await ss.getItemAsync(DEVICE_ID_KEY, {
-          keychainAccessible: ss.ALWAYS_THIS_DEVICE_ONLY,
-        });
+        let id = await ss.getItemAsync(DEVICE_ID_KEY);
         if (!id) {
           id = `ios_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
-          await ss.setItemAsync(DEVICE_ID_KEY, id, {
-            keychainAccessible: ss.ALWAYS_THIS_DEVICE_ONLY,
-          });
+          await ss.setItemAsync(DEVICE_ID_KEY, id);
         }
         cachedDeviceId = id;
         return cachedDeviceId;
@@ -72,9 +68,34 @@ export async function getPersistentDeviceId(): Promise<string> {
   return cachedDeviceId;
 }
 
+const CHUNK_SIZE = 1800; // เผื่อ margin สำหรับลิมิต 2048 bytes ของ SecureStore
+const DEBUG_AUTH_STORAGE = __DEV__; // log การอ่าน/เขียน session เฉพาะตอน dev
+
+function logStorage(...args: unknown[]) {
+  if (DEBUG_AUTH_STORAGE) console.log('[AuthStorage]', ...args);
+}
+
+async function deleteChunks(
+  ss: NonNullable<ReturnType<typeof getSecureStore>>,
+  key: string,
+): Promise<void> {
+  const countStr = await ss.getItemAsync(`${key}_chunks`);
+  if (!countStr) return;
+  const count = parseInt(countStr, 10);
+  // ลบตัวนับก่อน เพื่อไม่ให้ getItem ไปอ่าน chunk ที่ลบไปครึ่งๆ กลางๆ
+  await ss.deleteItemAsync(`${key}_chunks`);
+  if (Number.isFinite(count)) {
+    for (let i = 0; i < count; i++) {
+      try { await ss.deleteItemAsync(`${key}_${i}`); } catch { }
+    }
+  }
+}
+
 /**
  * Custom Storage Adapter for Supabase client.
- * Configured with ALWAYS_THIS_DEVICE_ONLY so on iOS, Keychain items persist across app uninstallation.
+ * - แบ่ง chunk อัตโนมัติเมื่อค่ายาวเกิน CHUNK_SIZE (ลิมิตของ SecureStore)
+ * - ถ้าอ่าน chunk ได้ไม่ครบ คืน null (ไม่คืน JSON ที่ขาดๆ ให้ Supabase)
+ * - ถ้าเขียนไม่สำเร็จ จะ throw ออกไปให้เห็น error แทนการกลืนเงียบ
  */
 export const ExpoSecureStoreAdapter = {
   getItem: async (key: string): Promise<string | null> => {
@@ -83,17 +104,43 @@ export const ExpoSecureStoreAdapter = {
         if (typeof window !== 'undefined' && window.localStorage) {
           return window.localStorage.getItem(key);
         }
-      } catch {}
+      } catch { }
       return null;
     }
 
     try {
       const ss = getSecureStore();
-      if (!ss) return null;
-      return await ss.getItemAsync(key, {
-        keychainAccessible: ss.ALWAYS_THIS_DEVICE_ONLY,
-      });
-    } catch {
+      if (!ss) {
+        logStorage('getItem: SecureStore not available');
+        return null;
+      }
+
+      // 1. ค่าที่ถูกแบ่ง chunk
+      const chunkCountStr = await ss.getItemAsync(`${key}_chunks`);
+      if (chunkCountStr) {
+        const count = parseInt(chunkCountStr, 10);
+        if (Number.isFinite(count) && count > 0) {
+          const parts: string[] = [];
+          for (let i = 0; i < count; i++) {
+            const part = await ss.getItemAsync(`${key}_${i}`);
+            if (part === null) {
+              logStorage(`getItem ${key}: chunk ${i}/${count} หาย → คืน null`);
+              return null;
+            }
+            parts.push(part);
+          }
+          const joined = parts.join('');
+          logStorage(`getItem ${key}: ${count} chunks, length ${joined.length}`);
+          return joined;
+        }
+      }
+
+      // 2. ค่าปกติ
+      const value = await ss.getItemAsync(key);
+      logStorage(`getItem ${key}:`, value === null ? 'null' : `length ${value.length}`);
+      return value;
+    } catch (e) {
+      console.warn('[AuthStorage] getItem error:', e);
       return null;
     }
   },
@@ -104,18 +151,35 @@ export const ExpoSecureStoreAdapter = {
         if (typeof window !== 'undefined' && window.localStorage) {
           window.localStorage.setItem(key, value);
         }
-      } catch {}
+      } catch { }
+      return;
+    }
+
+    const ss = getSecureStore();
+    if (!ss) {
+      logStorage('setItem: SecureStore not available');
       return;
     }
 
     try {
-      const ss = getSecureStore();
-      if (!ss) return;
-      await ss.setItemAsync(key, value, {
-        keychainAccessible: ss.ALWAYS_THIS_DEVICE_ONLY,
-      });
+      if (value.length > CHUNK_SIZE) {
+        // ลบของเก่าก่อน แล้วเขียน chunk ให้ครบ จากนั้นค่อยเขียนตัวนับเป็นขั้นสุดท้าย
+        await deleteChunks(ss, key);
+        const count = Math.ceil(value.length / CHUNK_SIZE);
+        for (let i = 0; i < count; i++) {
+          await ss.setItemAsync(`${key}_${i}`, value.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
+        }
+        await ss.setItemAsync(`${key}_chunks`, String(count));
+        try { await ss.deleteItemAsync(key); } catch { }
+        logStorage(`setItem ${key}: เขียน ${count} chunks สำเร็จ (length ${value.length})`);
+      } else {
+        await ss.setItemAsync(key, value);
+        await deleteChunks(ss, key);
+        logStorage(`setItem ${key}: เขียนสำเร็จ (length ${value.length})`);
+      }
     } catch (e) {
-      console.warn('SecureStore setItem error:', e);
+      console.warn('[AuthStorage] setItem FAILED:', key, e);
+      throw e;
     }
   },
 
@@ -125,18 +189,18 @@ export const ExpoSecureStoreAdapter = {
         if (typeof window !== 'undefined' && window.localStorage) {
           window.localStorage.removeItem(key);
         }
-      } catch {}
+      } catch { }
       return;
     }
 
     try {
       const ss = getSecureStore();
       if (!ss) return;
-      await ss.deleteItemAsync(key, {
-        keychainAccessible: ss.ALWAYS_THIS_DEVICE_ONLY,
-      });
+      try { await deleteChunks(ss, key); } catch { }
+      await ss.deleteItemAsync(key);
+      logStorage(`removeItem ${key}`);
     } catch (e) {
-      console.warn('SecureStore deleteItem error:', e);
+      console.warn('[AuthStorage] removeItem error:', e);
     }
   },
 };
@@ -151,6 +215,9 @@ export async function syncDeviceSession(session: Session | null): Promise<void> 
     const deviceId = await getPersistentDeviceId();
     const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim() || 'https://kin-rai-dee-backend.onrender.com';
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
     await fetch(`${apiUrl}/auth/device-session/bind`, {
       method: 'POST',
       headers: {
@@ -162,7 +229,9 @@ export async function syncDeviceSession(session: Session | null): Promise<void> 
         refresh_token: session.refresh_token,
         platform: Platform.OS,
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
   } catch (err) {
     // Non-blocking sync error
     console.warn('Device session bind sync notice:', err);
@@ -177,11 +246,16 @@ export async function recoverDeviceSession(): Promise<{ access_token?: string; r
     const deviceId = await getPersistentDeviceId();
     const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim() || 'https://kin-rai-dee-backend.onrender.com';
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
     const res = await fetch(`${apiUrl}/auth/device-session/recover`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ device_id: deviceId }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
 
     if (!res.ok) return null;
     const data = await res.json();
@@ -206,11 +280,16 @@ export async function clearDeviceSession(): Promise<void> {
     const deviceId = await getPersistentDeviceId();
     const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim() || 'https://kin-rai-dee-backend.onrender.com';
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+
     await fetch(`${apiUrl}/auth/device-session/unbind`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ device_id: deviceId }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
   } catch (err) {
     console.warn('Device session unbind notice:', err);
   }

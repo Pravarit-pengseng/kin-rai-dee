@@ -413,8 +413,13 @@ export default function PopupPost({
     isPostingRef.current = true;
     try {
       const created = await addPostComment(post.id, trimmed);
+      if (!created) {
+        showAlert("ส่งคอมเมนต์ไม่สำเร็จ", "ไม่สามารถบันทึกคอมเมนต์ลงระบบได้ กรุณาลองใหม่อีกครั้ง");
+        return;
+      }
+
       const newComment: CommentItem = {
-        id: created?.id ? String(created.id) : Date.now().toString(),
+        id: String(created.id),
         userId: user?.id,
         username: created?.username || created?.profiles?.display_name || user?.displayName || user?.username || displayUserName,
         text: created?.content || trimmed,
@@ -431,6 +436,7 @@ export default function PopupPost({
       }, 100);
     } catch (e) {
       console.warn("Failed to add comment:", e);
+      showAlert("ส่งคอมเมนต์ไม่สำเร็จ", "เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง");
     } finally {
       setTimeout(() => {
         isPostingRef.current = false;
@@ -849,8 +855,8 @@ export default function PopupPost({
               keyboardHeight > 0
                 ? keyboardHeight + (Platform.OS === "ios" ? 10 : 6)
                 : Platform.OS === "ios"
-                ? 34
-                : 14,
+                  ? 34
+                  : 14,
           },
         ]}
       >

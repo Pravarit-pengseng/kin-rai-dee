@@ -223,7 +223,8 @@ export async function createPost(
     const user = await getAuthUser();
 
     if (!user) {
-      return null;
+      console.warn('[PostService] createPost: no session');
+      return { success: false, error: 'เซสชันหมดอายุหรือไม่พบผู้ใช้ กรุณาออกจากระบบแล้วเข้าสู่ระบบใหม่' };
     }
 
     const { category_ids, ...postData } = payload;
@@ -238,15 +239,12 @@ export async function createPost(
       .single();
 
     if (error || !post) {
-      console.warn(
-        'Supabase create post fallback error:',
-        error,
-      );
-      return null;
+      console.warn('[PostService] create post error:', error);
+      return { success: false, error: error?.message || 'บันทึกโพสต์ไม่สำเร็จ' };
     }
 
     if (category_ids && category_ids.length > 0) {
-      await supabase
+      const { error: catError } = await supabase
         .from('post_categories')
         .insert(
           category_ids.map((categoryId) => ({
@@ -254,18 +252,16 @@ export async function createPost(
             category_id: categoryId,
           })),
         );
+      if (catError) console.warn('[PostService] insert categories error:', catError);
     }
 
     return {
       success: true,
       data: post,
     };
-  } catch (e) {
-    console.warn(
-      'Supabase create post fallback error:',
-      e,
-    );
-    return null;
+  } catch (e: any) {
+    console.warn('[PostService] create post exception:', e);
+    return { success: false, error: e?.message || 'เกิดข้อผิดพลาดในการสร้างโพสต์' };
   }
 }
 
@@ -294,7 +290,8 @@ export async function updatePost(
     const user = await getAuthUser();
 
     if (!user) {
-      return null;
+      console.warn('[PostService] updatePost: no session');
+      return { success: false, error: 'เซสชันหมดอายุหรือไม่พบผู้ใช้ กรุณาออกจากระบบแล้วเข้าสู่ระบบใหม่' };
     }
 
     const { category_ids, ...updateData } = payload;
@@ -307,11 +304,8 @@ export async function updatePost(
         .eq('user_id', user.id);
 
       if (error) {
-        console.warn(
-          'Supabase update post fallback error:',
-          error,
-        );
-        return null;
+        console.warn('[PostService] update post error:', error);
+        return { success: false, error: error?.message || 'บันทึกไม่สำเร็จ' };
       }
     }
 
@@ -337,12 +331,9 @@ export async function updatePost(
       success: true,
       id: postId,
     };
-  } catch (e) {
-    console.warn(
-      'Supabase update post fallback error:',
-      e,
-    );
-    return null;
+  } catch (e: any) {
+    console.warn('[PostService] update post exception:', e);
+    return { success: false, error: e?.message || 'เกิดข้อผิดพลาดในการบันทึกโพสต์' };
   }
 }
 

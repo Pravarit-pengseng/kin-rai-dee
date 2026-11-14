@@ -84,8 +84,23 @@ export default function EditPost() {
     };
 
     const handleSave = async () => {
+        if (!imageUri && !post.image) {
+            showAlert("กรุณาใส่รูปภาพ", "กรุณาเลือกรูปภาพอาหารก่อนบันทึก");
+            return;
+        }
+
         if (!post.title.trim()) {
             showAlert("กรุณากรอกข้อมูล", "กรุณากรอกชื่อเมนูก่อนบันทึก");
+            return;
+        }
+
+        if (!post.description.trim()) {
+            showAlert("กรุณากรอกข้อมูล", "กรุณากรอกเล่าความอร่อยก่อนบันทึก");
+            return;
+        }
+
+        if (!post.categories || post.categories.length === 0) {
+            showAlert("กรุณาเลือกประเภทอาหาร", "กรุณาเลือกประเภทอาหารอย่างน้อย 1 ประเภท");
             return;
         }
 
@@ -113,8 +128,8 @@ export default function EditPost() {
 
         setIsSubmitting(false);
 
-        if (!result) {
-            showAlert("บันทึกไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
+        if (!result || result.success === false) {
+            showAlert("บันทึกไม่สำเร็จ", result?.error || "กรุณาลองใหม่อีกครั้ง");
             return;
         }
 

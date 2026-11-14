@@ -40,7 +40,7 @@ function decodePhotoName(encoded: string): string | null {
     if (decoded && decoded.startsWith('places/')) {
       return decoded;
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -196,7 +196,7 @@ export async function searchGooglePlacesDirect(
       body: JSON.stringify({
         textQuery: normalizeQuery(query),
         languageCode: 'th',
-        maxResultCount: 15,
+        maxResultCount: 5,
         locationBias: {
           circle: {
             center: { latitude: safeLat, longitude: safeLng },

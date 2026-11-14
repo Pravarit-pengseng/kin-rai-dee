@@ -12,15 +12,18 @@ const PRODUCTION_API_URL = 'https://kin-rai-dee-backend.onrender.com';
 export const USE_DIRECT_SUPABASE = process.env.EXPO_PUBLIC_USE_DIRECT_SUPABASE !== 'false';
 
 /**
- * Helper ดึง user ปัจจุบันจาก Session ในหน่วยความจำ (0ms) แทนที่จะยิง HTTP ไป Supabase Auth ทุกครั้ง
+ * Helper ดึง user ปัจจุบันจาก session ใน storage
+ * หมายเหตุ: supabase.auth.getSession() จะ refresh token ให้เองถ้าใกล้หมดอายุ ไม่ต้อง refresh เอง
  */
 export async function getAuthUser() {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) console.warn('[Auth] getSession error:', error.message);
     if (session?.user) return session.user;
-    const { data: { user } } = await supabase.auth.getUser();
-    return user ?? null;
-  } catch {
+    console.warn('[Auth] getAuthUser: ไม่พบ session ใน storage');
+    return null;
+  } catch (e) {
+    console.warn('[Auth] getAuthUser exception:', e);
     return null;
   }
 }
@@ -72,13 +75,11 @@ export async function fetchApi<T>(endpoint: string, options?: FetchApiOptions): 
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 2000); // ลด timeout เหลือ 2s
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout สำหรับ mobile connection
 
   try {
-    // ดึง JWT จาก Supabase session อัตโนมัติ
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    // ดึง JWT จาก Supabase session (getSession refresh ให้เองถ้าใกล้หมดอายุ)
+    const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
 
     const headers: Record<string, string> = {

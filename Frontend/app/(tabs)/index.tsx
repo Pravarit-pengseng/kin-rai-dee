@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from "react-native";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { View, FlatList, StyleSheet, Pressable, ActivityIndicator, RefreshControl, Platform } from "react-native";
 import { SafeAreaView, useStableSafeAreaInsets } from "@/components/SafeAreaView";
 import { StatusBar } from "expo-status-bar";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -21,6 +21,7 @@ import {
   getCachedFeedPosts,
   FEED_PAGE_SIZE,
 } from "@/services/postService";
+import { subscribeUserBlocked } from "@/services/safetyService";
 import { Typography } from "@/constants/typography";
 
 export default function HomeScreen() {
@@ -35,7 +36,7 @@ export default function HomeScreen() {
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
-  const scrollRef = useRef<any>(null);
+  const scrollRef = useRef<FlatList<PopupPostData>>(null);
   const params = useLocalSearchParams<{ refresh?: string }>();
   const postsRef = useRef<PopupPostData[]>([]);
   const loadingMoreRef = useRef(false);
@@ -54,8 +55,14 @@ export default function HomeScreen() {
   }, [hasMore]);
 
   useEffect(() => {
+    return subscribeUserBlocked((blockedUserId) => {
+      setPosts((prev) => prev.filter((p) => String(p.userId) !== String(blockedUserId)));
+    });
+  }, []);
+
+  useEffect(() => {
     if (params.refresh) {
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      scrollRef.current?.scrollToOffset({ offset: 0, animated: true });
       loadFeed(true);
     }
   }, [params.refresh]);
@@ -121,15 +128,6 @@ export default function HomeScreen() {
     }
   }, [loading, refreshing]);
 
-  const handleScroll = (event: any) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    // Trigger load more when 250px from bottom
-    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 250;
-    if (isCloseToBottom) {
-      handleLoadMore();
-    }
-  };
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     setHasMore(true);
@@ -143,8 +141,10 @@ export default function HomeScreen() {
     }, [loadFeed])
   );
 
-  const handleToggleBookmark = async (postId: string) => {
-    const isCurrentlyBookmarked = bookmarkedIds.includes(postId);
+  const bookmarkedSet = useMemo(() => new Set(bookmarkedIds), [bookmarkedIds]);
+
+  const handleToggleBookmark = useCallback(async (postId: string) => {
+    const isCurrentlyBookmarked = bookmarkedSet.has(postId);
     // Optimistic update
     setBookmarkedIds((prev) =>
       isCurrentlyBookmarked ? prev.filter((id) => id !== postId) : [...prev, postId]
@@ -157,18 +157,18 @@ export default function HomeScreen() {
         await bookmarkPost(postId);
       }
     }
-  };
+  }, [bookmarkedSet, isLoggedIn]);
 
-  const handleEditPost = (post: any) => {
+  const handleEditPost = useCallback((post: any) => {
     router.push({
       pathname: "/EditPost",
       params: { postId: post.id, post: JSON.stringify(post) },
     });
-  };
+  }, []);
 
-  const handleRequestDelete = (postId: string) => {
+  const handleRequestDelete = useCallback((postId: string) => {
     setDeletePostId(postId);
-  };
+  }, []);
 
   const handleCreatePost = () => {
     if (!isLoggedIn) {
@@ -178,7 +178,7 @@ export default function HomeScreen() {
     router.push("/AddPost");
   };
 
-  const handleUserPress = (postUserId: string) => {
+  const handleUserPress = useCallback((postUserId: string) => {
     if (user && postUserId === user.id) {
       router.push("/(tabs)/profile");
     } else if (!isLoggedIn && !postUserId) {
@@ -189,7 +189,53 @@ export default function HomeScreen() {
         params: { userId: postUserId },
       });
     }
-  };
+  }, [user, isLoggedIn]);
+
+  const handleBlockUserInFeed = useCallback((blockedUserId: string) => {
+    setPosts((prev) => prev.filter((p) => p.userId !== blockedUserId));
+  }, []);
+
+  const renderPostItem = useCallback(({ item: post }: { item: PopupPostData }) => (
+    <View style={styles.postWrapper}>
+      <PopupPost
+        visible={true}
+        post={post}
+        onClose={() => { }}
+        inline
+        isOwnPost={!!user && post.userId === user.id}
+        isBookmarked={bookmarkedSet.has(post.id)}
+        onBookmark={handleToggleBookmark}
+        onEdit={handleEditPost}
+        onRequestDelete={handleRequestDelete}
+        onUserPress={handleUserPress}
+        onBlockUser={handleBlockUserInFeed}
+      />
+    </View>
+  ), [user, bookmarkedSet, handleToggleBookmark, handleEditPost, handleRequestDelete, handleUserPress, handleBlockUserInFeed]);
+
+  const keyExtractor = useCallback((item: PopupPostData) => item.id, []);
+
+  const listHeader = useMemo(() => (
+    <>
+      {/* Title Section */}
+      <View style={styles.titleContainer}>
+        <ThemedText style={styles.pageTitle}>วันนี้กินอะไรกันดี?</ThemedText>
+        <MaterialCommunityIcons name="silverware-fork-knife" size={26} color="#DCA64E" />
+      </View>
+
+      {!refreshing && loading && posts.length === 0 && (
+        <PostSkeleton count={2} />
+      )}
+    </>
+  ), [refreshing, loading, posts.length]);
+
+  const listFooter = useMemo(() => (
+    loadingMore ? (
+      <View style={styles.loadMoreContainer}>
+        <ActivityIndicator size="small" color="#DCA64E" />
+      </View>
+    ) : undefined
+  ), [loadingMore]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -204,12 +250,21 @@ export default function HomeScreen() {
         titleStyle={styles.headerTitle}
       />
 
-      <ScrollView
+      <FlatList
         ref={scrollRef}
+        data={posts}
+        keyExtractor={keyExtractor}
+        renderItem={renderPostItem}
+        ListHeaderComponent={listHeader}
+        ListFooterComponent={listFooter}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        onScroll={handleScroll}
-        scrollEventThrottle={32}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 98 + menuBottomOffset }]}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.4}
+        initialNumToRender={4}
+        maxToRenderPerBatch={3}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === "android"}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -218,44 +273,7 @@ export default function HomeScreen() {
             tintColor="#DCA64E"
           />
         }
-      >
-        {/* Title Section */}
-        <View style={styles.titleContainer}>
-          <ThemedText style={styles.pageTitle}>วันนี้กินอะไรกันดี?</ThemedText>
-          <MaterialCommunityIcons name="silverware-fork-knife" size={26} color="#DCA64E" />
-        </View>
-
-        {!refreshing && loading && posts.length === 0 && (
-          <PostSkeleton count={2} />
-        )}
-
-        {/* Posts */}
-        {posts.map((post) => (
-          <View key={post.id} style={styles.postWrapper}>
-            <PopupPost
-              visible={true}
-              post={post}
-              onClose={() => { }}
-              inline
-              isOwnPost={!!user && post.userId === user.id}
-              isBookmarked={bookmarkedIds.includes(post.id)}
-              onBookmark={handleToggleBookmark}
-              onEdit={handleEditPost}
-              onRequestDelete={handleRequestDelete}
-              onUserPress={handleUserPress}
-              onBlockUser={(blockedUserId) => {
-                setPosts((prev) => prev.filter((p) => p.userId !== blockedUserId));
-              }}
-            />
-          </View>
-        ))}
-
-        {loadingMore && (
-          <View style={styles.loadMoreContainer}>
-            <ActivityIndicator size="small" color="#DCA64E" />
-          </View>
-        )}
-      </ScrollView>
+      />
 
       {/* Floating Action Button */}
       <Pressable

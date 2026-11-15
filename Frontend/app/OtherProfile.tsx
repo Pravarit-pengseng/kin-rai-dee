@@ -95,7 +95,7 @@ export default function OtherProfileScreen() {
       if (apiPosts && apiPosts.length > 0) {
         setPosts(apiPosts.map(mapPostToPopup));
       }
-      
+
       if (user?.id) {
         getSavedPosts().then((saved) => {
           if (saved && saved.length > 0) {
@@ -105,7 +105,7 @@ export default function OtherProfileScreen() {
           console.warn('Failed to get saved posts:', err);
         });
       }
-      
+
       setLoadingPosts(false);
     }).catch(err => {
       console.warn('Failed to get user posts:', err);
@@ -237,135 +237,135 @@ export default function OtherProfileScreen() {
             styles.scrollContent
           }
         >
-            {/* Profile Header */}
-            <View style={styles.profileSection}>
-              {/* Avatar */}
-              <View style={styles.avatarOuter}>
-                <View style={styles.avatarInner}>
-                  <Image
-                    source={
-                      profile?.avatar_url && !avatarError
-                        ? { uri: profile.avatar_url }
-                        : DEFAULT_AVATAR
-                    }
-                    style={styles.avatar}
-                    contentFit="cover"
-                    transition={200}
-                    onError={() => setAvatarError(true)}
-                  />
-                </View>
-              </View>
-
-              {/* Name */}
-              <ThemedText style={styles.name}>
-                {profile?.display_name || profile?.username || "ผู้ใช้งาน"}
-              </ThemedText>
-
-              {/* Username */}
-              <ThemedText style={styles.username}>
-                @{profile?.username || "user"}
-              </ThemedText>
-
-              {/* Bio */}
-              {profile?.bio ? (
-                <View style={styles.bio}>
-                  <ThemedText
-                    style={styles.bioText}
-                    numberOfLines={1}
-                  >
-                    {profile.bio}
-                  </ThemedText>
-                </View>
-              ) : null}
-
-              {/* Action Buttons: Report & Block */}
-              <View style={styles.actionRow}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.actionBtn,
-                    isBlockedByMe ? styles.unblockActionBtn : styles.blockActionBtn,
-                    pressed && styles.btnPressed,
-                  ]}
-                  onPress={handleToggleBlock}
-                >
-                  {isBlockedByMe ? (
-                    <>
-                      <UserCheck size={16} color="#57423E" />
-                      <ThemedText style={styles.actionBtnText}>ปลดบล็อก</ThemedText>
-                    </>
-                  ) : (
-                    <>
-                      <UserX size={16} color="#A7392A" />
-                      <ThemedText style={[styles.actionBtnText, { color: '#A7392A' }]}>บล็อกผู้ใช้</ThemedText>
-                    </>
-                  )}
-                </Pressable>
-
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.actionBtn,
-                    styles.reportActionBtn,
-                    pressed && styles.btnPressed,
-                  ]}
-                  onPress={() => setReportModalVisible(true)}
-                >
-                  <Flag size={16} color="#79747E" />
-                  <ThemedText style={[styles.actionBtnText, { color: '#79747E' }]}>รายงาน</ThemedText>
-                </Pressable>
+          {/* Profile Header */}
+          <View style={styles.profileSection}>
+            {/* Avatar */}
+            <View style={styles.avatarOuter}>
+              <View style={styles.avatarInner}>
+                <Image
+                  source={
+                    profile?.avatar_url && !avatarError
+                      ? { uri: profile.avatar_url }
+                      : DEFAULT_AVATAR
+                  }
+                  style={styles.avatar}
+                  contentFit="cover"
+                  transition={200}
+                  onError={() => setAvatarError(true)}
+                />
               </View>
             </View>
 
-            {/* Blocked state or Posts */}
-            {isBlockedByMe ? (
-              <View style={styles.blockedNoticeCard}>
-                <UserX size={36} color="#A7392A" />
-                <ThemedText style={styles.blockedNoticeTitle}>คุณได้บล็อกผู้ใช้นี้</ThemedText>
-                <ThemedText style={styles.blockedNoticeSub}>
-                  โพสต์และความคิดเห็นของผู้ใช้นี้ถูกซ่อนจากมุมมองของคุณ
+            {/* Name */}
+            <ThemedText style={styles.name}>
+              {profile?.display_name || profile?.username || "ผู้ใช้งาน"}
+            </ThemedText>
+
+            {/* Username */}
+            <ThemedText style={styles.username}>
+              @{profile?.username || "user"}
+            </ThemedText>
+
+            {/* Bio */}
+            {profile?.bio ? (
+              <View style={styles.bio}>
+                <ThemedText
+                  style={styles.bioText}
+                  numberOfLines={1}
+                >
+                  {profile.bio}
                 </ThemedText>
-                <Pressable style={styles.unblockConfirmBtn} onPress={handleToggleBlock}>
-                  <ThemedText style={styles.unblockConfirmBtnText}>ปลดบล็อกผู้ใช้</ThemedText>
-                </Pressable>
               </View>
-            ) : isBlocked ? (
-              <View style={styles.blockedNoticeCard}>
-                <UserX size={36} color="#A7392A" />
-                <ThemedText style={styles.blockedNoticeTitle}>ไม่สามารถดูเนื้อหาได้</ThemedText>
-                <ThemedText style={styles.blockedNoticeSub}>
-                  คุณไม่สามารถดูโพสต์หรือข้อมูลของผู้ใช้นี้ได้
+            ) : null}
+
+            {/* Action Buttons: Report & Block */}
+            <View style={styles.actionRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  isBlockedByMe ? styles.unblockActionBtn : styles.blockActionBtn,
+                  pressed && styles.btnPressed,
+                ]}
+                onPress={handleToggleBlock}
+              >
+                {isBlockedByMe ? (
+                  <>
+                    <UserCheck size={16} color="#57423E" />
+                    <ThemedText style={styles.actionBtnText}>ปลดบล็อก</ThemedText>
+                  </>
+                ) : (
+                  <>
+                    <UserX size={16} color="#A7392A" />
+                    <ThemedText style={[styles.actionBtnText, { color: '#A7392A' }]}>บล็อกผู้ใช้</ThemedText>
+                  </>
+                )}
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.actionBtn,
+                  styles.reportActionBtn,
+                  pressed && styles.btnPressed,
+                ]}
+                onPress={() => setReportModalVisible(true)}
+              >
+                <Flag size={16} color="#79747E" />
+                <ThemedText style={[styles.actionBtnText, { color: '#79747E' }]}>รายงาน</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Blocked state or Posts */}
+          {isBlockedByMe ? (
+            <View style={styles.blockedNoticeCard}>
+              <UserX size={36} color="#A7392A" />
+              <ThemedText style={styles.blockedNoticeTitle}>คุณได้บล็อกผู้ใช้นี้</ThemedText>
+              <ThemedText style={styles.blockedNoticeSub}>
+                โพสต์และความคิดเห็นของผู้ใช้นี้ถูกซ่อนจากมุมมองของคุณ
+              </ThemedText>
+              <Pressable style={styles.unblockConfirmBtn} onPress={handleToggleBlock}>
+                <ThemedText style={styles.unblockConfirmBtnText}>ปลดบล็อกผู้ใช้</ThemedText>
+              </Pressable>
+            </View>
+          ) : isBlocked ? (
+            <View style={styles.blockedNoticeCard}>
+              <UserX size={36} color="#A7392A" />
+              <ThemedText style={styles.blockedNoticeTitle}>ไม่สามารถดูเนื้อหาได้</ThemedText>
+              <ThemedText style={styles.blockedNoticeSub}>
+                คุณไม่สามารถดูโพสต์หรือข้อมูลของผู้ใช้นี้ได้
+              </ThemedText>
+            </View>
+          ) : (
+            <>
+              {/* Posts Title */}
+              <View style={styles.postsHeader}>
+                <ThemedText style={styles.postsTitle}>
+                  โพสต์ทั้งหมด
                 </ThemedText>
               </View>
-            ) : (
-              <>
-                {/* Posts Title */}
-                <View style={styles.postsHeader}>
-                  <ThemedText style={styles.postsTitle}>
-                    โพสต์ทั้งหมด
+
+              {/* Post Grid */}
+              {loadingPosts && posts.length === 0 ? (
+                <PostGridSkeleton count={6} />
+              ) : posts.length > 0 ? (
+                <PostGrid
+                  posts={posts}
+                  onPressPost={handleOpenPost}
+                  onLongPressPost={(post) => {
+                    setSelectedPost(post);
+                    setPopupVisible(true);
+                  }}
+                />
+              ) : (
+                <View style={styles.empty}>
+                  <ThemedText style={styles.emptyText}>
+                    ยังไม่มีโพสต์
                   </ThemedText>
                 </View>
-
-                {/* Post Grid */}
-                {loadingPosts && posts.length === 0 ? (
-                  <PostGridSkeleton count={6} />
-                ) : posts.length > 0 ? (
-                  <PostGrid
-                    posts={posts}
-                    onPressPost={handleOpenPost}
-                    onLongPressPost={(post) => {
-                      setSelectedPost(post);
-                      setPopupVisible(true);
-                    }}
-                  />
-                ) : (
-                  <View style={styles.empty}>
-                    <ThemedText style={styles.emptyText}>
-                      ยังไม่มีโพสต์
-                    </ThemedText>
-                  </View>
-                )}
-              </>
-            )}
-          </ScrollView>
+              )}
+            </>
+          )}
+        </ScrollView>
 
         {/* Bottom Menu */}
         <LiquidMenu

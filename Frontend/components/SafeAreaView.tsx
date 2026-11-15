@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Platform,
   StatusBar as RNStatusBar,
@@ -24,6 +24,12 @@ let cachedStableInsets: EdgeInsets = {
   left: initialWindowMetrics?.insets.left ?? 0,
   right: initialWindowMetrics?.insets.right ?? 0,
 };
+
+const insetListeners = new Set<() => void>();
+
+function notifyInsetListeners() {
+  insetListeners.forEach((listener) => listener());
+}
 
 function normalizeEdgeList(edges?: RNCSafeAreaViewProps['edges']): Set<Edge> {
   if (!edges) {
@@ -51,48 +57,65 @@ export function useStableSafeAreaInsets(): EdgeInsets {
     contextInsets = null;
   }
 
+  const [, setRevision] = useState(0);
+
+  useEffect(() => {
+    const listener = () => setRevision((r) => r + 1);
+    insetListeners.add(listener);
+    return () => {
+      insetListeners.delete(listener);
+    };
+  }, []);
+
+  const rawTop = contextInsets?.top ?? initialWindowMetrics?.insets.top ?? 0;
+  const rawBottom = contextInsets?.bottom ?? initialWindowMetrics?.insets.bottom ?? 0;
+  const rawLeft = contextInsets?.left ?? initialWindowMetrics?.insets.left ?? 0;
+  const rawRight = contextInsets?.right ?? initialWindowMetrics?.insets.right ?? 0;
+
+  useEffect(() => {
+    let changed = false;
+    const next = { ...cachedStableInsets };
+
+    const candidateTop = Math.max(rawTop, ANDROID_MIN_TOP_INSET);
+    if (candidateTop > next.top) {
+      next.top = candidateTop;
+      changed = true;
+    }
+    if (rawBottom > next.bottom) {
+      next.bottom = rawBottom;
+      changed = true;
+    }
+    if (rawLeft > next.left) {
+      next.left = rawLeft;
+      changed = true;
+    }
+    if (rawRight > next.right) {
+      next.right = rawRight;
+      changed = true;
+    }
+
+    if (changed) {
+      cachedStableInsets = next;
+      notifyInsetListeners();
+    }
+  }, [rawTop, rawBottom, rawLeft, rawRight]);
+
   return useMemo(() => {
-    const rawTop = contextInsets?.top ?? initialWindowMetrics?.insets.top ?? 0;
-    const rawBottom = contextInsets?.bottom ?? initialWindowMetrics?.insets.bottom ?? 0;
-    const rawLeft = contextInsets?.left ?? initialWindowMetrics?.insets.left ?? 0;
-    const rawRight = contextInsets?.right ?? initialWindowMetrics?.insets.right ?? 0;
-
-    if (rawTop > 0) {
-      cachedStableInsets = {
-        ...cachedStableInsets,
-        top: Math.max(rawTop, ANDROID_MIN_TOP_INSET),
-      };
-    }
-    if (rawBottom > 0) {
-      cachedStableInsets = {
-        ...cachedStableInsets,
-        bottom: Math.max(cachedStableInsets.bottom, rawBottom),
-      };
-    }
-    if (rawLeft > 0) {
-      cachedStableInsets = {
-        ...cachedStableInsets,
-        left: rawLeft,
-      };
-    }
-    if (rawRight > 0) {
-      cachedStableInsets = {
-        ...cachedStableInsets,
-        right: rawRight,
-      };
-    }
-
     return {
       top: Math.max(rawTop, cachedStableInsets.top, ANDROID_MIN_TOP_INSET),
-      bottom: rawBottom > 0 ? rawBottom : cachedStableInsets.bottom,
-      left: rawLeft > 0 ? rawLeft : cachedStableInsets.left,
-      right: rawRight > 0 ? rawRight : cachedStableInsets.right,
+      bottom: Math.max(rawBottom, cachedStableInsets.bottom),
+      left: Math.max(rawLeft, cachedStableInsets.left),
+      right: Math.max(rawRight, cachedStableInsets.right),
     };
   }, [
-    contextInsets?.top,
-    contextInsets?.bottom,
-    contextInsets?.left,
-    contextInsets?.right,
+    rawTop,
+    rawBottom,
+    rawLeft,
+    rawRight,
+    cachedStableInsets.top,
+    cachedStableInsets.bottom,
+    cachedStableInsets.left,
+    cachedStableInsets.right,
   ]);
 }
 

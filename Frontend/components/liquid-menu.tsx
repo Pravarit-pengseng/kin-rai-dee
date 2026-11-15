@@ -162,7 +162,7 @@ export default function LiquidMenu({
           intensity={Platform.OS === "ios" ? 85 : 70}
           tint="light"
           style={StyleSheet.absoluteFill}
-          experimentalBlurMethod="dimezisBlurView"
+          blurMethod="dimezisBlurView"
         />
 
         {/* Layer 2: Gloss & Diffused Frosted Sheen */}

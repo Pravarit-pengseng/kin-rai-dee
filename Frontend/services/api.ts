@@ -11,14 +11,30 @@ const PRODUCTION_API_URL = 'https://kin-rai-dee-backend.onrender.com';
  */
 export const USE_DIRECT_SUPABASE = process.env.EXPO_PUBLIC_USE_DIRECT_SUPABASE !== 'false';
 
+let _cachedAuthUser: any = undefined;
+let _cachedAuthUserTime = 0;
+const AUTH_USER_CACHE_TTL = 15 * 1000;
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  _cachedAuthUser = session?.user ?? null;
+  _cachedAuthUserTime = Date.now();
+});
+
 /**
  * Helper ดึง user ปัจจุบันจาก session ใน storage
  * หมายเหตุ: supabase.auth.getSession() จะ refresh token ให้เองถ้าใกล้หมดอายุ ไม่ต้อง refresh เอง
  */
 export async function getAuthUser() {
+  const now = Date.now();
+  if (_cachedAuthUser !== undefined && now - _cachedAuthUserTime < AUTH_USER_CACHE_TTL) {
+    return _cachedAuthUser;
+  }
+
   try {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) console.warn('[Auth] getSession error:', error.message);
+    _cachedAuthUser = session?.user ?? null;
+    _cachedAuthUserTime = Date.now();
     if (session?.user) return session.user;
     console.warn('[Auth] getAuthUser: ไม่พบ session ใน storage');
     return null;

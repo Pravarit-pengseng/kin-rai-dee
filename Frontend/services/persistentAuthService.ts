@@ -18,6 +18,10 @@ function getSecureStore(): typeof import('expo-secure-store') | null {
 function getApplication(): typeof import('expo-application') | null {
   if (Platform.OS === 'web') return null;
   try {
+    const { requireOptionalNativeModule } = require('expo-modules-core');
+    if (!requireOptionalNativeModule('ExpoApplication')) {
+      return null;
+    }
     return require('expo-application');
   } catch {
     return null;
@@ -45,21 +49,21 @@ export async function getPersistentDeviceId(): Promise<string> {
     }
   }
 
-  // iOS or fallback: Read/write to SecureStore
-  if (Platform.OS === 'ios') {
+  // iOS or Android fallback: Read/write to SecureStore
+  if (Platform.OS !== 'web') {
     try {
       const ss = getSecureStore();
       if (ss) {
         let id = await ss.getItemAsync(DEVICE_ID_KEY);
         if (!id) {
-          id = `ios_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
+          id = `${Platform.OS}_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
           await ss.setItemAsync(DEVICE_ID_KEY, id);
         }
         cachedDeviceId = id;
         return cachedDeviceId;
       }
     } catch (e) {
-      console.warn('SecureStore device ID error on iOS:', e);
+      console.warn('SecureStore device ID error:', e);
     }
   }
 
@@ -70,6 +74,9 @@ export async function getPersistentDeviceId(): Promise<string> {
 
 const CHUNK_SIZE = 1800; // เผื่อ margin สำหรับลิมิต 2048 bytes ของ SecureStore
 const DEBUG_AUTH_STORAGE = __DEV__; // log การอ่าน/เขียน session เฉพาะตอน dev
+
+const memoryStorageCache = new Map<string, string | null>();
+const inFlightReads = new Map<string, Promise<string | null>>();
 
 function logStorage(...args: unknown[]) {
   if (DEBUG_AUTH_STORAGE) console.log('[AuthStorage]', ...args);
@@ -108,41 +115,58 @@ export const ExpoSecureStoreAdapter = {
       return null;
     }
 
-    try {
-      const ss = getSecureStore();
-      if (!ss) {
-        logStorage('getItem: SecureStore not available');
-        return null;
-      }
+    if (memoryStorageCache.has(key)) {
+      return memoryStorageCache.get(key) ?? null;
+    }
 
-      // 1. ค่าที่ถูกแบ่ง chunk
-      const chunkCountStr = await ss.getItemAsync(`${key}_chunks`);
-      if (chunkCountStr) {
-        const count = parseInt(chunkCountStr, 10);
-        if (Number.isFinite(count) && count > 0) {
-          const parts: string[] = [];
-          for (let i = 0; i < count; i++) {
-            const part = await ss.getItemAsync(`${key}_${i}`);
-            if (part === null) {
-              logStorage(`getItem ${key}: chunk ${i}/${count} หาย → คืน null`);
+    const pending = inFlightReads.get(key);
+    if (pending) {
+      return pending;
+    }
+
+    const readPromise = (async (): Promise<string | null> => {
+      try {
+        const ss = getSecureStore();
+        if (!ss) {
+          logStorage('getItem: SecureStore not available');
+          return null;
+        }
+
+        // 1. ค่าที่ถูกแบ่ง chunk (อ่านทุก chunk แบบ parallel เพื่อความเร็ว)
+        const chunkCountStr = await ss.getItemAsync(`${key}_chunks`);
+        if (chunkCountStr) {
+          const count = parseInt(chunkCountStr, 10);
+          if (Number.isFinite(count) && count > 0) {
+            const parts = await Promise.all(
+              Array.from({ length: count }, (_, i) => ss.getItemAsync(`${key}_${i}`))
+            );
+            if (parts.some((p) => p === null)) {
+              logStorage(`getItem ${key}: chunk หาย → คืน null`);
+              memoryStorageCache.set(key, null);
               return null;
             }
-            parts.push(part);
+            const joined = parts.join('');
+            logStorage(`getItem ${key}: ${count} chunks, length ${joined.length}`);
+            memoryStorageCache.set(key, joined);
+            return joined;
           }
-          const joined = parts.join('');
-          logStorage(`getItem ${key}: ${count} chunks, length ${joined.length}`);
-          return joined;
         }
-      }
 
-      // 2. ค่าปกติ
-      const value = await ss.getItemAsync(key);
-      logStorage(`getItem ${key}:`, value === null ? 'null' : `length ${value.length}`);
-      return value;
-    } catch (e) {
-      console.warn('[AuthStorage] getItem error:', e);
-      return null;
-    }
+        // 2. ค่าปกติ
+        const value = await ss.getItemAsync(key);
+        logStorage(`getItem ${key}:`, value === null ? 'null' : `length ${value.length}`);
+        memoryStorageCache.set(key, value);
+        return value;
+      } catch (e) {
+        console.warn('[AuthStorage] getItem error:', e);
+        return null;
+      } finally {
+        inFlightReads.delete(key);
+      }
+    })();
+
+    inFlightReads.set(key, readPromise);
+    return readPromise;
   },
 
   setItem: async (key: string, value: string): Promise<void> => {
@@ -155,6 +179,8 @@ export const ExpoSecureStoreAdapter = {
       return;
     }
 
+    memoryStorageCache.set(key, value);
+
     const ss = getSecureStore();
     if (!ss) {
       logStorage('setItem: SecureStore not available');
@@ -166,9 +192,11 @@ export const ExpoSecureStoreAdapter = {
         // ลบของเก่าก่อน แล้วเขียน chunk ให้ครบ จากนั้นค่อยเขียนตัวนับเป็นขั้นสุดท้าย
         await deleteChunks(ss, key);
         const count = Math.ceil(value.length / CHUNK_SIZE);
-        for (let i = 0; i < count; i++) {
-          await ss.setItemAsync(`${key}_${i}`, value.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE));
-        }
+        await Promise.all(
+          Array.from({ length: count }, (_, i) =>
+            ss.setItemAsync(`${key}_${i}`, value.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE))
+          )
+        );
         await ss.setItemAsync(`${key}_chunks`, String(count));
         try { await ss.deleteItemAsync(key); } catch { }
         logStorage(`setItem ${key}: เขียน ${count} chunks สำเร็จ (length ${value.length})`);
@@ -192,6 +220,8 @@ export const ExpoSecureStoreAdapter = {
       } catch { }
       return;
     }
+
+    memoryStorageCache.delete(key);
 
     try {
       const ss = getSecureStore();

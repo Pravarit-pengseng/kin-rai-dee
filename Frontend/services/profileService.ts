@@ -43,6 +43,32 @@ export function invalidateMyProfileCache() {
 
 let _userPostsCache: Record<string, { data: any[]; timestamp: number }> = {};
 const USER_POSTS_CACHE_TTL = 45 * 1000; // 45 วินาที
+const MAX_USER_POSTS_CACHE = 12;
+
+let _otherProfilesCache: Record<string, { data: UserProfile; timestamp: number }> = {};
+const OTHER_PROFILE_CACHE_TTL = 60 * 1000; // 60 วินาที
+const MAX_OTHER_PROFILES_CACHE = 30;
+
+function setBoundedCache<T>(
+    cache: Record<string, { data: T; timestamp: number }>,
+    key: string,
+    data: T,
+    maxEntries: number,
+) {
+    const keys = Object.keys(cache);
+    if (!cache[key] && keys.length >= maxEntries) {
+        delete cache[keys[0]];
+    }
+    cache[key] = { data, timestamp: Date.now() };
+}
+
+export function invalidateOtherProfileCache(userId?: string) {
+    if (userId) {
+        delete _otherProfilesCache[userId];
+    } else {
+        _otherProfilesCache = {};
+    }
+}
 
 export function getCachedUserPosts(userId: string): any[] | null {
     const item = _userPostsCache[userId];
@@ -187,6 +213,11 @@ export async function updateMyProfile(
 export async function getUserProfile(
     userId: string,
 ): Promise<UserProfile | null> {
+    const cached = _otherProfilesCache[userId];
+    if (cached && Date.now() - cached.timestamp < OTHER_PROFILE_CACHE_TTL) {
+        return cached.data;
+    }
+
     const data = await fetchApi<UserProfile>(
         `/api/profiles/${userId}`,
     );
@@ -195,6 +226,7 @@ export async function getUserProfile(
         if (data.avatar_url) {
             data.avatar_url = normalizeAvatarUrl(data.avatar_url);
         }
+        setBoundedCache(_otherProfilesCache, userId, data, MAX_OTHER_PROFILES_CACHE);
         return data;
     }
 
@@ -216,6 +248,9 @@ export async function getUserProfile(
 
         if (profile?.avatar_url) {
             profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
+        }
+        if (profile) {
+            setBoundedCache(_otherProfilesCache, userId, profile, MAX_OTHER_PROFILES_CACHE);
         }
         invalidateMyProfileCache();
         return profile;
@@ -257,7 +292,7 @@ export async function getUserPosts(
         const { data: posts, error } = await supabase
             .from('posts')
             .select(
-                '*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))',
+                'id, user_id, food_name, description, image_url, restaurant_url, is_hidden, created_at, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))',
             )
             .eq('user_id', userId)
             .or('is_hidden.is.null,is_hidden.eq.false')
@@ -274,7 +309,7 @@ export async function getUserPosts(
         }
 
         const nonHidden = (posts || []).filter((p: any) => !p.is_hidden);
-        _userPostsCache[userId] = { data: nonHidden, timestamp: now };
+        setBoundedCache(_userPostsCache, userId, nonHidden, MAX_USER_POSTS_CACHE);
         return nonHidden;
     } catch (e) {
         console.warn(

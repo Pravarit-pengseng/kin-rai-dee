@@ -2,7 +2,7 @@ import { fetchApi, getAuthUser, USE_DIRECT_SUPABASE } from './api';
 import { supabase } from '@/lib/supabase';
 import { PopupPostData } from '@/components/popup-post';
 import { normalizeAvatarUrl, invalidateUserPostsCache } from './profileService';
-import { getBlockedUserIdsSet } from './safetyService';
+import { getBlockedUserIdsSet, subscribeUserBlocked, subscribeUserUnblocked } from './safetyService';
 
 const DEFAULT_IMAGE = require('@/assets/images/StirFriedHolyBasil.png');
 
@@ -26,10 +26,28 @@ let _savedPostsCache: PopupPostData[] | null = null;
 let _savedPostsCacheTime = 0;
 const SAVED_POSTS_CACHE_TTL = 2 * 60 * 1000; // 2 นาที
 
+let _savedPostIdsCache: { ids: string[]; timestamp: number } | null = null;
+const SAVED_POST_IDS_CACHE_TTL = 2 * 60 * 1000; // 2 นาที
+
 export function invalidateSavedPostsCache() {
   _savedPostsCache = null;
   _savedPostsCacheTime = 0;
+  _savedPostIdsCache = null;
 }
+
+subscribeUserBlocked((blockedUserId) => {
+  if (_feedPostsCache) {
+    _feedPostsCache = _feedPostsCache.filter((p) => String(p.userId) !== String(blockedUserId));
+  }
+  if (_savedPostsCache) {
+    _savedPostsCache = _savedPostsCache.filter((p) => String(p.userId) !== String(blockedUserId));
+  }
+});
+
+subscribeUserUnblocked(() => {
+  invalidateFeedPostsCache();
+  invalidateSavedPostsCache();
+});
 
 export interface PostPayload {
   food_name: string;
@@ -145,7 +163,7 @@ export async function fetchFeedPosts(
       const [supaRes, blockedIds] = await Promise.all([
         supabase
           .from('posts')
-          .select('*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))')
+          .select('id, user_id, food_name, description, image_url, restaurant_url, is_hidden, created_at, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))')
           .or('is_hidden.is.null,is_hidden.eq.false')
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1),
@@ -573,6 +591,9 @@ export async function unbookmarkPost(
  * Auth required
  */
 export async function getSavedPostIds(): Promise<string[]> {
+  if (_savedPostIdsCache && Date.now() - _savedPostIdsCache.timestamp < SAVED_POST_IDS_CACHE_TTL) {
+    return _savedPostIdsCache.ids;
+  }
   try {
     const user = await getAuthUser();
     if (!user) return [];
@@ -580,7 +601,9 @@ export async function getSavedPostIds(): Promise<string[]> {
       .from('saved_posts')
       .select('post_id')
       .eq('user_id', user.id);
-    return (data || []).map((row: any) => String(row.post_id));
+    const ids = (data || []).map((row: any) => String(row.post_id));
+    _savedPostIdsCache = { ids, timestamp: Date.now() };
+    return ids;
   } catch (err) {
     console.warn('getSavedPostIds error:', err);
     return [];
@@ -676,10 +699,17 @@ export interface CommentData {
 
 export async function getPostComments(postId: string | number): Promise<CommentData[]> {
   let comments: CommentData[] = [];
+  let blockedIds = new Set<string>();
+
   try {
-    const resp = await fetchApi<{ success: boolean; data: CommentData[] } | CommentData[]>(
-      `/api/posts/${postId}/comments`
-    );
+    const [resp, fetchedBlockedIds] = await Promise.all([
+      fetchApi<{ success: boolean; data: CommentData[] } | CommentData[]>(
+        `/api/posts/${postId}/comments`
+      ),
+      getBlockedUserIdsSet().catch(() => new Set<string>()),
+    ]);
+    blockedIds = fetchedBlockedIds;
+
     if (Array.isArray(resp)) {
       comments = resp;
     } else if (resp && typeof resp === 'object' && 'data' in resp && Array.isArray((resp as any).data)) {
@@ -705,16 +735,11 @@ export async function getPostComments(postId: string | number): Promise<CommentD
   comments = comments.filter((c: any) => !c.is_hidden);
 
   // ซ่อนคอมเมนต์จากผู้ใช้ที่ถูกบล็อก
-  try {
-    const blockedIds = await getBlockedUserIdsSet();
-    if (blockedIds.size > 0) {
-      comments = comments.filter(c => {
-        const cUserId = c.user_id || c.profiles?.id;
-        return !cUserId || !blockedIds.has(String(cUserId));
-      });
-    }
-  } catch (err) {
-    console.warn('Filter blocked comments error:', err);
+  if (blockedIds.size > 0) {
+    comments = comments.filter(c => {
+      const cUserId = c.user_id || c.profiles?.id;
+      return !cUserId || !blockedIds.has(String(cUserId));
+    });
   }
 
   return comments;

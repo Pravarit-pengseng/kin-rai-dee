@@ -64,10 +64,36 @@ export const MOCK_BLOCKED_USERS: BlockedUserItem[] = [];
 
 let inMemoryBlockedUsers: BlockedUserItem[] = [];
 
-// ── Blocked IDs Cache (ลด Supabase egress) ───────────────────────────────────
+// ── Blocked IDs Cache & Instant Event Listeners ──────────────────────────────
 let _blockedIdsCache: Set<string> | null = null;
 let _blockedIdsCacheTime = 0;
+let _blockedIdsInFlight: Promise<Set<string>> | null = null;
 const BLOCKED_CACHE_TTL = 5 * 60 * 1000; // 5 นาที
+
+const userBlockedListeners = new Set<(userId: string) => void>();
+const userUnblockedListeners = new Set<(userId: string) => void>();
+
+export function subscribeUserBlocked(listener: (userId: string) => void): () => void {
+  userBlockedListeners.add(listener);
+  return () => {
+    userBlockedListeners.delete(listener);
+  };
+}
+
+export function subscribeUserUnblocked(listener: (userId: string) => void): () => void {
+  userUnblockedListeners.add(listener);
+  return () => {
+    userUnblockedListeners.delete(listener);
+  };
+}
+
+function emitUserBlocked(userId: string) {
+  userBlockedListeners.forEach((listener) => listener(userId));
+}
+
+function emitUserUnblocked(userId: string) {
+  userUnblockedListeners.forEach((listener) => listener(userId));
+}
 
 function _invalidateBlockedIdsCache() {
   _blockedIdsCache = null;
@@ -125,7 +151,12 @@ export async function blockUser(
   targetAvatar?: string | null,
   targetUsername?: string,
 ): Promise<{ success: boolean; message: string }> {
-  _invalidateBlockedIdsCache(); // ล้าง cache เมื่อ block ใหม่
+  if (_blockedIdsCache) {
+    _blockedIdsCache.add(String(targetUserId));
+    _blockedIdsCacheTime = Date.now();
+  }
+  emitUserBlocked(String(targetUserId));
+
   let resolvedDisplayName = targetName;
   let resolvedUsername = targetUsername;
   let resolvedAvatar = targetAvatar;
@@ -206,7 +237,12 @@ export async function blockUser(
  */
 export async function unblockUser(targetUserId: string): Promise<{ success: boolean; message: string }> {
   inMemoryBlockedUsers = inMemoryBlockedUsers.filter(u => u.blocked_user_id !== targetUserId);
-  _invalidateBlockedIdsCache(); // ล้าง cache เมื่อ unblock
+  if (_blockedIdsCache) {
+    _blockedIdsCache.delete(String(targetUserId));
+  } else {
+    _invalidateBlockedIdsCache();
+  }
+  emitUserUnblocked(String(targetUserId));
 
   try {
     const res = await fetchApi<{ success: boolean; message: string }>(`/api/blocks/${targetUserId}`, {
@@ -275,38 +311,47 @@ export async function getBlockedUserIdsSet(): Promise<Set<string>> {
     return _blockedIdsCache;
   }
 
-  const ids = new Set<string>();
-
-  // 1. In-memory blocks
-  for (const item of inMemoryBlockedUsers) {
-    if (item.blocked_user_id) ids.add(String(item.blocked_user_id));
+  if (_blockedIdsInFlight) {
+    return _blockedIdsInFlight;
   }
 
-  // 2. Supabase blocks (ยิง 1 ครั้ง แล้ว cache ไว้ 5 นาที)
-  try {
-    const user = await getAuthUser();
-    if (user) {
-      const { data } = await supabase
-        .from('blocked_users')
-        .select('blocker_id, blocked_id')
-        .or(`blocker_id.eq.${user.id},blocked_id.eq.${user.id}`);
+  _blockedIdsInFlight = (async () => {
+    const ids = new Set<string>();
 
-      if (data) {
-        for (const row of data) {
-          if (row.blocker_id === user.id) ids.add(String(row.blocked_id));
-          if (row.blocked_id === user.id) ids.add(String(row.blocker_id));
+    // 1. In-memory blocks
+    for (const item of inMemoryBlockedUsers) {
+      if (item.blocked_user_id) ids.add(String(item.blocked_user_id));
+    }
+
+    // 2. Supabase blocks (ยิง 1 ครั้ง แล้ว cache ไว้ 5 นาที)
+    try {
+      const user = await getAuthUser();
+      if (user) {
+        const { data } = await supabase
+          .from('blocked_users')
+          .select('blocker_id, blocked_id')
+          .or(`blocker_id.eq.${user.id},blocked_id.eq.${user.id}`);
+
+        if (data) {
+          for (const row of data) {
+            if (row.blocker_id === user.id) ids.add(String(row.blocked_id));
+            if (row.blocked_id === user.id) ids.add(String(row.blocker_id));
+          }
         }
       }
+    } catch (err) {
+      console.warn('Error getting blocked user ids set:', err);
     }
-  } catch (err) {
-    console.warn('Error getting blocked user ids set:', err);
-  }
 
-  // บันทึก cache
-  _blockedIdsCache = ids;
-  _blockedIdsCacheTime = now;
+    // บันทึก cache
+    _blockedIdsCache = ids;
+    _blockedIdsCacheTime = Date.now();
+    _blockedIdsInFlight = null;
 
-  return ids;
+    return ids;
+  })();
+
+  return _blockedIdsInFlight;
 }
 
 export async function getBlockedUsers(): Promise<BlockedUserItem[]> {

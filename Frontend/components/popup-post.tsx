@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   LayoutAnimation,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
 import { useStableSafeAreaInsets } from "@/components/SafeAreaView";
@@ -31,7 +32,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { getPostComments, addPostComment } from "@/services/postService";
 import { getMyProfile } from "@/services/profileService";
-import { blockUser } from "@/services/safetyService";
+import { blockUser, subscribeUserBlocked } from "@/services/safetyService";
 import ReportModal from "@/components/ReportModal";
 
 import PostDropdown from "./post-dropdown";
@@ -97,7 +98,7 @@ export type PopupPostProps = {
   onBlockUser?: (userId: string) => void;
 };
 
-export default function PopupPost({
+function PopupPostComponent({
   visible,
   post,
   onClose,
@@ -301,6 +302,8 @@ export default function PopupPost({
   const [isTruncated, setIsTruncated] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<CommentItem[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [commentText, setCommentText] = useState("");
   const commentsScrollRef = useRef<any>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -308,6 +311,12 @@ export default function PopupPost({
   const maxOverlayHeightRef = useRef(0);
   const insets = useStableSafeAreaInsets();
   const [slideAnim] = useState(() => new Animated.Value(600));
+
+  useEffect(() => {
+    return subscribeUserBlocked((blockedUserId) => {
+      setComments((prev) => prev.filter((c) => String(c.userId) !== String(blockedUserId)));
+    });
+  }, []);
 
   // Listen to keyboard height to lift input above keyboard
   useEffect(() => {
@@ -344,6 +353,8 @@ export default function PopupPost({
         stiffness: 200,
         useNativeDriver: Platform.OS !== 'web',
       }).start();
+    } else {
+      maxOverlayHeightRef.current = 0;
     }
   }, [showComments, slideAnim]);
 
@@ -381,21 +392,32 @@ export default function PopupPost({
 
   // Load real comments from backend when comments modal opens
   useEffect(() => {
+    let active = true;
     if (showComments && post?.id) {
-      getPostComments(post.id).then((apiComments) => {
-        const visibleComments = (apiComments || []).filter((c: any) => !c.is_hidden);
-        setComments(
-          visibleComments.map((c: any) => ({
-            id: String(c.id),
-            userId: c.user_id ? String(c.user_id) : (c.profiles?.id ? String(c.profiles.id) : undefined),
-            username: c.username || c.profiles?.display_name || c.profiles?.username || 'ผู้ใช้งาน',
-            text: c.content || c.text || '',
-            avatarUrl: c.profiles?.avatar_url,
-            isCurrentUser: Boolean(user?.id && String(c.user_id) === String(user.id)),
-          }))
-        );
-      });
+      setLoadingComments(true);
+      getPostComments(post.id)
+        .then((apiComments) => {
+          if (!active) return;
+          const visibleComments = (apiComments || []).filter((c: any) => !c.is_hidden);
+          setComments(
+            visibleComments.map((c: any) => ({
+              id: String(c.id),
+              userId: c.user_id ? String(c.user_id) : (c.profiles?.id ? String(c.profiles.id) : undefined),
+              username: c.username || c.profiles?.display_name || c.profiles?.username || 'ผู้ใช้งาน',
+              text: c.content || c.text || '',
+              avatarUrl: c.profiles?.avatar_url,
+              isCurrentUser: Boolean(user?.id && String(c.user_id) === String(user.id)),
+            }))
+          );
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (active) setLoadingComments(false);
+        });
     }
+    return () => {
+      active = false;
+    };
   }, [showComments, post?.id, user?.id]);
 
   const isPostingRef = useRef(false);
@@ -416,6 +438,7 @@ export default function PopupPost({
     }
 
     isPostingRef.current = true;
+    setIsSubmittingComment(true);
     try {
       const created = await addPostComment(post.id, trimmed);
       if (!created) {
@@ -443,6 +466,7 @@ export default function PopupPost({
       console.warn("Failed to add comment:", e);
       showAlert("ส่งคอมเมนต์ไม่สำเร็จ", "เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง");
     } finally {
+      setIsSubmittingComment(false);
       setTimeout(() => {
         isPostingRef.current = false;
       }, 300);
@@ -497,7 +521,7 @@ export default function PopupPost({
     if (!cleanTag) return;
     router.push({
       pathname: "/(tabs)/search",
-      params: { query: cleanTag },
+      params: { query: cleanTag, _ts: String(Date.now()) },
     });
   };
 
@@ -629,6 +653,8 @@ export default function PopupPost({
           source={post.image}
           style={styles.postImage}
           contentFit="cover"
+          cachePolicy="memory-disk"
+          recyclingKey={post?.id ? String(post.id) : undefined}
           transition={200}
         />
       </Pressable>
@@ -713,7 +739,7 @@ export default function PopupPost({
               onPress={() => handleTagPress(t)}
               hitSlop={6}
             >
-              <ThemedText style={styles.tagText}>
+              <ThemedText style={styles.tagText} numberOfLines={1} ellipsizeMode="tail">
                 #{t}
               </ThemedText>
             </Pressable>
@@ -788,7 +814,7 @@ export default function PopupPost({
     const h = e.nativeEvent?.layout?.height || 0;
     if (h > 0) {
       setOverlayHeight(h);
-      if (keyboardHeight === 0 || h > maxOverlayHeightRef.current) {
+      if (h > maxOverlayHeightRef.current) {
         maxOverlayHeightRef.current = h;
       }
     }
@@ -823,7 +849,14 @@ export default function PopupPost({
         keyboardDismissMode="none"
         nestedScrollEnabled
       >
-        {comments.length === 0 ? (
+        {loadingComments && comments.length === 0 ? (
+          <View style={styles.emptyCommentsContainer}>
+            <ActivityIndicator size="small" color="#8A3E2D" />
+            <ThemedText style={[styles.emptyCommentsText, { marginTop: 10 }]}>
+              กำลังโหลดความคิดเห็น...
+            </ThemedText>
+          </View>
+        ) : comments.length === 0 ? (
           <View style={styles.emptyCommentsContainer}>
             <ThemedText style={styles.emptyCommentsText}>
               ยังไม่มีความคิดเห็น เป็นคนแรกที่แสดงความคิดเห็น!
@@ -930,17 +963,21 @@ export default function PopupPost({
           <TouchableOpacity
             onPress={handleAddComment}
             onPressIn={handleAddComment}
-            disabled={!commentText.trim()}
+            disabled={!commentText.trim() || isSubmittingComment}
             activeOpacity={0.7}
             style={[
               styles.postCommentButton,
-              !commentText.trim() && { opacity: 0.4 },
+              (!commentText.trim() || isSubmittingComment) && { opacity: 0.4 },
             ]}
             hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
           >
-            <ThemedText style={styles.postCommentText}>
-              โพสต์
-            </ThemedText>
+            {isSubmittingComment ? (
+              <ActivityIndicator size="small" color="#8A3E2D" />
+            ) : (
+              <ThemedText style={styles.postCommentText}>
+                โพสต์
+              </ThemedText>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -966,7 +1003,10 @@ export default function PopupPost({
               style={[
                 styles.commentModalOverlay,
                 styles.commentModalOverlayContent,
-                { paddingBottom: effectiveKeyboardOffset },
+                {
+                  paddingTop: keyboardHeight > 0 ? insets.top : 0,
+                  paddingBottom: effectiveKeyboardOffset,
+                },
               ]}
             >
               <Pressable
@@ -1050,7 +1090,10 @@ export default function PopupPost({
             style={[
               styles.commentModalOverlayAbsolute,
               styles.commentModalOverlayContent,
-              { paddingBottom: effectiveKeyboardOffset },
+              {
+                paddingTop: keyboardHeight > 0 ? insets.top : 0,
+                paddingBottom: effectiveKeyboardOffset,
+              },
             ]}
           >
             <Pressable
@@ -1092,6 +1135,9 @@ export default function PopupPost({
     </Modal>
   );
 }
+
+const PopupPost = React.memo(PopupPostComponent);
+export default PopupPost;
 
 const styles = StyleSheet.create({
   commentReportBtn: {
@@ -1269,6 +1315,8 @@ const styles = StyleSheet.create({
 
   tagContainer: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
     marginBottom: 10,
   },
 
@@ -1277,6 +1325,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 20,
+    maxWidth: "100%",
   },
 
   tagText: {

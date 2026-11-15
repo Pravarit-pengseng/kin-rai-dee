@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 import { Typography } from '@/constants/typography';
+import { FOOD_CATEGORIES } from '@/constants/categories';
 
 interface SearchHistoryProps {
   recentSearches: string[];
@@ -25,18 +26,20 @@ export function SearchHistory({
           <ThemedText style={styles.trendTitle}>🔥 เมนูฮิตติดกระแส</ThemedText>
         </View>
         <View style={styles.trendTags}>
-          <Pressable
-            onPress={() => onSelectSearch('อาหารจานเดียว')}
-            style={[styles.pill, styles.pillGreen]}
-          >
-            <ThemedText style={styles.pillTextGreen}>#อาหารจานเดียว</ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={() => onSelectSearch('ของหวาน')}
-            style={[styles.pill, styles.pillBrown]}
-          >
-            <ThemedText style={styles.pillTextBrown}>#ของหวาน</ThemedText>
-          </Pressable>
+          {FOOD_CATEGORIES.map((cat, index) => {
+            const isGreen = index % 2 === 0;
+            return (
+              <Pressable
+                key={cat.id}
+                onPress={() => onSelectSearch(cat.label)}
+                style={[styles.pill, isGreen ? styles.pillGreen : styles.pillBrown]}
+              >
+                <ThemedText style={isGreen ? styles.pillTextGreen : styles.pillTextBrown}>
+                  #{cat.label}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
 
@@ -44,12 +47,17 @@ export function SearchHistory({
       <View style={styles.historySection}>
         <View style={styles.historyHeader}>
           <ThemedText style={styles.historyTitle}>ล่าสุด</ThemedText>
-          <Pressable onPress={onClearAllHistory}>
-            <ThemedText style={styles.clearAllText}>ลบทิ้งทั้งหมด</ThemedText>
-          </Pressable>
+          {recentSearches.length > 0 && (
+            <Pressable onPress={onClearAllHistory}>
+              <ThemedText style={styles.clearAllText}>ลบทิ้งทั้งหมด</ThemedText>
+            </Pressable>
+          )}
         </View>
 
-        {recentSearches.map((item, index) => (
+        {recentSearches.length === 0 ? (
+          <ThemedText style={styles.emptyHistoryText}>ยังไม่มีประวัติการค้นหา</ThemedText>
+        ) : (
+          recentSearches.map((item, index) => (
           <View key={`${item}-${index}`} style={styles.historyItem}>
             <Pressable
               style={styles.historyItemContent}
@@ -70,7 +78,8 @@ export function SearchHistory({
               <Feather name="x" size={18} color="#C4B5A5" />
             </Pressable>
           </View>
-        ))}
+          ))
+        )}
       </View>
     </>
   );
@@ -92,7 +101,8 @@ const styles = StyleSheet.create({
   },
   trendTags: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 10,
   },
   pill: {
     paddingHorizontal: 16,
@@ -134,6 +144,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: Typography.bold,
     color: '#B63A26',
+  },
+  emptyHistoryText: {
+    fontSize: 14,
+    color: '#A0938F',
+    paddingVertical: 12,
   },
   historyItem: {
     flexDirection: 'row',

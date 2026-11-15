@@ -43,10 +43,12 @@ export function useKeyboardScroll(options: UseKeyboardScrollOptions = {}) {
   const activeTargetRef = useRef<ScrollTarget>(null);
   const activeCustomOffsetRef = useRef<number | undefined>(undefined);
   const keyboardHeightRef = useRef(0);
+  const keyboardScreenYRef = useRef<number | null>(null);
   const isKeyboardVisibleRef = useRef(false);
   const scrollLayoutHeightRef = useRef(0);
   const maxScrollLayoutHeightRef = useRef(0);
   const contentHeightRef = useRef(0);
+  const naturalContentHeightRef = useRef(0);
   const AppliedExtraPaddingRef = useRef(0);
 
   const executeScrollTarget = useCallback(
@@ -94,7 +96,11 @@ export function useKeyboardScroll(options: UseKeyboardScrollOptions = {}) {
 
                 const scrollBottomInWindow = effectiveScrollTopY + effectiveScrollHeight;
                 const keyboardTopInWindow =
-                  kbHeight > 0 ? windowHeight - kbHeight : windowHeight * 0.58;
+                  keyboardScreenYRef.current !== null && keyboardScreenYRef.current > 0
+                    ? keyboardScreenYRef.current
+                    : kbHeight > 0
+                      ? windowHeight - kbHeight
+                      : windowHeight * 0.56;
 
                 // Visible bottom inside ScrollView coordinate space
                 const visibleViewportHeight = Math.max(
@@ -105,7 +111,7 @@ export function useKeyboardScroll(options: UseKeyboardScrollOptions = {}) {
                 const inputTopInViewport = top - currentScrollYRef.current;
                 const inputBottomInViewport = inputTopInViewport + height;
                 const safeTopMargin = 20;
-                const safeBottomLimit = visibleViewportHeight - Math.max(offset, 72);
+                const safeBottomLimit = visibleViewportHeight - Math.max(offset, 90);
 
                 if (inputBottomInViewport > safeBottomLimit) {
                   const delta = inputBottomInViewport - safeBottomLimit;
@@ -136,8 +142,10 @@ export function useKeyboardScroll(options: UseKeyboardScrollOptions = {}) {
 
     const handleShow = (e: any) => {
       const height = e?.endCoordinates?.height || 300;
+      const screenY = e?.endCoordinates?.screenY;
       isKeyboardVisibleRef.current = true;
       keyboardHeightRef.current = height;
+      keyboardScreenYRef.current = typeof screenY === 'number' && screenY > 0 ? screenY : null;
       setKeyboardVisible(true);
       setKeyboardHeight(height);
 
@@ -160,6 +168,7 @@ export function useKeyboardScroll(options: UseKeyboardScrollOptions = {}) {
       clearTimers();
       isKeyboardVisibleRef.current = false;
       keyboardHeightRef.current = 0;
+      keyboardScreenYRef.current = null;
       activeTargetRef.current = null;
       activeCustomOffsetRef.current = undefined;
       setKeyboardVisible(false);
@@ -169,7 +178,7 @@ export function useKeyboardScroll(options: UseKeyboardScrollOptions = {}) {
       if (resetOnHide) {
         timers.push(
           setTimeout(() => {
-            scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+            scrollViewRef.current?.scrollTo({ y: 0, animated: false });
           }, 50)
         );
       } else {
@@ -179,10 +188,10 @@ export function useKeyboardScroll(options: UseKeyboardScrollOptions = {}) {
               maxScrollLayoutHeightRef.current ||
               scrollLayoutHeightRef.current ||
               Dimensions.get('window').height;
-            const naturalContentH = Math.max(
-              0,
-              contentHeightRef.current - AppliedExtraPaddingRef.current
-            );
+            const naturalContentH =
+              naturalContentHeightRef.current > 0
+                ? naturalContentHeightRef.current
+                : Math.max(0, contentHeightRef.current - AppliedExtraPaddingRef.current);
             const maxNaturalScrollY = Math.max(0, naturalContentH - layoutH);
             if (currentScrollYRef.current > maxNaturalScrollY) {
               scrollViewRef.current?.scrollTo({ y: maxNaturalScrollY, animated: true });
@@ -218,10 +227,10 @@ export function useKeyboardScroll(options: UseKeyboardScrollOptions = {}) {
     if (height <= 0) return;
 
     scrollLayoutHeightRef.current = height;
-    if (!isKeyboardVisibleRef.current || height > maxScrollLayoutHeightRef.current) {
+    if (height >= maxScrollLayoutHeightRef.current) {
       maxScrollLayoutHeightRef.current = height;
       setLayoutShrinkAmount(0);
-    } else if (maxScrollLayoutHeightRef.current > height) {
+    } else if (isKeyboardVisibleRef.current && maxScrollLayoutHeightRef.current > height) {
       setLayoutShrinkAmount(maxScrollLayoutHeightRef.current - height);
     }
   }, []);
@@ -229,13 +238,25 @@ export function useKeyboardScroll(options: UseKeyboardScrollOptions = {}) {
   const handleContentSizeChange = useCallback(
     (_width: number, height: number) => {
       contentHeightRef.current = height;
-      if (isKeyboardVisibleRef.current && activeTargetRef.current) {
+      if (!isKeyboardVisibleRef.current) {
+        naturalContentHeightRef.current = height;
+        if (!resetOnHide) {
+          const layoutH =
+            maxScrollLayoutHeightRef.current ||
+            scrollLayoutHeightRef.current ||
+            Dimensions.get('window').height;
+          const maxNaturalScrollY = Math.max(0, height - layoutH);
+          if (currentScrollYRef.current > maxNaturalScrollY + 2) {
+            scrollViewRef.current?.scrollTo({ y: maxNaturalScrollY, animated: false });
+          }
+        }
+      } else if (activeTargetRef.current) {
         setTimeout(() => {
           executeScrollTarget(activeTargetRef.current, activeCustomOffsetRef.current);
         }, 50);
       }
     },
-    [executeScrollTarget]
+    [executeScrollTarget, resetOnHide]
   );
 
   const scrollToFocusedInput = useCallback(
@@ -276,7 +297,7 @@ export function useKeyboardScroll(options: UseKeyboardScrollOptions = {}) {
 
   const contentBottomPadding = isKeyboardVisible
     ? Platform.OS === 'android'
-      ? defaultBottomPadding + uncompensatedAndroidKbHeight + 48
+      ? defaultBottomPadding + Math.max(uncompensatedAndroidKbHeight, 260) + 72
       : Math.max(defaultBottomPadding, 56)
     : defaultBottomPadding;
 

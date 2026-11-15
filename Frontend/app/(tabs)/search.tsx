@@ -1,12 +1,15 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
+  Text,
   StyleSheet,
   TextInput,
   ScrollView,
   Linking,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 
 import { SafeAreaView } from '@/components/SafeAreaView';
@@ -18,6 +21,7 @@ import * as Location from 'expo-location';
 
 import { Header } from '@/components/Header';
 import PostGrid from '@/components/post-grid';
+import { PostGridSkeleton } from '@/components/PostSkeleton';
 import PopupPost, { PopupPostData } from '@/components/popup-post';
 import { RestaurantCard, Restaurant } from '@/components/restuarant-card';
 import { SearchTabFilter, SearchTabType } from '@/components/search-tab-filter';
@@ -37,6 +41,7 @@ import {
   getSavedPosts,
 } from '@/services/postService';
 import { searchRestaurants } from '@/services/restaurantService';
+import { subscribeUserBlocked } from '@/services/safetyService';
 
 export default function SearchScreen() {
   const { user, isLoggedIn } = useAuth();
@@ -52,6 +57,10 @@ export default function SearchScreen() {
 
   // Feed view mode & Popup post modal state
   const [showFeed, setShowFeed] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const hasScrolledToSelectedRef = useRef(false);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [loadingRestaurants, setLoadingRestaurants] = useState(false);
   const [popupPost, setPopupPost] = useState<PopupPostData | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const searchBarRef = useRef<any>(null);
@@ -67,14 +76,28 @@ export default function SearchScreen() {
     defaultBottomPadding: 110,
   });
 
-  const { from, query, tag } = useLocalSearchParams<{ from?: string; query?: string; tag?: string }>();
+  const { from, query, tag, _ts } = useLocalSearchParams<{ from?: string; query?: string; tag?: string; _ts?: string }>();
+  const lastHandledParamRef = useRef<string>('');
+
+  useEffect(() => {
+    return subscribeUserBlocked((blockedUserId) => {
+      setSearchResults((prev) => prev.filter((p) => String(p.userId) !== String(blockedUserId)));
+      setPopupPost((prev) =>
+        prev && String(prev.userId) === String(blockedUserId) ? null : prev
+      );
+    });
+  }, []);
 
   useEffect(() => {
     const targetQuery = (query || tag)?.trim();
     if (targetQuery) {
-      handleSearch(targetQuery);
+      const paramKey = `${targetQuery}::${_ts || ''}`;
+      if (lastHandledParamRef.current !== paramKey) {
+        lastHandledParamRef.current = paramKey;
+        handleSearch(targetQuery);
+      }
     }
-  }, [query, tag]);
+  }, [query, tag, _ts]);
 
   // Fetch user location for nearby restaurants
   useEffect(() => {
@@ -103,48 +126,66 @@ export default function SearchScreen() {
     })();
   }, []);
 
-  // Load history & bookmarks
+  // Load history & bookmarks in parallel
   const loadUserData = useCallback(async () => {
     if (isLoggedIn) {
-      const historyItems = await fetchSearchHistory();
-      if (historyItems && historyItems.length > 0) {
-        setRecentSearches(historyItems.map((item) => item.query));
-      } else {
-        setRecentSearches([]);
-      }
-
-      const saved = await getSavedPosts();
-      if (saved && saved.length > 0) {
-        setBookmarkedIds(saved.map((s) => s.id));
-      } else {
-        setBookmarkedIds([]);
-      }
+      const [historyItems, saved] = await Promise.all([
+        fetchSearchHistory().catch(() => []),
+        getSavedPosts().catch(() => []),
+      ]);
+      setRecentSearches(
+        historyItems && historyItems.length > 0 ? historyItems.map((item) => item.query) : []
+      );
+      setBookmarkedIds(saved && saved.length > 0 ? saved.map((s) => s.id) : []);
     } else {
       setRecentSearches([]);
       setBookmarkedIds([]);
     }
   }, [isLoggedIn]);
 
-  // Reset state when screen is focused
+  // Reset state when screen is focused (unless opened directly with a query/tag param)
   useFocusEffect(
     useCallback(() => {
+      const targetQuery = (query || tag)?.trim();
+      if (targetQuery) {
+        loadUserData();
+        const paramKey = `${targetQuery}::${_ts || ''}`;
+        if (lastHandledParamRef.current !== paramKey) {
+          lastHandledParamRef.current = paramKey;
+          handleSearch(targetQuery);
+        }
+        return;
+      }
+
+      lastHandledParamRef.current = '';
       setInputValue('');
       setIsSearching(false);
       setShowFeed(false);
+      setSelectedPostId(null);
+      hasScrolledToSelectedRef.current = false;
+      setLoadingPosts(false);
+      setLoadingRestaurants(false);
       setPopupPost(null);
       setSearchResults([]);
       setRestaurantResults([]);
       setSearchTab('posts');
       loadUserData();
-    }, [loadUserData])
+    }, [loadUserData, query, tag, _ts])
   );
 
   const handleSearch = async (text: string) => {
     const trimmed = text.trim();
     if (trimmed !== '') {
+      Keyboard.dismiss();
       setInputValue(trimmed);
       setIsSearching(true);
       setShowFeed(false);
+      setSelectedPostId(null);
+      hasScrolledToSelectedRef.current = false;
+      setLoadingPosts(true);
+      setLoadingRestaurants(true);
+      setSearchResults([]);
+      setRestaurantResults([]);
       setRecentSearches((prev) => [
         trimmed,
         ...prev.filter((item) => item !== trimmed),
@@ -152,29 +193,42 @@ export default function SearchScreen() {
 
       // Save history to backend if logged in
       if (isLoggedIn) {
-        addSearchHistory(trimmed).catch(() => {});
+        addSearchHistory(trimmed).catch(() => { });
       }
 
-      // Query posts & restaurants from real backend APIs
+      // Query posts & restaurants independently so each renders as soon as it resolves
       const lat = userLocation?.latitude || 14.0734;
       const lng = userLocation?.longitude || 100.6033;
 
-      try {
-        const [apiPosts, apiRestaurants] = await Promise.all([
-          searchPosts(trimmed),
-          searchRestaurants(trimmed, lat, lng),
-        ]);
+      searchPosts(trimmed)
+        .then((apiPosts) => {
+          setSearchResults(apiPosts || []);
+        })
+        .catch((e) => {
+          console.warn('Search posts error:', e);
+          setSearchResults([]);
+        })
+        .finally(() => {
+          setLoadingPosts(false);
+        });
 
-        setSearchResults(apiPosts || []);
-        setRestaurantResults(apiRestaurants || []);
-      } catch (e) {
-        console.warn('Search error:', e);
-        setSearchResults([]);
-        setRestaurantResults([]);
-      }
+      searchRestaurants(trimmed, lat, lng)
+        .then((apiRestaurants) => {
+          setRestaurantResults(apiRestaurants || []);
+        })
+        .catch((e) => {
+          console.warn('Search restaurants error:', e);
+          setRestaurantResults([]);
+        })
+        .finally(() => {
+          setLoadingRestaurants(false);
+        });
     } else {
       setIsSearching(false);
       setShowFeed(false);
+      setSelectedPostId(null);
+      setLoadingPosts(false);
+      setLoadingRestaurants(false);
       setSearchResults([]);
       setRestaurantResults([]);
     }
@@ -275,82 +329,123 @@ export default function SearchScreen() {
             />
           </View>
 
-        {/* Tab Filter (shown when searching) */}
-        {isSearching && (
-          <SearchTabFilter
-            activeTab={searchTab}
-            onTabChange={setSearchTab}
-          />
-        )}
+          {/* Tab Filter (shown when searching) */}
+          {isSearching && (
+            <SearchTabFilter
+              activeTab={searchTab}
+              onTabChange={setSearchTab}
+            />
+          )}
 
-        {!isSearching ? (
-          /* Initial View (Trending & History) */
-          <SearchHistory
-            recentSearches={recentSearches}
-            onSelectSearch={handleSearch}
-            onClearHistoryItem={handleClearHistory}
-            onClearAllHistory={handleClearAllHistory}
-          />
-        ) : searchTab === 'posts' ? (
-          showFeed ? (
-            /* Feed View Mode */
-            <View style={styles.feedContainer}>
-              {searchResults.map((post) => (
-                <View key={post.id} style={styles.postWrapper}>
-                  <PopupPost
-                    visible={true}
-                    post={post}
-                    onClose={() => {}}
-                    inline
-                    isOwnPost={!!user && post.userId === user.id}
-                    isBookmarked={bookmarkedIds.includes(post.id)}
-                    onBookmark={handleToggleBookmark}
-                    onUserPress={(userId) => {
-                      if (user && userId === user.id) {
-                        router.push('/(tabs)/profile');
-                      } else {
-                        router.push({
-                          pathname: '/OtherProfile',
-                          params: { userId },
+          {!isSearching ? (
+            /* Initial View (Trending & History) */
+            <SearchHistory
+              recentSearches={recentSearches}
+              onSelectSearch={handleSearch}
+              onClearHistoryItem={handleClearHistory}
+              onClearAllHistory={handleClearAllHistory}
+            />
+          ) : searchTab === 'posts' ? (
+            showFeed ? (
+              /* Feed View Mode */
+              <View style={styles.feedContainer}>
+                {searchResults.map((post) => (
+                  <View
+                    key={post.id}
+                    style={styles.postWrapper}
+                    onLayout={(e) => {
+                      if (
+                        selectedPostId &&
+                        post.id === selectedPostId &&
+                        !hasScrolledToSelectedRef.current
+                      ) {
+                        hasScrolledToSelectedRef.current = true;
+                        scrollRef.current?.scrollTo({
+                          y: e.nativeEvent.layout.y,
+                          animated: false,
                         });
                       }
                     }}
-                  />
+                  >
+                    <PopupPost
+                      visible={true}
+                      post={post}
+                      onClose={() => { }}
+                      inline
+                      isOwnPost={!!user && post.userId === user.id}
+                      isBookmarked={bookmarkedIds.includes(post.id)}
+                      onBookmark={handleToggleBookmark}
+                      onUserPress={(userId) => {
+                        if (user && userId === user.id) {
+                          router.push('/(tabs)/profile');
+                        } else {
+                          router.push({
+                            pathname: '/OtherProfile',
+                            params: { userId },
+                          });
+                        }
+                      }}
+                    />
+                  </View>
+                ))}
+              </View>
+            ) : loadingPosts ? (
+              <View style={styles.gridContainer}>
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator size="small" color="#A7392A" />
+                  <Text style={styles.loadingText}>กำลังค้นหาโพสต์...</Text>
                 </View>
-              ))}
+                <PostGridSkeleton count={6} />
+              </View>
+            ) : searchResults.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>ไม่พบโพสต์ที่ตรงกับคำค้นหา</Text>
+              </View>
+            ) : (
+              /* Grid View Mode */
+              <View style={styles.gridContainer}>
+                <PostGrid
+                  posts={searchResults}
+                  onPressPost={(post) => {
+                    hasScrolledToSelectedRef.current = false;
+                    setSelectedPostId(post.id);
+                    setShowFeed(true);
+                  }}
+                  onLongPressPost={(post) => setPopupPost(post)}
+                />
+              </View>
+            )
+          ) : loadingRestaurants ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator size="small" color="#A7392A" />
+              <Text style={[styles.loadingText, { marginTop: 10 }]}>กำลังค้นหาร้านอาหารใกล้เคียง...</Text>
+            </View>
+          ) : restaurantResults.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>ไม่พบร้านอาหารที่ตรงกับคำค้นหา</Text>
             </View>
           ) : (
-            /* Grid View Mode */
-            <View style={styles.gridContainer}>
-              <PostGrid
-                posts={searchResults}
-                onPressPost={() => setShowFeed(true)}
-                onLongPressPost={(post) => setPopupPost(post)}
-              />
+            /* Restaurant List View Mode */
+            <View style={styles.restaurantListContainer}>
+              {restaurantResults.map((restaurant) => (
+                <RestaurantCard
+                  key={restaurant.id}
+                  restaurant={restaurant}
+                  onPress={() => {
+                    const query = encodeURIComponent(
+                      restaurant.name + (restaurant.address ? ' ' + restaurant.address : '')
+                    );
+                    const url =
+                      restaurant.mapUrl ||
+                      `https://www.google.com/maps/search/?api=1&query=${query}`;
+                    Linking.openURL(url).catch((err) =>
+                      console.log('Error opening Google Maps:', err)
+                    );
+                  }}
+                />
+              ))}
             </View>
-          )
-        ) : (
-          /* Restaurant List View Mode */
-          <View style={styles.restaurantListContainer}>
-            {restaurantResults.map((restaurant) => (
-              <RestaurantCard
-                key={restaurant.id}
-                restaurant={restaurant}
-                onPress={() => {
-                  const query = encodeURIComponent(
-                    restaurant.name + (restaurant.address ? ' ' + restaurant.address : '')
-                  );
-                  const url =
-                    restaurant.mapUrl ||
-                    `https://www.google.com/maps/search/?api=1&query=${query}`;
-                  Linking.openURL(url).catch((err) =>
-                    console.log('Error opening Google Maps:', err)
-                  );
-                }}
-              />
-            ))}
-          </View>
-        )}
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -420,5 +515,27 @@ const styles = StyleSheet.create({
   },
   restaurantListContainer: {
     paddingHorizontal: 16,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+  },
+  loadingText: {
+    fontFamily: Typography.regular,
+    fontSize: 14,
+    color: '#6B4F48',
+  },
+  emptyState: {
+    paddingVertical: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateText: {
+    fontFamily: Typography.regular,
+    fontSize: 14,
+    color: '#8C7B75',
   },
 });

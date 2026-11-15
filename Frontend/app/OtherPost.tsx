@@ -33,6 +33,7 @@ import {
   getPostDetail,
 } from "@/services/postService";
 import { getCachedPostList } from "@/services/postCache";
+import { subscribeUserBlocked } from "@/services/safetyService";
 
 export default function OtherPostScreen() {
   const { isLoggedIn, user } = useAuth();
@@ -74,6 +75,12 @@ export default function OtherPostScreen() {
     const idx = posts.findIndex((p) => p.id === postId);
     hasScrolledRef.current = idx <= 0;
   }, [postId, posts]);
+
+  useEffect(() => {
+    return subscribeUserBlocked((blockedUserId) => {
+      setPosts((prev) => prev.filter((p) => String(p.userId) !== String(blockedUserId)));
+    });
+  }, []);
 
   // Load from API if needed or sync bookmarks
   useEffect(() => {

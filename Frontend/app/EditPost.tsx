@@ -19,7 +19,7 @@ import { ThemedText } from "@/components/themed-text";
 import PostForm, {
     PostData,
 } from "@/components/post-form";
-import { updatePost } from "@/services/postService";
+import { updatePost, emitPostUpdated } from "@/services/postService";
 import { useAuth } from "@/context/AuthContext";
 import { uploadCompressedImage, deleteStorageImage } from "@/services/storageService";
 import { FOOD_CATEGORIES } from "@/constants/categories";
@@ -186,6 +186,8 @@ export default function EditPost() {
             location: post.restaurant?.trim() || "",
             userId: parsedPost?.userId,
         };
+
+        emitPostUpdated(updatedPostForUI);
 
         router.replace({
             pathname: "/(tabs)/profile",

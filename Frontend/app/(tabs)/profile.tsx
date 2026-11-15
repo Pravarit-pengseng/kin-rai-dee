@@ -24,7 +24,18 @@ import { SafeAreaView } from "@/components/SafeAreaView";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/context/AuthContext";
 import { getMyProfile, getUserPosts, getCachedUserPosts } from "@/services/profileService";
-import { getSavedPosts, getSavedPostIds, deletePost, mapPostToPopup, bookmarkPost, unbookmarkPost } from "@/services/postService";
+import {
+  getSavedPosts,
+  getSavedPostIds,
+  deletePost,
+  mapPostToPopup,
+  bookmarkPost,
+  unbookmarkPost,
+  subscribePostDeleted,
+  subscribePostUpdated,
+  subscribePostCreated,
+  subscribeBookmarkChanged,
+} from "@/services/postService";
 import { PostGridSkeleton } from "@/components/PostSkeleton";
 import { setCachedPostList } from "@/services/postCache";
 
@@ -98,16 +109,17 @@ export default function ProfileScreen() {
     savedPostsRef.current = savedPosts;
   }, [savedPosts]);
 
-  const loadSavedPosts = useCallback(async (force = false) => {
+  const loadSavedPosts = useCallback(async (_force = false) => {
     if (!user?.id) return;
-    if (!force && savedPostsRef.current.length > 0) return;
-    setLoadingSaved(true);
+    if (savedPostsRef.current.length === 0) {
+      setLoadingSaved(true);
+    }
     try {
       const saved = await getSavedPosts();
       const safeSaved = Array.isArray(saved) ? saved : [];
       setSavedPosts(safeSaved);
       if (safeSaved.length > 0) {
-        setBookmarkedIds(safeSaved.map((s) => s.id));
+        setBookmarkedIds((prev) => Array.from(new Set([...prev, ...safeSaved.map((s) => s.id)])));
       }
     } catch (e) {
       console.warn("loadSavedPosts error:", e);
@@ -115,6 +127,50 @@ export default function ProfileScreen() {
       setLoadingSaved(false);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    const unsubDelete = subscribePostDeleted((deletedId) => {
+      const idStr = String(deletedId);
+      setPosts((prev) => prev.filter((p) => String(p.id) !== idStr));
+      setSavedPosts((prev) => prev.filter((p) => String(p.id) !== idStr));
+      setBookmarkedIds((prev) => prev.filter((id) => String(id) !== idStr));
+      setSelectedPost((prev) => {
+        if (prev && String(prev.id) === idStr) {
+          setPopupVisible(false);
+          return null;
+        }
+        return prev;
+      });
+    });
+    const unsubUpdate = subscribePostUpdated((updated) => {
+      const idStr = String(updated.id);
+      setPosts((prev) => prev.map((p) => (String(p.id) === idStr ? { ...p, ...updated } : p)));
+      setSavedPosts((prev) => prev.map((p) => (String(p.id) === idStr ? { ...p, ...updated } : p)));
+      setSelectedPost((prev) => (prev && String(prev.id) === idStr ? { ...prev, ...updated } : prev));
+    });
+    const unsubCreate = subscribePostCreated((created) => {
+      const idStr = String(created.id);
+      setPosts((prev) => (prev.some((p) => String(p.id) === idStr) ? prev : [created, ...prev]));
+    });
+    const unsubBookmark = subscribeBookmarkChanged((postId, isBookmarked) => {
+      const idStr = String(postId);
+      setBookmarkedIds((prev) => {
+        const exists = prev.includes(idStr);
+        if (isBookmarked && !exists) return [...prev, idStr];
+        if (!isBookmarked && exists) return prev.filter((id) => id !== idStr);
+        return prev;
+      });
+      if (!isBookmarked) {
+        setSavedPosts((prev) => prev.filter((p) => String(p.id) !== idStr));
+      }
+    });
+    return () => {
+      unsubDelete();
+      unsubUpdate();
+      unsubCreate();
+      unsubBookmark();
+    };
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -309,20 +365,8 @@ export default function ProfileScreen() {
     setDeletePostId(null);
     setDeletePopupVisible(false);
 
-    // เรียก API ลบโพสต์จริง
+    // เรียก API ลบโพสต์จริง (cache และหน้าจอทั้งหมดอัปเดตทันทีผ่าน event bus แล้ว)
     await deletePost(idToDelete);
-
-    // Reload posts จาก API เสมอ เพื่อ sync กับ DB
-    if (user?.id) {
-      getUserPosts(user.id).then((apiPosts) => {
-        setPosts((apiPosts || []).map(mapPostToPopup));
-      });
-      // Update saved posts just in case we deleted our own post that was also saved
-      getSavedPosts().then((saved) => {
-        const safeSaved = Array.isArray(saved) ? saved : [];
-        setSavedPosts(safeSaved);
-      });
-    }
   };
 
   const handleCancelDelete = () => {

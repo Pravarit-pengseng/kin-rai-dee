@@ -20,6 +20,10 @@ import {
   deletePost,
   getSavedPostIds,
   getCachedFeedPosts,
+  subscribePostDeleted,
+  subscribePostUpdated,
+  subscribePostCreated,
+  subscribeBookmarkChanged,
   FEED_PAGE_SIZE,
 } from "@/services/postService";
 import { subscribeUserBlocked } from "@/services/safetyService";
@@ -59,6 +63,37 @@ export default function HomeScreen() {
     return subscribeUserBlocked((blockedUserId) => {
       setPosts((prev) => prev.filter((p) => String(p.userId) !== String(blockedUserId)));
     });
+  }, []);
+
+  useEffect(() => {
+    const unsubDelete = subscribePostDeleted((deletedId) => {
+      setPosts((prev) => prev.filter((p) => String(p.id) !== String(deletedId)));
+      setBookmarkedIds((prev) => prev.filter((id) => String(id) !== String(deletedId)));
+    });
+    const unsubUpdate = subscribePostUpdated((updated) => {
+      setPosts((prev) =>
+        prev.map((p) => (String(p.id) === String(updated.id) ? { ...p, ...updated } : p))
+      );
+    });
+    const unsubCreate = subscribePostCreated((created) => {
+      setPosts((prev) =>
+        prev.some((p) => String(p.id) === String(created.id)) ? prev : [created, ...prev]
+      );
+    });
+    const unsubBookmark = subscribeBookmarkChanged((postId, isBookmarked) => {
+      setBookmarkedIds((prev) => {
+        const exists = prev.includes(postId);
+        if (isBookmarked && !exists) return [...prev, postId];
+        if (!isBookmarked && exists) return prev.filter((id) => id !== postId);
+        return prev;
+      });
+    });
+    return () => {
+      unsubDelete();
+      unsubUpdate();
+      unsubCreate();
+      unsubBookmark();
+    };
   }, []);
 
   useEffect(() => {
@@ -224,11 +259,27 @@ export default function HomeScreen() {
         <MaterialCommunityIcons name="silverware-fork-knife" size={26} color="#DCA64E" />
       </View>
 
-      {!refreshing && loading && posts.length === 0 && (
+      {loading && posts.length === 0 && (
         <PostSkeleton count={2} />
       )}
     </>
-  ), [refreshing, loading, posts.length]);
+  ), [loading, posts.length]);
+
+  const listEmpty = useMemo(() => {
+    if (loading) return undefined;
+    return (
+      <View style={styles.emptyContainer}>
+        <MaterialCommunityIcons name="food-off" size={44} color="#C7B2AC" />
+        <ThemedText style={styles.emptyTitle}>ยังไม่มีโพสต์ในขณะนี้</ThemedText>
+        <Pressable
+          style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]}
+          onPress={() => loadFeed(true)}
+        >
+          <ThemedText style={styles.retryButtonText}>ลองโหลดใหม่</ThemedText>
+        </Pressable>
+      </View>
+    );
+  }, [loading, loadFeed]);
 
   const listFooter = useMemo(() => (
     loadingMore ? (
@@ -257,6 +308,7 @@ export default function HomeScreen() {
         keyExtractor={keyExtractor}
         renderItem={renderPostItem}
         ListHeaderComponent={listHeader}
+        ListEmptyComponent={listEmpty}
         ListFooterComponent={listFooter}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 98 + menuBottomOffset }]}
@@ -364,5 +416,30 @@ const styles = StyleSheet.create({
   buttonPressed: {
     opacity: 0.8,
     transform: [{ translateY: 2 }],
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 56,
+    gap: 10,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    color: "#8D756F",
+    fontFamily: Typography.semiBold,
+  },
+  retryButton: {
+    marginTop: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: "#FCE5DD",
+    borderWidth: 1,
+    borderColor: "#EAD2CB",
+  },
+  retryButtonText: {
+    fontSize: 14,
+    color: "#721209",
+    fontFamily: Typography.bold,
   },
 });

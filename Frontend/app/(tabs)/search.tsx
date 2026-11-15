@@ -39,6 +39,9 @@ import {
   bookmarkPost,
   unbookmarkPost,
   getSavedPosts,
+  subscribePostDeleted,
+  subscribePostUpdated,
+  subscribeBookmarkChanged,
 } from '@/services/postService';
 import { searchRestaurants } from '@/services/restaurantService';
 import { subscribeUserBlocked } from '@/services/safetyService';
@@ -70,12 +73,40 @@ export default function SearchScreen() {
   const lastHandledParamRef = useRef<string>('');
 
   useEffect(() => {
-    return subscribeUserBlocked((blockedUserId) => {
+    const unsubUserBlocked = subscribeUserBlocked((blockedUserId) => {
       setSearchResults((prev) => prev.filter((p) => String(p.userId) !== String(blockedUserId)));
       setPopupPost((prev) =>
         prev && String(prev.userId) === String(blockedUserId) ? null : prev
       );
     });
+    const unsubDelete = subscribePostDeleted((deletedId) => {
+      const idStr = String(deletedId);
+      setSearchResults((prev) => prev.filter((p) => String(p.id) !== idStr));
+      setBookmarkedIds((prev) => prev.filter((id) => String(id) !== idStr));
+      setPopupPost((prev) => (prev && String(prev.id) === idStr ? null : prev));
+    });
+    const unsubUpdate = subscribePostUpdated((updated) => {
+      const idStr = String(updated.id);
+      setSearchResults((prev) =>
+        prev.map((p) => (String(p.id) === idStr ? { ...p, ...updated } : p))
+      );
+      setPopupPost((prev) => (prev && String(prev.id) === idStr ? { ...prev, ...updated } : prev));
+    });
+    const unsubBookmark = subscribeBookmarkChanged((pid, isBookmarked) => {
+      const idStr = String(pid);
+      setBookmarkedIds((prev) => {
+        const exists = prev.includes(idStr);
+        if (isBookmarked && !exists) return [...prev, idStr];
+        if (!isBookmarked && exists) return prev.filter((id) => id !== idStr);
+        return prev;
+      });
+    });
+    return () => {
+      unsubUserBlocked();
+      unsubDelete();
+      unsubUpdate();
+      unsubBookmark();
+    };
   }, []);
 
   useEffect(() => {

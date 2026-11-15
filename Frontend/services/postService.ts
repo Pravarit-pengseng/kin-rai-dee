@@ -1,7 +1,8 @@
 import { fetchApi, getAuthUser, USE_DIRECT_SUPABASE } from './api';
 import { supabase } from '@/lib/supabase';
 import { PopupPostData } from '@/components/popup-post';
-import { normalizeAvatarUrl, invalidateUserPostsCache } from './profileService';
+import { normalizeAvatarUrl, invalidateUserPostsCache, removePostFromUserPostsCache } from './profileService';
+import { removePostFromCachedList } from './postCache';
 import { resolveStorageImageUrl, deleteStorageImage } from './storageService';
 import { getBlockedUserIdsSet, subscribeUserBlocked, subscribeUserUnblocked } from './safetyService';
 
@@ -53,6 +54,81 @@ subscribeUserUnblocked(() => {
 export function invalidateAllPostCaches() {
   invalidateFeedPostsCache();
   invalidateSavedPostsCache();
+}
+
+// ── Global Post Event Bus (Instant Optimistic UI Sync across all screens) ────
+const postDeletedListeners = new Set<(postId: string) => void>();
+const postUpdatedListeners = new Set<(post: Partial<PopupPostData> & { id: string }) => void>();
+const postCreatedListeners = new Set<(post: PopupPostData) => void>();
+const bookmarkChangedListeners = new Set<(postId: string, isBookmarked: boolean) => void>();
+
+export function subscribePostDeleted(listener: (postId: string) => void): () => void {
+  postDeletedListeners.add(listener);
+  return () => { postDeletedListeners.delete(listener); };
+}
+
+export function subscribePostUpdated(listener: (post: Partial<PopupPostData> & { id: string }) => void): () => void {
+  postUpdatedListeners.add(listener);
+  return () => { postUpdatedListeners.delete(listener); };
+}
+
+export function subscribePostCreated(listener: (post: PopupPostData) => void): () => void {
+  postCreatedListeners.add(listener);
+  return () => { postCreatedListeners.delete(listener); };
+}
+
+export function subscribeBookmarkChanged(listener: (postId: string, isBookmarked: boolean) => void): () => void {
+  bookmarkChangedListeners.add(listener);
+  return () => { bookmarkChangedListeners.delete(listener); };
+}
+
+export function emitPostDeleted(postId: string) {
+  const idStr = String(postId);
+  postDeletedListeners.forEach((listener) => listener(idStr));
+}
+
+export function emitPostUpdated(post: Partial<PopupPostData> & { id: string }) {
+  const idStr = String(post.id);
+  if (_feedPostsCache) {
+    _feedPostsCache = _feedPostsCache.map((p) => (String(p.id) === idStr ? { ...p, ...post } : p));
+  }
+  if (_savedPostsCache) {
+    _savedPostsCache = _savedPostsCache.map((p) => (String(p.id) === idStr ? { ...p, ...post } : p));
+  }
+  postUpdatedListeners.forEach((listener) => listener(post));
+}
+
+export function emitPostCreated(post: PopupPostData) {
+  if (_feedPostsCache) {
+    const idStr = String(post.id);
+    if (!_feedPostsCache.some((p) => String(p.id) === idStr)) {
+      _feedPostsCache = [post, ..._feedPostsCache];
+    }
+  }
+  postCreatedListeners.forEach((listener) => listener(post));
+}
+
+function emitBookmarkChanged(postId: string, isBookmarked: boolean) {
+  const idStr = String(postId);
+  bookmarkChangedListeners.forEach((listener) => listener(idStr, isBookmarked));
+}
+
+export function removePostFromAllCaches(postId: string | number) {
+  const idStr = String(postId);
+  if (_feedPostsCache) {
+    _feedPostsCache = _feedPostsCache.filter((p) => String(p.id) !== idStr);
+  }
+  if (_savedPostsCache) {
+    _savedPostsCache = _savedPostsCache.filter((p) => String(p.id) !== idStr);
+  }
+  if (_savedPostIdsCache) {
+    _savedPostIdsCache = {
+      ..._savedPostIdsCache,
+      ids: _savedPostIdsCache.ids.filter((id) => String(id) !== idStr),
+    };
+  }
+  removePostFromCachedList(idStr);
+  removePostFromUserPostsCache(idStr);
 }
 
 export interface PostPayload {
@@ -177,6 +253,11 @@ export async function fetchFeedPosts(
         getBlockedUserIdsSet().catch(() => new Set<string>()),
       ]);
 
+      if (supaRes.error) {
+        console.warn('Direct Supabase fetchFeedPosts error:', supaRes.error);
+        throw supaRes.error;
+      }
+
       if (supaRes.data && supaRes.data.length > 0) {
         const nonHidden = supaRes.data.filter((p: any) => !p.is_hidden);
         const needsProfiles = nonHidden.filter((p: any) => !p.profiles && p.user_id);
@@ -204,7 +285,7 @@ export async function fetchFeedPosts(
 
   // 2. Fallback to API if Direct Supabase is false or failed
   const [data, blockedIds] = await Promise.all([
-    fetchApi<any[]>(`/api/posts/feed?limit=${limit}&offset=${offset}`),
+    fetchApi<any[]>(`/api/posts/feed?limit=${limit}&offset=${offset}`, { forceBackend: true }),
     getBlockedUserIdsSet().catch(() => new Set<string>()),
   ]);
 
@@ -440,6 +521,11 @@ export async function updatePost(
 export async function deletePost(
   postId: number | string,
 ): Promise<boolean> {
+  const idStr = String(postId);
+  // Instant optimistic removal from all in-memory caches & mounted screens
+  removePostFromAllCaches(idStr);
+  emitPostDeleted(idStr);
+
   const data = await fetchApi<any>(
     `/api/posts/${postId}`,
     {
@@ -448,7 +534,8 @@ export async function deletePost(
   );
 
   if (data) {
-    invalidateFeedPostsCache();
+    invalidateAllPostCaches();
+    removePostFromAllCaches(idStr);
     return true;
   }
 
@@ -477,10 +564,11 @@ export async function deletePost(
     }
 
     if (deletedPost?.image_url) {
-      deleteStorageImage('posts', deletedPost.image_url);
+      deleteStorageImage('posts', deletedPost.image_url).catch(() => {});
     }
 
-    invalidateFeedPostsCache();
+    invalidateUserPostsCache();
+    removePostFromAllCaches(idStr);
     return true;
   } catch (e) {
     console.warn(
@@ -498,6 +586,19 @@ export async function deletePost(
 export async function bookmarkPost(
   postId: number | string,
 ): Promise<boolean> {
+  const idStr = String(postId);
+  if (_savedPostIdsCache) {
+    if (!_savedPostIdsCache.ids.includes(idStr)) {
+      _savedPostIdsCache = {
+        ids: [..._savedPostIdsCache.ids, idStr],
+        timestamp: Date.now(),
+      };
+    }
+  }
+  _savedPostsCache = null;
+  _savedPostsCacheTime = 0;
+  emitBookmarkChanged(idStr, true);
+
   const data = await fetchApi<any>(
     `/api/posts/${postId}/bookmark`,
     {
@@ -537,7 +638,6 @@ export async function bookmarkPost(
       return false;
     }
 
-    invalidateSavedPostsCache(); // ล้าง cache
     return true;
   } catch (e) {
     console.warn(
@@ -555,6 +655,18 @@ export async function bookmarkPost(
 export async function unbookmarkPost(
   postId: number | string,
 ): Promise<boolean> {
+  const idStr = String(postId);
+  if (_savedPostIdsCache) {
+    _savedPostIdsCache = {
+      ids: _savedPostIdsCache.ids.filter((id) => String(id) !== idStr),
+      timestamp: Date.now(),
+    };
+  }
+  if (_savedPostsCache) {
+    _savedPostsCache = _savedPostsCache.filter((p) => String(p.id) !== idStr);
+  }
+  emitBookmarkChanged(idStr, false);
+
   const data = await fetchApi<any>(
     `/api/posts/${postId}/bookmark`,
     {
@@ -588,7 +700,6 @@ export async function unbookmarkPost(
       return false;
     }
 
-    invalidateSavedPostsCache(); // ล้าง cache
     return true;
   } catch (e) {
     console.warn(

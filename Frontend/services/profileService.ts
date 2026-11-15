@@ -80,6 +80,16 @@ export function invalidateUserPostsCache(userId?: string) {
     }
 }
 
+export function removePostFromUserPostsCache(postId: string) {
+    const idStr = String(postId);
+    for (const key of Object.keys(_userPostsCache)) {
+        const entry = _userPostsCache[key];
+        if (entry?.data) {
+            entry.data = entry.data.filter((p: any) => String(p.id) !== idStr);
+        }
+    }
+}
+
 export function invalidateAllProfileCaches() {
     _myProfileCache = null;
     _userPostsCache = {};

@@ -1,7 +1,7 @@
 import { fetchApi, getAuthUser } from './api';
 import { supabase } from '@/lib/supabase';
 import { PopupPostData } from '@/components/popup-post';
-import { resolveCategoryNames, mapPostToPopup, attachProfilesToPosts } from './postService';
+import { resolveCategoryNames, mapPostToPopup, attachProfilesToPosts, subscribePostDeleted } from './postService';
 
 import { getBlockedUserIdsSet, subscribeUserBlocked, subscribeUserUnblocked } from './safetyService';
 
@@ -34,12 +34,24 @@ export function invalidateAllSearchCaches() {
   _searchHistoryCache = null;
 }
 
+export function removePostFromSearchCache(postId: string) {
+  const idStr = String(postId);
+  for (const [key, entry] of _searchPostsCache.entries()) {
+    entry.data = entry.data.filter((p) => String(p.id) !== idStr);
+    _searchPostsCache.set(key, entry);
+  }
+}
+
 subscribeUserBlocked(() => {
   _searchPostsCache.clear();
 });
 
 subscribeUserUnblocked(() => {
   _searchPostsCache.clear();
+});
+
+subscribePostDeleted((postId) => {
+  removePostFromSearchCache(postId);
 });
 
 async function getCachedCategories() {

@@ -19,7 +19,7 @@ import PostForm, {
     PostData,
 } from "@/components/post-form";
 import { useAuth } from "@/context/AuthContext";
-import { createPost } from "@/services/postService";
+import { createPost, emitPostCreated } from "@/services/postService";
 import { uploadCompressedImage } from "@/services/storageService";
 import { FOOD_CATEGORIES } from "@/constants/categories";
 import { Typography } from "@/constants/typography";
@@ -166,8 +166,13 @@ export default function AddPost() {
             tags: post.categories?.length > 0 ? post.categories : ["อาหารจานเดียว"],
             location: post.restaurant?.trim() || "",
             timeAgo: "เมื่อสักครู่นี้",
-            userId: "me",
+            userId: user?.id ?? "me",
+            avatarUrl: user?.avatarUrl,
+            displayName: user?.displayName,
+            username: user?.username,
         };
+
+        emitPostCreated(newPostForUI);
 
         router.replace({
             pathname: "/(tabs)/profile",

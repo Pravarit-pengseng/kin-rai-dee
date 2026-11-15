@@ -32,6 +32,9 @@ import {
   mapPostToPopup,
   deletePost,
   getPostDetail,
+  subscribePostDeleted,
+  subscribePostUpdated,
+  subscribeBookmarkChanged,
 } from "@/services/postService";
 import { getCachedPostList } from "@/services/postCache";
 import { subscribeUserBlocked } from "@/services/safetyService";
@@ -78,9 +81,39 @@ export default function OtherPostScreen() {
   }, [postId, posts]);
 
   useEffect(() => {
-    return subscribeUserBlocked((blockedUserId) => {
+    const unsubUserBlocked = subscribeUserBlocked((blockedUserId) => {
       setPosts((prev) => prev.filter((p) => String(p.userId) !== String(blockedUserId)));
     });
+    const unsubDelete = subscribePostDeleted((deletedId) => {
+      const idStr = String(deletedId);
+      setPosts((prev) => {
+        const next = prev.filter((p) => String(p.id) !== idStr);
+        if (prev.length > 0 && next.length === 0) {
+          queueMicrotask(() => safeBack("/(tabs)"));
+        }
+        return next;
+      });
+      setBookmarkedIds((prev) => prev.filter((b) => String(b) !== idStr));
+    });
+    const unsubUpdate = subscribePostUpdated((updated) => {
+      const idStr = String(updated.id);
+      setPosts((prev) => prev.map((p) => (String(p.id) === idStr ? { ...p, ...updated } : p)));
+    });
+    const unsubBookmark = subscribeBookmarkChanged((pid, isBookmarked) => {
+      const idStr = String(pid);
+      setBookmarkedIds((prev) => {
+        const exists = prev.includes(idStr);
+        if (isBookmarked && !exists) return [...prev, idStr];
+        if (!isBookmarked && exists) return prev.filter((b) => b !== idStr);
+        return prev;
+      });
+    });
+    return () => {
+      unsubUserBlocked();
+      unsubDelete();
+      unsubUpdate();
+      unsubBookmark();
+    };
   }, []);
 
   // Load from API only if cache empty; always sync lightweight bookmark IDs

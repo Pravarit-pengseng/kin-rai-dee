@@ -26,20 +26,17 @@ export function SearchHistory({
           <ThemedText style={styles.trendTitle}>🔥 เมนูฮิตติดกระแส</ThemedText>
         </View>
         <View style={styles.trendTags}>
-          {FOOD_CATEGORIES.map((cat, index) => {
-            const isGreen = index % 2 === 0;
-            return (
-              <Pressable
-                key={cat.id}
-                onPress={() => onSelectSearch(cat.label)}
-                style={[styles.pill, isGreen ? styles.pillGreen : styles.pillBrown]}
-              >
-                <ThemedText style={isGreen ? styles.pillTextGreen : styles.pillTextBrown}>
-                  #{cat.label}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
+          {FOOD_CATEGORIES.map((cat) => (
+            <Pressable
+              key={cat.id}
+              onPress={() => onSelectSearch(cat.label)}
+              style={[styles.pill, styles.pillGreen]}
+            >
+              <ThemedText style={styles.pillTextGreen}>
+                #{cat.label}
+              </ThemedText>
+            </Pressable>
+          ))}
         </View>
       </View>
 

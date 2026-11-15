@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from '@/components/SafeAreaView';
 import { useRouter, Stack } from 'expo-router';
+import { safeBack } from '@/utils/navigation';
 import { ArrowLeft } from 'lucide-react-native';
 import LegalNavbar from '../components/LegalNavbar';
 import { Typography } from '@/constants/typography';
@@ -26,7 +27,7 @@ export default function PrivacyPolicyScreen() {
         <LegalNavbar activeTab="privacy" />
       ) : (
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+          <Pressable onPress={() => safeBack('/(tabs)')} style={styles.backBtn} hitSlop={12}>
             <ArrowLeft size={22} color="#1A1A1A" />
           </Pressable>
           <Text style={styles.headerTitle}>นโยบายความเป็นส่วนตัว</Text>

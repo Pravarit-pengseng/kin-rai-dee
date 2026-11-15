@@ -100,6 +100,10 @@ function _invalidateBlockedIdsCache() {
   _blockedIdsCacheTime = 0;
 }
 
+export function invalidateBlockedIdsCache() {
+  _invalidateBlockedIdsCache();
+}
+
 /**
  * ส่งรายงาน (Report Post / Comment / User)
  */

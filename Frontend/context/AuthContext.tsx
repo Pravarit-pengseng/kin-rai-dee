@@ -6,6 +6,11 @@ import {
   recoverDeviceSession,
   clearDeviceSession,
 } from '@/services/persistentAuthService';
+import { invalidateAllPostCaches } from '@/services/postService';
+import { invalidateAllProfileCaches } from '@/services/profileService';
+import { invalidateAllSearchCaches } from '@/services/searchService';
+import { invalidateBlockedIdsCache } from '@/services/safetyService';
+import { clearCachedPostList } from '@/services/postCache';
 
 export type UserProfile = {
   id: string;
@@ -46,6 +51,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function clearAllUserCaches() {
+  _profileCheckCache = null;
+  invalidateAllPostCaches();
+  invalidateAllProfileCaches();
+  invalidateAllSearchCaches();
+  invalidateBlockedIdsCache();
+  clearCachedPostList();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -55,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function syncUserProfile(supabaseUser: Session['user'] | null) {
     if (!supabaseUser) {
       setUser(null);
-      _profileCheckCache = null; // ล้าง cache เมื่อ logout
+      clearAllUserCaches(); // ล้าง cache ทุกตัวเมื่อ logout / session หลุด
       return;
     }
 
@@ -245,6 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    clearAllUserCaches();
     try {
       await clearDeviceSession();
     } catch (e) {

@@ -4,8 +4,10 @@ import {
   View,
   Pressable,
   Image,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
 import { SafeAreaView } from "@/components/SafeAreaView";
 import {
@@ -13,6 +15,7 @@ import {
   router,
   useLocalSearchParams,
 } from "expo-router";
+import { safeBack } from "@/utils/navigation";
 import * as ImagePicker from "expo-image-picker";
 import { uploadAsync, FileSystemUploadType } from "expo-file-system/legacy";
 import { Camera } from "lucide-react-native";
@@ -20,9 +23,12 @@ import { Header } from "@/components/Header";
 import ProfileForm from "@/components/profile-form";
 import LiquidMenu from "@/components/liquid-menu";
 import { ThemedText } from "@/components/themed-text";
-import { updateMyProfile } from "@/services/profileService";
+import { getCachedMyProfile, updateMyProfile } from "@/services/profileService";
+import { uploadCompressedImage, deleteStorageImage } from "@/services/storageService";
+import { useAuth } from "@/context/AuthContext";
 import { API_BASE_URL } from "@/services/api";
 import { supabase } from "@/lib/supabase";
+import { useKeyboardScroll } from "@/hooks/useKeyboardScroll";
 
 export default function EditProfile() {
   const params = useLocalSearchParams<{
@@ -32,8 +38,19 @@ export default function EditProfile() {
     avatarUrl?: string;
   }>();
 
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
+  const {
+    scrollRef,
+    contentBottomPadding,
+    handleScroll,
+    handleLayout,
+    handleContentSizeChange,
+    scrollToFocusedInput,
+  } = useKeyboardScroll({
+    defaultBottomPadding: 110,
+  });
 
   const [profileData, setProfileData] = useState({
     name: params.name ?? "",
@@ -41,8 +58,9 @@ export default function EditProfile() {
     bio: params.bio ?? "",
   });
 
+  const initialAvatarUrl = getCachedMyProfile()?.avatar_url || params.avatarUrl;
   const [profileImage, setProfileImage] = useState<any>(
-    params.avatarUrl ? { uri: params.avatarUrl } : require("@/assets/images/ProfilePicture.png")
+    initialAvatarUrl ? { uri: initialAvatarUrl } : require("@/assets/images/ProfilePicture.png")
   );
 
   const handlePickImage = async () => {
@@ -58,16 +76,15 @@ export default function EditProfile() {
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.5,
-        base64: true,
+        quality: 0.85,
+        base64: false,
       });
 
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
-      const base64Img = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : undefined;
       setProfileImage({
         uri: asset.uri,
-        base64: base64Img,
+        isLocal: true,
       });
     }
   };
@@ -76,33 +93,12 @@ export default function EditProfile() {
     setIsSubmitting(true);
 
     try {
-      // อัปโหลดรูปภาพ avatar ถ้ามีการเลือกรูปใหม่ (ใช้ base64 เหมือนรูปโพส เพื่อให้แสดงผลได้ตลอด)
+      // ย่อรูปและอัปโหลดขึ้น Supabase Storage (avatars bucket) ถ้ามีการเลือกรูปใหม่
       let avatarUrl: string | undefined = undefined;
-      if (profileImage?.base64) {
-        avatarUrl = profileImage.base64;
-      } else if (profileImage?.uri && profileImage.uri.startsWith('file')) {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        
-        const res = await uploadAsync(
-          `${API_BASE_URL}/api/profiles/me/avatar`,
-          profileImage.uri,
-          {
-            httpMethod: 'POST',
-            uploadType: FileSystemUploadType.MULTIPART,
-            fieldName: 'file',
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          }
-        );
-
-        if (res.status >= 200 && res.status < 300) {
-          const json = JSON.parse(res.body);
-          avatarUrl = json.avatar_url;
-        } else {
-          console.warn("Avatar upload failed:", res.body);
-          showAlert("อัปโหลดรูปไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
-          setIsSubmitting(false);
-          return;
+      if (profileImage?.isLocal && profileImage?.uri) {
+        const userId = user?.id || (await supabase.auth.getUser()).data.user?.id;
+        if (userId) {
+          avatarUrl = await uploadCompressedImage('avatars', profileImage.uri, userId);
         }
       }
 
@@ -120,17 +116,12 @@ export default function EditProfile() {
         return;
       }
 
-      // navigate กลับ profile พร้อม params อัปเดต
-      const finalAvatarUrl = result?.avatar_url || avatarUrl || params.avatarUrl || '';
-      router.replace({
-        pathname: "/(tabs)/profile",
-        params: {
-          name: result?.display_name || profileData.name || '',
-          username: result?.username || profileData.username || '',
-          bio: result?.bio || '',  // ส่ง string ว่างแทน null
-          avatarUrl: finalAvatarUrl,
-        },
-      });
+      if (avatarUrl && initialAvatarUrl && avatarUrl !== initialAvatarUrl) {
+        deleteStorageImage('avatars', initialAvatarUrl);
+      }
+
+      // cache ถูกอัปเดตใน updateMyProfile แล้ว กลับหน้าโปรไฟล์ทันทีโดยไม่ต้องส่งรูปผ่าน URL params
+      safeBack("/(tabs)/profile");
     } catch (e) {
       console.warn("EditProfile handleSave error:", e);
       showAlert("เกิดข้อผิดพลาด", "กรุณาลองใหม่อีกครั้ง");
@@ -155,18 +146,25 @@ export default function EditProfile() {
         <Header
           title="แก้ไขโปรไฟล์"
           leftIcon="back"
-          onLeftPress={() => router.back()}
+          onLeftPress={() => safeBack("/(tabs)/profile")}
           rightIcon="none"
         />
 
-        <KeyboardAwareScrollView
-          bottomOffset={28}
-          extraKeyboardSpace={16}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.content, { paddingBottom: 110 }]}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="none"
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
+          <ScrollView
+            ref={scrollRef}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[styles.content, { paddingBottom: contentBottomPadding }]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
+            onScroll={handleScroll}
+            onLayout={handleLayout}
+            onContentSizeChange={handleContentSizeChange}
+            scrollEventThrottle={16}
+          >
               {/* Profile Picture */}
               <View style={styles.avatarContainer}>
                 <View style={styles.avatarOuter}>
@@ -203,6 +201,9 @@ export default function EditProfile() {
                   profileData.username
                 }
                 initialBio={profileData.bio}
+                onFocusField={(_field, fieldRef) => {
+                  scrollToFocusedInput(fieldRef);
+                }}
                 onChange={setProfileData}
               />
 
@@ -223,7 +224,8 @@ export default function EditProfile() {
                   {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
                 </ThemedText>
               </Pressable>
-          </KeyboardAwareScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
         {/* Bottom Menu */}
         <LiquidMenu />

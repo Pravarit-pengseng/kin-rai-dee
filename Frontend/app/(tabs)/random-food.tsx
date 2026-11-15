@@ -116,8 +116,8 @@ export default function RandomFoodScreen() {
     const pool =
       selectedCategories.length > 0
         ? FOOD_LIST.filter((item) =>
-            selectedCategories.includes(String(item.categoryId))
-          )
+          selectedCategories.includes(String(item.categoryId))
+        )
         : FOOD_LIST;
 
     if (pool.length === 0) return;
@@ -235,30 +235,30 @@ export default function RandomFoodScreen() {
               />
             </View>
           )}
-                  {/* Random Button */}
-        <View
-          style={[
-            styles.randomButtonContainer,
-            isCompactHeight && styles.randomButtonContainerCompact,
-          ]}
-        >
-          {!hasRandomized ? (
-            <RandomButton
-              onPress={handleRandomize}
-              title="สุ่มอาหาร"
-              iconName="dice"
-              paddingVertical={12}
-              disabled={isRandomizing}
-            />
-          ) : (
-            <RandomButton
-              onPress={handleRandomize}
-              variant="rerandom"
-              paddingVertical={12}
-              disabled={isRandomizing}
-            />
-          )}
-        </View>
+          {/* Random Button */}
+          <View
+            style={[
+              styles.randomButtonContainer,
+              isCompactHeight && styles.randomButtonContainerCompact,
+            ]}
+          >
+            {!hasRandomized ? (
+              <RandomButton
+                onPress={handleRandomize}
+                title="สุ่มอาหาร"
+                iconName="dice"
+                paddingVertical={12}
+                disabled={isRandomizing}
+              />
+            ) : (
+              <RandomButton
+                onPress={handleRandomize}
+                variant="rerandom"
+                paddingVertical={12}
+                disabled={isRandomizing}
+              />
+            )}
+          </View>
 
         </View>
 

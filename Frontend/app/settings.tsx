@@ -10,6 +10,7 @@ import {
 import AlertPopup, { useAlertPopup } from '@/components/AlertPopup';
 import { SafeAreaView } from '@/components/SafeAreaView';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
+import { safeBack } from '@/utils/navigation';
 import { ChevronRight, ArrowLeft } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';
 import { deleteAccount, getBlockedUsers } from '@/services/safetyService';
@@ -33,7 +34,7 @@ export default function SettingsScreen() {
   );
 
   const handleBack = () => {
-    router.back();
+    safeBack('/(tabs)/profile');
   };
 
   const handleOpenPrivacy = () => {

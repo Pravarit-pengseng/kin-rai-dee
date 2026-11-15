@@ -29,6 +29,11 @@ export function invalidateSearchHistoryCache() {
   _searchHistoryCache = null;
 }
 
+export function invalidateAllSearchCaches() {
+  _searchPostsCache.clear();
+  _searchHistoryCache = null;
+}
+
 subscribeUserBlocked(() => {
   _searchPostsCache.clear();
 });
@@ -150,7 +155,7 @@ export async function fetchSearchHistory(): Promise<SearchHistoryItem[]> {
 
     const { data: supaData } = await supabase
       .from('search_history')
-      .select('*')
+      .select('id, user_id, query, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(10);

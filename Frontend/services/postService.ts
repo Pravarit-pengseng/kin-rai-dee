@@ -2,6 +2,7 @@ import { fetchApi, getAuthUser, USE_DIRECT_SUPABASE } from './api';
 import { supabase } from '@/lib/supabase';
 import { PopupPostData } from '@/components/popup-post';
 import { normalizeAvatarUrl, invalidateUserPostsCache } from './profileService';
+import { resolveStorageImageUrl, deleteStorageImage } from './storageService';
 import { getBlockedUserIdsSet, subscribeUserBlocked, subscribeUserUnblocked } from './safetyService';
 
 const DEFAULT_IMAGE = require('@/assets/images/StirFriedHolyBasil.png');
@@ -48,6 +49,11 @@ subscribeUserUnblocked(() => {
   invalidateFeedPostsCache();
   invalidateSavedPostsCache();
 });
+
+export function invalidateAllPostCaches() {
+  invalidateFeedPostsCache();
+  invalidateSavedPostsCache();
+}
 
 export interface PostPayload {
   food_name: string;
@@ -96,10 +102,11 @@ export function resolveCategoryNames(post: any): string[] {
 
 export function mapPostToPopup(post: any): PopupPostData {
   const profile = post.profiles;
+  const resolvedImageUrl = resolveStorageImageUrl('posts', post.image_url);
   return {
     id: String(post.id),
-    image: post.image_url
-      ? { uri: post.image_url }
+    image: resolvedImageUrl
+      ? { uri: resolvedImageUrl }
       : DEFAULT_IMAGE,
     userId: post.user_id || 'unknown',
     avatarUrl: normalizeAvatarUrl(profile?.avatar_url),
@@ -210,7 +217,7 @@ export async function fetchFeedPosts(
     try {
       const { data: supaData } = await supabase
         .from('posts')
-        .select('*, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))')
+        .select('id, user_id, food_name, description, image_url, restaurant_url, is_hidden, created_at, profiles(id, username, display_name, avatar_url), post_categories(categories(id, name))')
         .or('is_hidden.is.null,is_hidden.eq.false')
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
@@ -265,7 +272,7 @@ export async function getPostDetail(
   try {
     const { data: supaData } = await supabase
       .from('posts')
-      .select('*, post_categories(categories(id, name))')
+      .select('id, user_id, food_name, description, image_url, restaurant_url, is_hidden, created_at, post_categories(categories(id, name))')
       .eq('id', postId)
       .or('is_hidden.is.null,is_hidden.eq.false')
       .maybeSingle();
@@ -321,7 +328,7 @@ export async function createPost(
         ...postData,
         user_id: user.id,
       })
-      .select()
+      .select('id, user_id, food_name, description, image_url, restaurant_url, is_hidden, created_at')
       .single();
 
     if (error || !post) {
@@ -453,11 +460,13 @@ export async function deletePost(
       return false;
     }
 
-    const { error } = await supabase
+    const { data: deletedPost, error } = await supabase
       .from('posts')
       .delete()
       .eq('id', postId)
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .select('image_url')
+      .maybeSingle();
 
     if (error) {
       console.warn(
@@ -465,6 +474,10 @@ export async function deletePost(
         error,
       );
       return false;
+    }
+
+    if (deletedPost?.image_url) {
+      deleteStorageImage('posts', deletedPost.image_url);
     }
 
     invalidateFeedPostsCache();
@@ -718,7 +731,7 @@ export async function getPostComments(postId: string | number): Promise<CommentD
       // Supabase fallback for comments
       const { data: supaComments } = await supabase
         .from('comments')
-        .select('*, profiles(id, username, display_name, avatar_url)')
+        .select('id, post_id, user_id, content, is_hidden, created_at, profiles(id, username, display_name, avatar_url)')
         .eq('post_id', postId)
         .or('is_hidden.is.null,is_hidden.eq.false')
         .order('created_at', { ascending: true });
@@ -770,7 +783,7 @@ export async function addPostComment(
         user_id: user.id,
         content,
       })
-      .select('*, profiles(id, username, display_name, avatar_url)')
+      .select('id, post_id, user_id, content, is_hidden, created_at, profiles(id, username, display_name, avatar_url)')
       .single();
 
     if (error || !comment) {

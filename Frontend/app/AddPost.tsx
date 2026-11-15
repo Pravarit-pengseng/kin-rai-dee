@@ -4,10 +4,13 @@ import {
     Pressable,
     Image,
     StyleSheet,
+    ScrollView,
+    KeyboardAvoidingView,
+    Platform,
 } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "@/components/SafeAreaView";
 import { Stack, router } from "expo-router";
+import { safeBack } from "@/utils/navigation";
 import * as ImagePicker from "expo-image-picker";
 import { Camera } from "lucide-react-native";
 import { Header } from "@/components/Header";
@@ -17,14 +20,26 @@ import PostForm, {
 } from "@/components/post-form";
 import { useAuth } from "@/context/AuthContext";
 import { createPost } from "@/services/postService";
+import { uploadCompressedImage } from "@/services/storageService";
 import { FOOD_CATEGORIES } from "@/constants/categories";
 import { Typography } from "@/constants/typography";
 import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
+import { useKeyboardScroll } from "@/hooks/useKeyboardScroll";
 
 export default function AddPost() {
-    const { isLoggedIn } = useAuth();
+    const { isLoggedIn, user } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
+    const {
+        scrollRef,
+        contentBottomPadding,
+        handleScroll,
+        handleLayout,
+        handleContentSizeChange,
+        scrollToFocusedInput,
+    } = useKeyboardScroll({
+        defaultBottomPadding: 40,
+    });
 
     const permissionGrantedRef = useRef(false);
 
@@ -69,17 +84,16 @@ export default function AddPost() {
                 mediaTypes: ["images"],
                 allowsEditing: true,
                 aspect: [4, 3],
-                quality: 0.6,
-                base64: true,
+                quality: 0.85,
+                base64: false,
             });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
             const asset = result.assets[0];
-            const base64Img = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
             setImageError(false);
             setPost((currentPost) => ({
                 ...currentPost,
-                image: base64Img,
+                image: asset.uri,
             }));
         }
     };
@@ -108,6 +122,18 @@ export default function AddPost() {
 
         setIsSubmitting(true);
 
+        let uploadedImageUrl: string | undefined = post.image || undefined;
+        if (post.image && user?.id && !post.image.startsWith('http://') && !post.image.startsWith('https://')) {
+            try {
+                uploadedImageUrl = await uploadCompressedImage('posts', post.image, user.id);
+            } catch (uploadErr) {
+                console.warn('Upload post image failed:', uploadErr);
+                setIsSubmitting(false);
+                showAlert("อัปโหลดรูปไม่สำเร็จ", "กรุณาลองใหม่อีกครั้ง");
+                return;
+            }
+        }
+
         const categoryIds = post.categories
             .map((label) => {
                 const found = FOOD_CATEGORIES.find((c) => c.label === label);
@@ -119,7 +145,7 @@ export default function AddPost() {
             food_name: post.title.trim(),
             description: post.description?.trim() || undefined,
             restaurant_url: post.restaurant?.trim() || undefined,
-            image_url: post.image || undefined,
+            image_url: uploadedImageUrl,
             category_ids: categoryIds,
         });
 
@@ -134,7 +160,7 @@ export default function AddPost() {
         const createdPost = result?.data ?? result;
         const newPostForUI = {
             id: String(createdPost?.id ?? Date.now()),
-            image: post.image ? { uri: post.image } : undefined,
+            image: uploadedImageUrl ? { uri: uploadedImageUrl } : undefined,
             title: post.title.trim(),
             description: post.description?.trim() || "",
             tags: post.categories?.length > 0 ? post.categories : ["อาหารจานเดียว"],
@@ -165,18 +191,25 @@ export default function AddPost() {
                 <Header
                     title="เพิ่มโพสต์ใหม่"
                     leftIcon="close"
-                    onLeftPress={() => router.back()}
+                    onLeftPress={() => safeBack("/(tabs)")}
                     rightIcon="none"
                 />
 
-                <KeyboardAwareScrollView
-                    bottomOffset={28}
-                    extraKeyboardSpace={16}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={[styles.content, { paddingBottom: 40 }]}
-                    keyboardShouldPersistTaps="handled"
-                    keyboardDismissMode="none"
+                <KeyboardAvoidingView
+                    style={{ flex: 1 }}
+                    behavior={Platform.OS === "ios" ? "padding" : undefined}
                 >
+                    <ScrollView
+                        ref={scrollRef}
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={[styles.content, { paddingBottom: contentBottomPadding }]}
+                        keyboardShouldPersistTaps="handled"
+                        keyboardDismissMode="none"
+                        onScroll={handleScroll}
+                        onLayout={handleLayout}
+                        onContentSizeChange={handleContentSizeChange}
+                        scrollEventThrottle={16}
+                    >
                         <Pressable
                             onPress={pickImage}
                             style={({ pressed }) => [
@@ -215,6 +248,9 @@ export default function AddPost() {
 
                         <PostForm
                             initialData={post}
+                            onFocusField={(_field, fieldRef) => {
+                                scrollToFocusedInput(fieldRef);
+                            }}
                             onChange={(data) => {
                                 setPost((currentPost) => ({
                                     ...data,
@@ -236,7 +272,8 @@ export default function AddPost() {
                                 {isSubmitting ? "กำลังโพสต์..." : "โพสต์"}
                             </ThemedText>
                         </Pressable>
-                    </KeyboardAwareScrollView>
+                    </ScrollView>
+                </KeyboardAvoidingView>
             </SafeAreaView>
         </>
     );

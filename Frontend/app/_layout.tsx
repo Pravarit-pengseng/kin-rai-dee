@@ -8,7 +8,6 @@ import { useEffect } from 'react';
 import { Platform, Text, TextInput } from 'react-native';
 import 'react-native-reanimated';
 import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/context/AuthContext';
@@ -26,7 +25,6 @@ if ((TextInput as any).defaultProps == null) {
 (TextInput as any).defaultProps.style = { fontFamily: Typography.regular };
 
 export const unstable_settings = {
-  initialRouteName: '(tabs)',
   anchor: '(tabs)',
 };
 
@@ -57,23 +55,21 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-      <KeyboardProvider>
-        <AuthProvider>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen name="MyPost" options={{ headerShown: false, animation: 'none' }} />
-              <Stack.Screen name="settings" options={{ headerShown: false }} />
-              <Stack.Screen name="terms-of-use" options={{ headerShown: false }} />
-              <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
-              <Stack.Screen name="blocked-users" options={{ headerShown: false }} />
-              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: true }} />
-            </Stack>
-            <StatusBar style="dark" />
-          </ThemeProvider>
-        </AuthProvider>
-      </KeyboardProvider>
+      <AuthProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="MyPost" options={{ headerShown: false, animation: 'none' }} />
+            <Stack.Screen name="settings" options={{ headerShown: false }} />
+            <Stack.Screen name="terms-of-use" options={{ headerShown: false }} />
+            <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
+            <Stack.Screen name="blocked-users" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: true }} />
+          </Stack>
+          <StatusBar style="dark" />
+        </ThemeProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

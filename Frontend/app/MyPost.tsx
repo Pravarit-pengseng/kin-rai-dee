@@ -14,6 +14,7 @@ import {
   router,
   useLocalSearchParams,
 } from "expo-router";
+import { safeBack } from "@/utils/navigation";
 
 import { Header } from "@/components/Header";
 import PopupPost, { PopupPostData } from "@/components/popup-post";
@@ -29,6 +30,7 @@ import {
   bookmarkPost,
   unbookmarkPost,
   getSavedPosts,
+  getSavedPostIds,
   mapPostToPopup,
 } from "@/services/postService";
 import { getUserPosts } from "@/services/profileService";
@@ -49,7 +51,10 @@ export default function MyPost() {
     post?: string;
   }>();
 
-  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const targetPostId = Array.isArray(postId) ? postId[0] : postId;
+  const scrollRef = useRef<any>(null);
+  const userHasScrolledRef = useRef(false);
+  const lastScrolledYRef = useRef<number | null>(null);
 
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const [deletePostId, setDeletePostId] = useState<string | null>(null);
@@ -70,15 +75,21 @@ export default function MyPost() {
 
   // If posts are empty initially, we need to load from API
   const [loading, setLoading] = useState(() => posts.length === 0);
+  const targetIndex = targetPostId ? posts.findIndex((p) => String(p.id) === String(targetPostId)) : -1;
+  const [isPositioned, setIsPositioned] = useState(() => targetIndex <= 0);
 
-  // Scroll tracker for initial jump to postId
-  const targetIndex = posts.findIndex((p) => p.id === postId);
-  const hasScrolledRef = useRef(targetIndex <= 0);
-
+  // Reset scroll tracking when target postId changes
   useEffect(() => {
-    const idx = posts.findIndex((p) => p.id === postId);
-    hasScrolledRef.current = idx <= 0;
-  }, [postId, posts]);
+    userHasScrolledRef.current = false;
+    lastScrolledYRef.current = null;
+    if (targetIndex <= 0) {
+      setIsPositioned(true);
+      return;
+    }
+    setIsPositioned(false);
+    const fallbackTimer = setTimeout(() => setIsPositioned(true), 600);
+    return () => clearTimeout(fallbackTimer);
+  }, [targetPostId, targetIndex]);
 
   useEffect(() => {
     return subscribeUserBlocked((blockedUserId) => {
@@ -86,52 +97,78 @@ export default function MyPost() {
     });
   }, []);
 
-  // ---- Sync posts & bookmarks from API in background ----
+  // ---- Sync posts (only if cache empty) & lightweight bookmark IDs ----
   useEffect(() => {
+    let cancelled = false;
+
+    if (user?.id) {
+      getSavedPostIds()
+        .then((ids) => {
+          if (!cancelled) setBookmarkedIds(ids);
+        })
+        .catch(() => { });
+    }
+
+    if (posts.length > 0) {
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     if (mode === "saved") {
-      // loading already initialized
-      getSavedPosts().then((saved) => {
-        if (saved && saved.length > 0) {
-          setPosts(saved as PopupPostData[]);
-          setBookmarkedIds(saved.map((s) => s.id));
-        }
-        setLoading(false);
-      }).catch(() => {
-        setLoading(false);
-      });
+      getSavedPosts()
+        .then((saved) => {
+          if (!cancelled && saved && saved.length > 0) {
+            setPosts(saved as PopupPostData[]);
+            setBookmarkedIds(saved.map((s) => s.id));
+          }
+          if (!cancelled) setLoading(false);
+        })
+        .catch(() => {
+          if (!cancelled) setLoading(false);
+        });
     } else if (ownerId) {
-      // loading already initialized
-      getUserPosts(ownerId).then((apiPosts) => {
-        if (apiPosts && apiPosts.length > 0) {
-          setPosts(apiPosts.map(mapPostToPopup));
-        }
-        setLoading(false);
-        if (user?.id) {
-          getSavedPosts().then((saved) => {
-            if (saved && saved.length > 0) {
-              setBookmarkedIds(saved.map((s) => s.id));
-            }
-          }).catch(() => { });
-        }
-      }).catch(() => {
-        setLoading(false);
-      });
+      getUserPosts(ownerId)
+        .then((apiPosts) => {
+          if (!cancelled && apiPosts && apiPosts.length > 0) {
+            setPosts(apiPosts.map(mapPostToPopup));
+          }
+          if (!cancelled) setLoading(false);
+        })
+        .catch(() => {
+          if (!cancelled) setLoading(false);
+        });
     } else {
       setLoading(false);
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [ownerId, mode, user?.id]);
 
 
 
-  // Handle post measurement and scroll directly to target post
+  // Handle post measurement and scroll directly to target post (tracks layout shifts until user scrolls)
   const handlePostLayout = useCallback(
     (id: string, y: number) => {
-      if (id === postId && !hasScrolledRef.current) {
-        hasScrolledRef.current = true;
-        scrollRef.current?.scrollTo({ y, animated: false });
-      }
+      if (!targetPostId || String(id) !== String(targetPostId)) return;
+      if (userHasScrolledRef.current) return;
+      if (targetIndex > 0 && y <= 0) return;
+      if (lastScrolledYRef.current !== null && Math.abs(lastScrolledYRef.current - y) < 2) return;
+
+      lastScrolledYRef.current = y;
+      requestAnimationFrame(() => {
+        if (!userHasScrolledRef.current) {
+          scrollRef.current?.scrollTo({ y, animated: false });
+          setTimeout(() => {
+            setIsPositioned(true);
+          }, 40);
+        }
+      });
     },
-    [postId]
+    [targetPostId, targetIndex]
   );
 
   // ---- Bookmark toggle ----
@@ -193,12 +230,12 @@ export default function MyPost() {
     <>
       <Stack.Screen options={{ headerShown: false, animation: "none" }} />
 
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <StatusBar style="dark" />
         <Header
           title="KIN RAI DEE"
           leftIcon="back"
-          onLeftPress={() => router.back()}
+          onLeftPress={() => safeBack("/(tabs)/profile")}
           rightIcon="search"
           onSearchPress={() =>
             router.push(
@@ -223,6 +260,9 @@ export default function MyPost() {
               ref={scrollRef}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scrollContent}
+              onScrollBeginDrag={() => {
+                userHasScrolledRef.current = true;
+              }}
             >
               {posts.map((post) => (
                 <View
@@ -232,12 +272,7 @@ export default function MyPost() {
                 >
                   <PopupPost
                     visible={true}
-                    post={{
-                      ...post,
-                      avatarUrl: (!post.avatarUrl && (post.userId === user?.id || post.userId === 'me'))
-                        ? (user?.avatarUrl || post.avatarUrl)
-                        : post.avatarUrl,
-                    }}
+                    post={post}
                     onClose={() => { }}
                     inline
                     isOwnPost={post.userId === user?.id || post.userId === 'me'}
@@ -250,6 +285,7 @@ export default function MyPost() {
                 </View>
               ))}
             </ScrollView>
+            {!isPositioned && <View style={styles.skeletonOverlay} pointerEvents="none" />}
           </View>
         )}
 

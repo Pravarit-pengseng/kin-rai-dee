@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from '@/components/SafeAreaView';
 import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { safeBack } from '@/utils/navigation';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 
@@ -274,7 +275,7 @@ export default function SearchScreen() {
             if (from) {
               router.push(decodeURIComponent(from) as any);
             } else {
-              router.back();
+              safeBack('/(tabs)');
             }
           }
         }}

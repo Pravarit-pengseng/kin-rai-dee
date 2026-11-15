@@ -1,5 +1,6 @@
 import { fetchApi, getAuthUser } from './api';
 import { supabase } from '@/lib/supabase';
+import { resolveStorageImageUrl } from './storageService';
 
 export interface UserProfile {
     id: string;
@@ -18,19 +19,8 @@ export interface UpdateProfilePayload {
     avatar_url?: string;
 }
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-
 export function normalizeAvatarUrl(url?: string | null): string | undefined {
-    if (!url) return undefined;
-    const marker = '/storage/v1/object/public/avatars/';
-    if (url.includes(marker)) {
-        const idx = url.indexOf(marker);
-        const path = url.substring(idx);
-        if (SUPABASE_URL) {
-            return `${SUPABASE_URL.replace(/\/$/, '')}${path}`;
-        }
-    }
-    return url;
+    return resolveStorageImageUrl('avatars', url);
 }
 
 // ── Profile Caches ──────────────────────────────────────────────────────────
@@ -39,6 +29,10 @@ const MY_PROFILE_CACHE_TTL = 45 * 1000; // 45 วินาที
 
 export function invalidateMyProfileCache() {
     _myProfileCache = null;
+}
+
+export function getCachedMyProfile(): UserProfile | null {
+    return _myProfileCache?.data ?? null;
 }
 
 let _userPostsCache: Record<string, { data: any[]; timestamp: number }> = {};
@@ -84,6 +78,12 @@ export function invalidateUserPostsCache(userId?: string) {
     } else {
         _userPostsCache = {};
     }
+}
+
+export function invalidateAllProfileCaches() {
+    _myProfileCache = null;
+    _userPostsCache = {};
+    _otherProfilesCache = {};
 }
 
 /**
@@ -166,7 +166,9 @@ export async function updateMyProfile(
         if (profile?.avatar_url) {
             profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
         }
-        invalidateMyProfileCache();
+        if (profile) {
+            _myProfileCache = { data: profile, timestamp: Date.now() };
+        }
         return profile;
     }
 
@@ -181,7 +183,7 @@ export async function updateMyProfile(
             .from('profiles')
             .update(payload)
             .eq('id', user.id)
-            .select()
+            .select('id, username, display_name, bio, avatar_url, is_suspended, created_at, updated_at')
             .single();
 
         if (error) {
@@ -195,7 +197,9 @@ export async function updateMyProfile(
         if (profile?.avatar_url) {
             profile.avatar_url = normalizeAvatarUrl(profile.avatar_url);
         }
-        invalidateMyProfileCache();
+        if (profile) {
+            _myProfileCache = { data: profile, timestamp: Date.now() };
+        }
         return profile;
     } catch (e) {
         console.warn(

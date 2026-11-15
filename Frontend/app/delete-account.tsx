@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   StyleSheet,
   Pressable,
+  ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { useKeyboardScroll } from '@/hooks/useKeyboardScroll';
 import { SafeAreaView } from '@/components/SafeAreaView';
 import { useRouter, Stack } from 'expo-router';
 import LegalNavbar from '../components/LegalNavbar';
@@ -23,6 +26,18 @@ export default function DeleteAccountScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
+  const emailInputRef = useRef<any>(null);
+  const reasonInputRef = useRef<any>(null);
+  const {
+    scrollRef,
+    contentBottomPadding,
+    handleScroll,
+    handleLayout,
+    handleContentSizeChange,
+    scrollToFocusedInput,
+  } = useKeyboardScroll({
+    defaultBottomPadding: 40,
+  });
 
   const handleSubmit = async () => {
     if (!email.trim() || !email.includes('@')) {
@@ -66,15 +81,22 @@ export default function DeleteAccountScreen() {
 
       <LegalNavbar activeTab="delete" />
 
-      <KeyboardAwareScrollView
-        bottomOffset={28}
-        extraKeyboardSpace={16}
-        style={styles.content}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="none"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
       >
+        <ScrollView
+          ref={scrollRef}
+          style={styles.content}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: contentBottomPadding }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
+          onScroll={handleScroll}
+          onLayout={handleLayout}
+          onContentSizeChange={handleContentSizeChange}
+          scrollEventThrottle={16}
+        >
         <Text style={styles.mainTitle}>คำขอลบบัญชีผู้ใช้และข้อมูลทั้งหมด</Text>
         <Text style={styles.updatedDate}>อัปเดตล่าสุด 21 ตุลาคม 2569</Text>
 
@@ -187,6 +209,7 @@ export default function DeleteAccountScreen() {
             <View style={styles.formContainer}>
               <Text style={styles.label}>อีเมลที่ใช้ลงทะเบียนใน KIN RAI DEE *</Text>
               <TextInput
+                ref={emailInputRef}
                 style={styles.input}
                 placeholder="กรอกอีเมลของคุณ เช่น example@gmail.com"
                 placeholderTextColor="#8E8E93"
@@ -194,10 +217,12 @@ export default function DeleteAccountScreen() {
                 autoCapitalize="none"
                 value={email}
                 onChangeText={setEmail}
+                onFocus={() => scrollToFocusedInput(emailInputRef)}
               />
 
               <Text style={styles.label}>เหตุผลในการขอลบ (ไม่บังคับ)</Text>
               <TextInput
+                ref={reasonInputRef}
                 style={[styles.input, styles.textArea]}
                 placeholder="บอกเหตุผลหรือข้อเสนอแนะเพื่อให้เรานำไปปรับปรุงบริการ (ไม่บังคับ)"
                 placeholderTextColor="#8E8E93"
@@ -205,6 +230,7 @@ export default function DeleteAccountScreen() {
                 numberOfLines={3}
                 value={reason}
                 onChangeText={setReason}
+                onFocus={() => scrollToFocusedInput(reasonInputRef)}
               />
 
               <Pressable
@@ -239,7 +265,8 @@ export default function DeleteAccountScreen() {
         </View>
 
         <Text style={styles.copyright}>&copy; 2026 KIN RAI DEE Community. All rights reserved.</Text>
-      </KeyboardAwareScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

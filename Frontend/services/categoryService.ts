@@ -13,7 +13,7 @@ export async function fetchFoodCategories(): Promise<FoodCategory[]> {
   // 1. Direct Supabase query if enabled
   if (USE_DIRECT_SUPABASE) {
     try {
-      const { data: supaData } = await supabase.from('categories').select('*').order('id');
+      const { data: supaData } = await supabase.from('categories').select('id, name, folder').order('id');
       if (supaData && supaData.length > 0) {
         const result = supaData.map((item: any) => ({
           id: String(item.id),
@@ -43,7 +43,7 @@ export async function fetchFoodCategories(): Promise<FoodCategory[]> {
 
   // Fallback to Supabase direct query
   try {
-    const { data: supaData } = await supabase.from('categories').select('*').order('id');
+    const { data: supaData } = await supabase.from('categories').select('id, name, folder').order('id');
     if (supaData && supaData.length > 0) {
       const result = supaData.map((item: any) => ({
         id: String(item.id),
@@ -68,7 +68,7 @@ export async function fetchIngredientCategories(): Promise<FoodCategory[]> {
 
   if (USE_DIRECT_SUPABASE) {
     try {
-      const { data: supaData } = await supabase.from('ingredient_categories').select('*').order('id');
+      const { data: supaData } = await supabase.from('ingredient_categories').select('id, name, folder').order('id');
       if (supaData && supaData.length > 0) {
         const result = supaData.map((item: any) => ({
           id: String(item.id),
@@ -96,7 +96,7 @@ export async function fetchIngredientCategories(): Promise<FoodCategory[]> {
   }
 
   try {
-    const { data: supaData } = await supabase.from('ingredient_categories').select('*').order('id');
+    const { data: supaData } = await supabase.from('ingredient_categories').select('id, name, folder').order('id');
     if (supaData && supaData.length > 0) {
       const result = supaData.map((item: any) => ({
         id: String(item.id),

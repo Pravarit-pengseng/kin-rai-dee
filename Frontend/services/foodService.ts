@@ -20,7 +20,7 @@ export async function fetchFoods(categoryId?: string): Promise<FoodApiItem[]> {
   // 1. Direct Supabase query if enabled
   if (USE_DIRECT_SUPABASE) {
     try {
-      let query = supabase.from('foods').select('*');
+      let query = supabase.from('foods').select('id, name, image_url, category_id');
       if (categoryId) query = query.eq('category_id', categoryId);
       const { data: supaData } = await query;
       if (supaData && supaData.length > 0) {
@@ -42,7 +42,7 @@ export async function fetchFoods(categoryId?: string): Promise<FoodApiItem[]> {
   }
 
   try {
-    let query = supabase.from('foods').select('*');
+    let query = supabase.from('foods').select('id, name, image_url, category_id');
     if (categoryId) query = query.eq('category_id', categoryId);
     const { data: supaData } = await query;
     if (supaData && supaData.length > 0) {

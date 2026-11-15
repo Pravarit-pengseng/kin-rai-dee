@@ -9,6 +9,7 @@ import { Image } from "expo-image";
 import { SafeAreaView } from "@/components/SafeAreaView";
 import { StatusBar } from "expo-status-bar";
 import { router, Stack, useLocalSearchParams } from "expo-router";
+import { safeBack } from "@/utils/navigation";
 import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
 import PostGrid, {
@@ -204,7 +205,6 @@ export default function OtherProfileScreen() {
       params: {
         postId: post.id,
         ownerId: userId,
-        post: JSON.stringify(post),
       },
     });
   };
@@ -226,7 +226,7 @@ export default function OtherProfileScreen() {
         <Header
           title="KIN RAI DEE"
           leftIcon="back"
-          onLeftPress={() => router.back()}
+          onLeftPress={() => safeBack("/(tabs)")}
           rightIcon="search"
           onSearchPress={() => router.push(`/(tabs)/search?from=${encodeURIComponent(`/OtherProfile?userId=${userId}`)}`)}
         />

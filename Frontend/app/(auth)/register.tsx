@@ -5,11 +5,12 @@ import {
   StyleSheet,
   Pressable,
   Image,
+  ScrollView,
+  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import AlertPopup, { useAlertPopup } from '@/components/AlertPopup';
 import { SafeAreaView } from '@/components/SafeAreaView';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -25,6 +26,7 @@ import {
   formatEmail,
 } from '@/utils/authValidation';
 import { Typography } from '@/constants/typography';
+import { useKeyboardScroll } from '@/hooks/useKeyboardScroll';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -52,6 +54,26 @@ export default function RegisterScreen() {
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [termsError, setTermsError] = useState(false);
+
+  const displayNameRef = useRef<View>(null);
+  const emailRef = useRef<View>(null);
+  const passwordRef = useRef<View>(null);
+  const confirmPasswordRef = useRef<View>(null);
+
+  const defaultBottomPadding = Platform.OS === 'ios' ? 8 : 12;
+  const {
+    scrollRef,
+    isKeyboardVisible,
+    contentBottomPadding,
+    handleScroll,
+    handleLayout,
+    handleContentSizeChange,
+    scrollToFocusedInput,
+  } = useKeyboardScroll({
+    defaultBottomPadding,
+    resetOnHide: true,
+    extraOffset: 24,
+  });
 
   // Password condition checks for dynamic hints
   const isLenValid = password.length >= 8 && password.length <= 20;
@@ -123,6 +145,7 @@ export default function RegisterScreen() {
     if (errors.password) {
       setErrors((prev) => ({ ...prev, password: null }));
     }
+    scrollToFocusedInput(passwordRef);
   };
 
   const handlePasswordBlur = () => {
@@ -302,15 +325,22 @@ export default function RegisterScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <AlertPopup {...alertProps} onRequestClose={hideAlert} />
-      <KeyboardAwareScrollView
-        bottomOffset={24}
-        extraKeyboardSpace={16}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="none"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardView}
       >
-        <View style={styles.screenContainer}>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
+          onScroll={handleScroll}
+          onLayout={handleLayout}
+          onContentSizeChange={handleContentSizeChange}
+          scrollEventThrottle={16}
+        >
+          <View style={[styles.screenContainer, isKeyboardVisible && { paddingBottom: contentBottomPadding }]}>
             {/* Top Navigation Bar */}
             <View style={styles.header}>
               <Pressable
@@ -351,20 +381,24 @@ export default function RegisterScreen() {
               <View style={[styles.formCard, isSmallScreen && styles.formCardSmall]}>
 
                 <AuthInput
+                  ref={displayNameRef}
                   iconName="user"
                   placeholder="ชื่อที่แสดง"
                   value={displayName}
                   onChangeText={handleDisplayNameChange}
+                  onFocus={() => scrollToFocusedInput(displayNameRef)}
                   onBlur={handleDisplayNameBlur}
                   errorMessage={errors.displayName}
                   maxLength={35}
                 />
 
                 <AuthInput
+                  ref={emailRef}
                   iconName="mail"
                   placeholder="อีเมล"
                   value={email}
                   onChangeText={handleEmailChange}
+                  onFocus={() => scrollToFocusedInput(emailRef)}
                   onBlur={handleEmailBlur}
                   keyboardType="email-address"
                   errorMessage={errors.email}
@@ -373,6 +407,7 @@ export default function RegisterScreen() {
                 />
 
                 <AuthInput
+                  ref={passwordRef}
                   iconName="lock"
                   placeholder="รหัสผ่าน"
                   value={password}
@@ -447,10 +482,12 @@ export default function RegisterScreen() {
                 )}
 
                 <AuthInput
+                  ref={confirmPasswordRef}
                   iconName="check-circle"
                   placeholder="ยืนยันรหัสผ่าน"
                   value={confirmPassword}
                   onChangeText={handleConfirmPasswordChange}
+                  onFocus={() => scrollToFocusedInput(confirmPasswordRef)}
                   onBlur={handleConfirmPasswordBlur}
                   isPassword
                   errorMessage={errors.confirmPassword}
@@ -541,7 +578,8 @@ export default function RegisterScreen() {
               </Pressable>
             </View>
           </View>
-      </KeyboardAwareScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

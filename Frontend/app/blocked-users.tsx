@@ -11,6 +11,7 @@ import {
 import { Image } from 'expo-image';
 import { SafeAreaView } from '@/components/SafeAreaView';
 import { useRouter, Stack } from 'expo-router';
+import { safeBack } from '@/utils/navigation';
 import { ArrowLeft, ShieldCheck } from 'lucide-react-native';
 import { getBlockedUsers, unblockUser, BlockedUserItem } from '@/services/safetyService';
 import { Typography } from '@/constants/typography';
@@ -120,7 +121,7 @@ export default function BlockedUsersScreen() {
       <AlertPopup {...alertProps} onRequestClose={hideAlert} />
 
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+        <Pressable onPress={() => safeBack('/settings')} style={styles.backBtn} hitSlop={12}>
           <ArrowLeft size={22} color="#1C1B1F" />
         </Pressable>
         <Text style={styles.headerTitle}>ผู้ใช้ที่ถูกบล็อก</Text>

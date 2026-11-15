@@ -337,7 +337,6 @@ export default function ProfileScreen() {
         name: params.name ?? profileName,
         username: params.username ?? profileUsername,
         bio: params.bio ?? profileBio,
-        avatarUrl: params.avatarUrl ?? profileAvatarUrl,
       },
     });
   };
@@ -369,7 +368,6 @@ export default function ProfileScreen() {
         postId: post.id,
         ownerId: activeTab === "saved" ? undefined : (post.userId ?? user?.id),
         mode: activeTab === "saved" ? "saved" : "feed",
-        post: JSON.stringify(updatedPost),
       },
     });
   };

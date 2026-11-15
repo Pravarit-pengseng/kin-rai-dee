@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { View, FlatList, StyleSheet, Pressable, ActivityIndicator, RefreshControl, Platform } from "react-native";
-import { SafeAreaView, useStableSafeAreaInsets } from "@/components/SafeAreaView";
+import { SafeAreaView } from "@/components/SafeAreaView";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -26,7 +27,7 @@ import { Typography } from "@/constants/typography";
 
 export default function HomeScreen() {
   const { isLoggedIn, user } = useAuth();
-  const insets = useStableSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const menuBottomOffset = Math.max(insets.bottom, 12);
   const [posts, setPosts] = useState<PopupPostData[]>(() => getCachedFeedPosts());
   const [loading, setLoading] = useState(() => getCachedFeedPosts().length === 0);
@@ -238,7 +239,7 @@ export default function HomeScreen() {
   ), [loadingMore]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <StatusBar style="dark" />
       <Header
         title="KIN RAI DEE"
@@ -264,7 +265,6 @@ export default function HomeScreen() {
         initialNumToRender={4}
         maxToRenderPerBatch={3}
         windowSize={5}
-        removeClippedSubviews={Platform.OS === "android"}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

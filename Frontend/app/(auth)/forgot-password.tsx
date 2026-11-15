@@ -3,12 +3,15 @@ import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   BackHandler,
 } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from '@/components/SafeAreaView';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { safeBack } from '@/utils/navigation';
 import { Feather } from '@expo/vector-icons';
 import { ForgotPasswordHeader } from '@/components/auth/forgot-password/ForgotPasswordHeader';
 import { PillInput } from '@/components/auth/forgot-password/PillInput';
@@ -19,6 +22,7 @@ import { AuthErrorBanner } from '@/components/auth/AuthErrorBanner';
 import { recoveryService } from '@/services/recoveryService';
 import { useAuth } from '@/context/AuthContext';
 import { Typography } from '@/constants/typography';
+import { useKeyboardScroll } from '@/hooks/useKeyboardScroll';
 import {
   validateEmail,
   formatEmail,
@@ -56,6 +60,22 @@ export default function ForgotPasswordScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const emailInputRef = useRef<View>(null);
+  const newPasswordRef = useRef<View>(null);
+  const confirmPasswordRef = useRef<View>(null);
+
+  const {
+    scrollRef,
+    contentBottomPadding,
+    handleScroll,
+    handleLayout,
+    handleContentSizeChange,
+    scrollToFocusedInput,
+  } = useKeyboardScroll({
+    defaultBottomPadding: 24,
+    resetOnHide: true,
+    extraOffset: 24,
+  });
 
   // Pre-fill email if user is already logged in (e.g. from /settings)
   useEffect(() => {
@@ -106,7 +126,7 @@ export default function ForgotPasswordScreen() {
       setCurrentStep('email');
     } else {
       if (from === '/settings') {
-        router.back();
+        safeBack('/settings');
       } else {
         router.replace({ pathname: '/(auth)/login', params: { returnTo, from } });
       }
@@ -252,14 +272,21 @@ export default function ForgotPasswordScreen() {
       {/* Top Header */}
       <ForgotPasswordHeader onBack={handleBack} title={pageTitle} />
 
-      <KeyboardAwareScrollView
-        bottomOffset={24}
-        extraKeyboardSpace={16}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 24 }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="none"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardView}
       >
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: contentBottomPadding }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
+          onScroll={handleScroll}
+          onLayout={handleLayout}
+          onContentSizeChange={handleContentSizeChange}
+          scrollEventThrottle={16}
+        >
           <View style={styles.container}>
             {/* General Error Banner */}
             {Boolean(generalError) && (
@@ -276,9 +303,11 @@ export default function ForgotPasswordScreen() {
                 </Text>
 
                 <PillInput
+                  ref={emailInputRef}
                   iconName="user"
                   placeholder="อีเมล"
                   value={email}
+                  onFocus={() => scrollToFocusedInput(emailInputRef)}
                   onChangeText={(val) => {
                     setEmail(val);
                     if (inputErrors.email) setInputErrors((prev) => ({ ...prev, email: null }));
@@ -314,6 +343,7 @@ export default function ForgotPasswordScreen() {
 
                 <OtpInputBoxes
                   code={otpCode}
+                  onFocus={(containerRef) => scrollToFocusedInput(containerRef)}
                   onChangeCode={(code) => {
                     setOtpCode(code);
                     if (generalError) setGeneralError(null);
@@ -354,6 +384,7 @@ export default function ForgotPasswordScreen() {
                 <Text style={styles.description}>กรุณาตั้งรหัสผ่านใหม่</Text>
 
                 <PillInput
+                  ref={newPasswordRef}
                   iconName="lock"
                   isPassword
                   placeholder="รหัสผ่านใหม่"
@@ -366,6 +397,7 @@ export default function ForgotPasswordScreen() {
                   }}
                   onFocus={() => {
                     setIsPasswordFocused(true);
+                    scrollToFocusedInput(newPasswordRef);
                   }}
                   onBlur={() => {
                     setIsPasswordFocused(false);
@@ -440,10 +472,12 @@ export default function ForgotPasswordScreen() {
                 )}
 
                 <PillInput
+                  ref={confirmPasswordRef}
                   iconName="check-circle"
                   isPassword
                   placeholder="ยืนยันรหัสผ่าน"
                   value={confirmPassword}
+                  onFocus={() => scrollToFocusedInput(confirmPasswordRef)}
                   onChangeText={(val) => {
                     setConfirmPassword(val);
                     if (inputErrors.confirmPassword) {
@@ -469,7 +503,8 @@ export default function ForgotPasswordScreen() {
               </View>
             )}
           </View>
-      </KeyboardAwareScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* SCREEN 5: SUCCESS POPUP MODAL */}
       <SuccessModal

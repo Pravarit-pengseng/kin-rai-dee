@@ -14,6 +14,7 @@ import {
   router,
   useLocalSearchParams,
 } from "expo-router";
+import { safeBack } from "@/utils/navigation";
 
 import { Header } from "@/components/Header";
 import PopupPost, { PopupPostData } from "@/components/popup-post";
@@ -27,7 +28,7 @@ import { getUserPosts } from "@/services/profileService";
 import {
   bookmarkPost,
   unbookmarkPost,
-  getSavedPosts,
+  getSavedPostIds,
   mapPostToPopup,
   deletePost,
   getPostDetail,
@@ -82,63 +83,55 @@ export default function OtherPostScreen() {
     });
   }, []);
 
-  // Load from API if needed or sync bookmarks
+  // Load from API only if cache empty; always sync lightweight bookmark IDs
   useEffect(() => {
+    let cancelled = false;
+
+    if (user?.id) {
+      getSavedPostIds()
+        .then((ids) => {
+          if (!cancelled) setBookmarkedIds(ids);
+        })
+        .catch(() => {});
+    }
+
+    if (posts.length > 0) {
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     if (ownerId) {
-      // loading already initialized
       getUserPosts(ownerId)
         .then((apiPosts) => {
-          if (apiPosts && apiPosts.length > 0) {
+          if (!cancelled && apiPosts && apiPosts.length > 0) {
             setPosts(apiPosts.map(mapPostToPopup));
           }
-          setLoading(false);
-          if (user?.id) {
-            getSavedPosts()
-              .then((saved) => {
-                if (saved && saved.length > 0) {
-                  setBookmarkedIds(saved.map((s) => s.id));
-                }
-              })
-              .catch(() => {});
-          }
+          if (!cancelled) setLoading(false);
         })
         .catch(() => {
-          setLoading(false);
+          if (!cancelled) setLoading(false);
         });
-    } else if (postId && posts.length === 0) {
+    } else if (postId) {
       setLoading(true);
       getPostDetail(postId)
         .then((detail) => {
-          if (detail) {
+          if (!cancelled && detail) {
             setPosts([detail]);
           }
-          setLoading(false);
+          if (!cancelled) setLoading(false);
         })
         .catch(() => {
-          setLoading(false);
+          if (!cancelled) setLoading(false);
         });
-
-      if (user?.id) {
-        getSavedPosts()
-          .then((saved) => {
-            if (saved && saved.length > 0) {
-              setBookmarkedIds(saved.map((s) => s.id));
-            }
-          })
-          .catch(() => {});
-      }
     } else {
-      if (user?.id) {
-        getSavedPosts()
-          .then((saved) => {
-            if (saved && saved.length > 0) {
-              setBookmarkedIds(saved.map((s) => s.id));
-            }
-          })
-          .catch(() => {});
-      }
       setLoading(false);
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [ownerId, postId, user?.id]);
 
   // Handle post measurement and scroll directly to target post
@@ -220,12 +213,12 @@ export default function OtherPostScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false, animation: "none" }} />
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top"]}>
         <StatusBar style="dark" />
         <Header
           title="KIN RAI DEE"
           leftIcon="back"
-          onLeftPress={() => router.back()}
+          onLeftPress={() => safeBack("/(tabs)")}
           rightIcon="search"
           onSearchPress={() =>
             router.push(

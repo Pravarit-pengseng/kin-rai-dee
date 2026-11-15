@@ -10,7 +10,7 @@ import {
   Keyboard,
 } from "react-native";
 import { BlurView } from "expo-blur";
-import { useStableSafeAreaInsets } from "@/components/SafeAreaView";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import {
   House,
@@ -58,7 +58,7 @@ export default function LiquidMenu({
   active = "home",
   onChange,
 }: LiquidMenuProps) {
-  const insets = useStableSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom, 12);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
@@ -158,12 +158,13 @@ export default function LiquidMenu({
     >
       <View style={styles.glassContainer}>
         {/* Layer 1: Real-time Backdrop Blur (Kyant0 Liquid Glass) */}
-        <BlurView
-          intensity={Platform.OS === "ios" ? 85 : 70}
-          tint="light"
-          style={StyleSheet.absoluteFill}
-          blurMethod="dimezisBlurView"
-        />
+        {Platform.OS === "ios" && (
+          <BlurView
+            intensity={85}
+            tint="light"
+            style={StyleSheet.absoluteFill}
+          />
+        )}
 
         {/* Layer 2: Gloss & Diffused Frosted Sheen */}
         <View style={styles.specularOverlay} pointerEvents="none" />

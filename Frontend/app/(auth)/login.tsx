@@ -5,12 +5,11 @@ import {
   StyleSheet,
   Pressable,
   Image,
-  ScrollView,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from '@/components/SafeAreaView';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -23,7 +22,6 @@ import {
   AUTH_ERROR_MESSAGES,
 } from '@/utils/authValidation';
 import { Typography } from '@/constants/typography';
-import { useKeyboardScroll } from '@/hooks/useKeyboardScroll';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -44,23 +42,6 @@ export default function LoginScreen() {
   }>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const emailInputRef = useRef<View>(null);
-  const passwordInputRef = useRef<View>(null);
-
-  const defaultBottomPadding = Platform.OS === 'ios' ? 8 : 12;
-  const {
-    scrollRef,
-    isKeyboardVisible,
-    contentBottomPadding,
-    handleScroll,
-    handleLayout,
-    handleContentSizeChange,
-    scrollToFocusedInput,
-  } = useKeyboardScroll({
-    defaultBottomPadding,
-    resetOnHide: true,
-    extraOffset: 24,
-  });
 
   const handleEmailChange = (text: string) => {
     setEmail(text);
@@ -142,24 +123,15 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardView}
+      <KeyboardAwareScrollView
+        bottomOffset={24}
+        extraKeyboardSpace={16}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="none"
       >
-        <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          bounces={isKeyboardVisible}
-          overScrollMode={isKeyboardVisible ? "always" : "never"}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="none"
-          onScroll={handleScroll}
-          onLayout={handleLayout}
-          onContentSizeChange={handleContentSizeChange}
-          scrollEventThrottle={16}
-        >
-          <View style={[styles.screenContainer, isKeyboardVisible && { paddingBottom: contentBottomPadding }]}>
+        <View style={styles.screenContainer}>
             {/* Top Navigation Bar */}
             <View style={styles.header}>
               <Pressable
@@ -201,12 +173,10 @@ export default function LoginScreen() {
                 <AuthErrorBanner message={generalError} />
 
                 <AuthInput
-                  ref={emailInputRef}
                   iconName="user"
                   placeholder="อีเมล"
                   value={email}
                   onChangeText={handleEmailChange}
-                  onFocus={() => scrollToFocusedInput(emailInputRef)}
                   onBlur={() => {
                     if (email.trim()) {
                       const err = validateEmail(formatEmail(email));
@@ -220,12 +190,10 @@ export default function LoginScreen() {
                 />
 
                 <AuthInput
-                  ref={passwordInputRef}
                   iconName="lock"
                   placeholder="รหัสผ่าน"
                   value={password}
                   onChangeText={handlePasswordChange}
-                  onFocus={() => scrollToFocusedInput(passwordInputRef)}
                   isPassword
                   errorMessage={errors.password}
                 />
@@ -270,8 +238,7 @@ export default function LoginScreen() {
               </Pressable>
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

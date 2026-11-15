@@ -4,10 +4,8 @@ import {
   View,
   Pressable,
   Image,
-  KeyboardAvoidingView,
-  ScrollView,
-  Platform,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
 import { SafeAreaView } from "@/components/SafeAreaView";
 import {
@@ -25,7 +23,6 @@ import { ThemedText } from "@/components/themed-text";
 import { updateMyProfile } from "@/services/profileService";
 import { API_BASE_URL } from "@/services/api";
 import { supabase } from "@/lib/supabase";
-import { useKeyboardScroll } from "@/hooks/useKeyboardScroll";
 
 export default function EditProfile() {
   const params = useLocalSearchParams<{
@@ -37,17 +34,6 @@ export default function EditProfile() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
-  const {
-    scrollRef,
-    isKeyboardVisible,
-    contentBottomPadding,
-    handleScroll,
-    handleLayout,
-    handleContentSizeChange,
-    scrollToFocusedInput,
-  } = useKeyboardScroll({
-    defaultBottomPadding: 110,
-  });
 
   const [profileData, setProfileData] = useState({
     name: params.name ?? "",
@@ -173,23 +159,14 @@ export default function EditProfile() {
           rightIcon="none"
         />
 
-        <KeyboardAvoidingView 
-          style={{ flex: 1 }}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        <KeyboardAwareScrollView
+          bottomOffset={28}
+          extraKeyboardSpace={16}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.content, { paddingBottom: 110 }]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
         >
-          <ScrollView
-            ref={scrollRef}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[styles.content, { paddingBottom: contentBottomPadding }]}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="none"
-            onScroll={handleScroll}
-            onLayout={handleLayout}
-            onContentSizeChange={handleContentSizeChange}
-            scrollEventThrottle={16}
-            bounces={isKeyboardVisible}
-            overScrollMode={isKeyboardVisible ? "always" : "never"}
-          >
               {/* Profile Picture */}
               <View style={styles.avatarContainer}>
                 <View style={styles.avatarOuter}>
@@ -226,9 +203,6 @@ export default function EditProfile() {
                   profileData.username
                 }
                 initialBio={profileData.bio}
-                onFocusField={(_field, fieldRef) => {
-                  scrollToFocusedInput(fieldRef);
-                }}
                 onChange={setProfileData}
               />
 
@@ -249,8 +223,7 @@ export default function EditProfile() {
                   {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
                 </ThemedText>
               </Pressable>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          </KeyboardAwareScrollView>
 
         {/* Bottom Menu */}
         <LiquidMenu />

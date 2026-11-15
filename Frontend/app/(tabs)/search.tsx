@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 
 import { SafeAreaView } from '@/components/SafeAreaView';
-import { useKeyboardScroll } from '@/hooks/useKeyboardScroll';
 import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -64,17 +63,7 @@ export default function SearchScreen() {
   const [popupPost, setPopupPost] = useState<PopupPostData | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
   const searchBarRef = useRef<any>(null);
-  const {
-    scrollRef,
-    isKeyboardVisible,
-    contentBottomPadding,
-    handleScroll,
-    handleLayout,
-    handleContentSizeChange,
-    scrollToFocusedInput,
-  } = useKeyboardScroll({
-    defaultBottomPadding: 110,
-  });
+  const scrollRef = useRef<any>(null);
 
   const { from, query, tag, _ts } = useLocalSearchParams<{ from?: string; query?: string; tag?: string; _ts?: string }>();
   const lastHandledParamRef = useRef<string>('');
@@ -299,15 +288,9 @@ export default function SearchScreen() {
         <ScrollView
           ref={scrollRef}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: contentBottomPadding }]}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 110 }]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="none"
-          onScroll={handleScroll}
-          onLayout={handleLayout}
-          onContentSizeChange={handleContentSizeChange}
-          scrollEventThrottle={16}
-          bounces={isKeyboardVisible}
-          overScrollMode={isKeyboardVisible ? 'always' : 'never'}
         >
           {/* Search Bar */}
           <View ref={searchBarRef} style={styles.searchContainer}>
@@ -323,7 +306,6 @@ export default function SearchScreen() {
               placeholderTextColor="#A0938F"
               value={inputValue}
               onChangeText={setInputValue}
-              onFocus={() => scrollToFocusedInput(searchBarRef)}
               onSubmitEditing={() => handleSearch(inputValue)}
               returnKeyType="search"
             />

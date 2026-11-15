@@ -187,7 +187,6 @@ export default function PostForm({
         label="เล่าความอร่อย"
         required={true}
         onFocus={() => onFocusField?.('description', descriptionFieldRef)}
-        onContentSizeChange={() => onFocusField?.('description', descriptionFieldRef)}
         value={post.description}
         placeholder="รสชาติเป็นยังไงบ้าง? บรรยากาศร้านดีไหม?..."
         onChangeText={(text) =>

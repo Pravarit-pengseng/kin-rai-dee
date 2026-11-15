@@ -4,10 +4,8 @@ import {
     Pressable,
     Image,
     StyleSheet,
-    ScrollView,
-    KeyboardAvoidingView,
-    Platform,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "@/components/SafeAreaView";
 import { Stack, router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -22,23 +20,11 @@ import { createPost } from "@/services/postService";
 import { FOOD_CATEGORIES } from "@/constants/categories";
 import { Typography } from "@/constants/typography";
 import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
-import { useKeyboardScroll } from "@/hooks/useKeyboardScroll";
 
 export default function AddPost() {
     const { isLoggedIn } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
-    const {
-        scrollRef,
-        isKeyboardVisible,
-        contentBottomPadding,
-        handleScroll,
-        handleLayout,
-        handleContentSizeChange,
-        scrollToFocusedInput,
-    } = useKeyboardScroll({
-        defaultBottomPadding: 40,
-    });
 
     const permissionGrantedRef = useRef(false);
 
@@ -183,23 +169,14 @@ export default function AddPost() {
                     rightIcon="none"
                 />
 
-                <KeyboardAvoidingView
-                    style={{ flex: 1 }}
-                    behavior={Platform.OS === "ios" ? "padding" : undefined}
+                <KeyboardAwareScrollView
+                    bottomOffset={28}
+                    extraKeyboardSpace={16}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={[styles.content, { paddingBottom: 40 }]}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="none"
                 >
-                    <ScrollView
-                        ref={scrollRef}
-                        showsVerticalScrollIndicator={false}
-                        contentContainerStyle={[styles.content, { paddingBottom: contentBottomPadding }]}
-                        keyboardShouldPersistTaps="handled"
-                        keyboardDismissMode="none"
-                        onScroll={handleScroll}
-                        onLayout={handleLayout}
-                        onContentSizeChange={handleContentSizeChange}
-                        scrollEventThrottle={16}
-                        bounces={isKeyboardVisible}
-                        overScrollMode={isKeyboardVisible ? "always" : "never"}
-                    >
                         <Pressable
                             onPress={pickImage}
                             style={({ pressed }) => [
@@ -238,9 +215,6 @@ export default function AddPost() {
 
                         <PostForm
                             initialData={post}
-                            onFocusField={(_field, fieldRef) => {
-                                scrollToFocusedInput(fieldRef);
-                            }}
                             onChange={(data) => {
                                 setPost((currentPost) => ({
                                     ...data,
@@ -262,8 +236,7 @@ export default function AddPost() {
                                 {isSubmitting ? "กำลังโพสต์..." : "โพสต์"}
                             </ThemedText>
                         </Pressable>
-                    </ScrollView>
-                </KeyboardAvoidingView>
+                    </KeyboardAwareScrollView>
             </SafeAreaView>
         </>
     );

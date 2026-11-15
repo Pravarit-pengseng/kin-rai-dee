@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   TextInput,
@@ -31,7 +31,10 @@ export type PostData = {
 type PostFormProps = {
   initialData?: PostData;
   onChange?: (data: PostData) => void;
-  onFocusField?: (field: 'title' | 'description' | 'restaurant') => void;
+  onFocusField?: (
+    field: 'title' | 'description' | 'restaurant',
+    fieldRef?: React.RefObject<any>
+  ) => void;
 };
 
 type InputFieldProps = {
@@ -41,6 +44,8 @@ type InputFieldProps = {
   icon: React.ReactNode;
   onChangeText: (text: string) => void;
   onFocus?: () => void;
+  onContentSizeChange?: () => void;
+  fieldRef?: React.RefObject<any>;
   multiline?: boolean;
   maxLength?: number;
   required?: boolean;
@@ -53,12 +58,14 @@ function InputField({
   icon,
   onChangeText,
   onFocus,
+  onContentSizeChange,
+  fieldRef,
   multiline = false,
   maxLength = 45,
   required = false,
 }: InputFieldProps) {
   return (
-    <View style={styles.field}>
+    <View ref={fieldRef} style={styles.field}>
       <View style={styles.labelRow}>
         <View style={styles.labelTitleRow}>
           <ThemedText style={styles.label}>
@@ -83,6 +90,7 @@ function InputField({
           value={value}
           onChangeText={onChangeText}
           onFocus={onFocus}
+          onContentSizeChange={onContentSizeChange}
           placeholder={placeholder}
           placeholderTextColor="#A9A09D"
           style={[styles.input, multiline && styles.multilineInput]}
@@ -114,6 +122,9 @@ export default function PostForm({
   );
 
   const [open, setOpen] = useState(false);
+  const titleFieldRef = useRef<any>(null);
+  const descriptionFieldRef = useRef<any>(null);
+  const restaurantFieldRef = useRef<any>(null);
 
   /*
    * Load existing post data when EditPost opens.
@@ -150,9 +161,10 @@ export default function PostForm({
     <View style={styles.container}>
       {/* Menu Name */}
       <InputField
+        fieldRef={titleFieldRef}
         label="ชื่อเมนู"
         required={true}
-        onFocus={() => onFocusField?.('title')}
+        onFocus={() => onFocusField?.('title', titleFieldRef)}
         value={post.title}
         placeholder="เช่น ข้าวกะเพราไข่ดาว"
         onChangeText={(text) =>
@@ -171,9 +183,11 @@ export default function PostForm({
 
       {/* Description */}
       <InputField
+        fieldRef={descriptionFieldRef}
         label="เล่าความอร่อย"
         required={true}
-        onFocus={() => onFocusField?.('description')}
+        onFocus={() => onFocusField?.('description', descriptionFieldRef)}
+        onContentSizeChange={() => onFocusField?.('description', descriptionFieldRef)}
         value={post.description}
         placeholder="รสชาติเป็นยังไงบ้าง? บรรยากาศร้านดีไหม?..."
         onChangeText={(text) =>
@@ -194,9 +208,10 @@ export default function PostForm({
 
       {/* Restaurant */}
       <InputField
+        fieldRef={restaurantFieldRef}
         label="ลิงก์ร้านอาหาร"
         required={false}
-        onFocus={() => onFocusField?.('restaurant')}
+        onFocus={() => onFocusField?.('restaurant', restaurantFieldRef)}
         value={post.restaurant}
         placeholder="บอกชื่อพิกัดร้านอาหาร (ไม่บังคับ)"
         onChangeText={(text) =>

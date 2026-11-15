@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import AlertPopup, { useAlertPopup } from '@/components/AlertPopup';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/SafeAreaView';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { ChevronRight, ArrowLeft } from 'lucide-react-native';
 import { useAuth } from '@/context/AuthContext';

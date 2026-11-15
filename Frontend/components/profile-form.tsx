@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   TextInput,
@@ -16,7 +16,10 @@ type ProfileFormProps = {
   initialName?: string;
   initialUsername?: string;
   initialBio?: string;
-  onFocusField?: (field: 'name' | 'username' | 'bio') => void;
+  onFocusField?: (
+    field: 'name' | 'username' | 'bio',
+    fieldRef?: React.RefObject<any>
+  ) => void;
   onChange?: (data: {
     name: string;
     username: string;
@@ -34,6 +37,9 @@ export default function ProfileForm({
   const [name, setName] = useState(initialName);
   const [username, setUsername] = useState(initialUsername);
   const [bio, setBio] = useState(initialBio);
+  const nameFieldRef = useRef<any>(null);
+  const usernameFieldRef = useRef<any>(null);
+  const bioFieldRef = useRef<any>(null);
 
   const handleNameChange = (value: string) => {
     setName(value);
@@ -68,7 +74,7 @@ export default function ProfileForm({
   return (
     <View style={styles.container}>
       {/* Display Name */}
-      <View style={styles.fieldContainer}>
+      <View ref={nameFieldRef} style={styles.fieldContainer}>
         <ThemedText style={styles.label}>
           ชื่อที่แสดง
         </ThemedText>
@@ -83,7 +89,7 @@ export default function ProfileForm({
           <TextInput
             value={name}
             onChangeText={handleNameChange}
-            onFocus={() => onFocusField?.('name')}
+            onFocus={() => onFocusField?.('name', nameFieldRef)}
             style={styles.input}
             placeholder="ชื่อที่แสดง"
             placeholderTextColor="#A9A09D"
@@ -93,7 +99,7 @@ export default function ProfileForm({
       </View>
 
       {/* Username */}
-      <View style={styles.fieldContainer}>
+      <View ref={usernameFieldRef} style={styles.fieldContainer}>
         <ThemedText style={styles.label}>
           ชื่อผู้ใช้
         </ThemedText>
@@ -108,7 +114,7 @@ export default function ProfileForm({
           <TextInput
             value={username}
             onChangeText={handleUsernameChange}
-            onFocus={() => onFocusField?.('username')}
+            onFocus={() => onFocusField?.('username', usernameFieldRef)}
             style={styles.input}
             placeholder="@username"
             placeholderTextColor="#241917"
@@ -118,7 +124,7 @@ export default function ProfileForm({
       </View>
 
       {/* Bio */}
-      <View style={styles.fieldContainer}>
+      <View ref={bioFieldRef} style={styles.fieldContainer}>
         <ThemedText style={styles.label}>
           คำอธิบายตัวเอง
         </ThemedText>
@@ -133,7 +139,7 @@ export default function ProfileForm({
           <TextInput
             value={bio}
             onChangeText={handleBioChange}
-            onFocus={() => onFocusField?.('bio')}
+            onFocus={() => onFocusField?.('bio', bioFieldRef)}
             style={styles.input}
             placeholder="บอกเกี่ยวกับตัวคุณ"
             placeholderTextColor="#241917"

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useStableSafeAreaInsets } from "@/components/SafeAreaView";
 import { StatusBar } from "expo-status-bar";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -25,6 +25,8 @@ import { Typography } from "@/constants/typography";
 
 export default function HomeScreen() {
   const { isLoggedIn, user } = useAuth();
+  const insets = useStableSafeAreaInsets();
+  const menuBottomOffset = Math.max(insets.bottom, 12);
   const [posts, setPosts] = useState<PopupPostData[]>(() => getCachedFeedPosts());
   const [loading, setLoading] = useState(() => getCachedFeedPosts().length === 0);
   const [refreshing, setRefreshing] = useState(false);
@@ -257,7 +259,11 @@ export default function HomeScreen() {
 
       {/* Floating Action Button */}
       <Pressable
-        style={({ pressed }) => [styles.fab, pressed && styles.buttonPressed]}
+        style={({ pressed }) => [
+          styles.fab,
+          { bottom: 78 + menuBottomOffset },
+          pressed && styles.buttonPressed,
+        ]}
         onPress={handleCreatePost}
       >
         <SquarePen size={18} color="#721209" strokeWidth={2.5} />

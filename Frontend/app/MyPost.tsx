@@ -21,7 +21,7 @@ import PostSkeleton from "@/components/PostSkeleton";
 import LiquidMenu from "@/components/liquid-menu";
 import DeletePopup from "@/components/DeletePopup";
 import LogoutPopup from "@/components/LogoutPopup";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeAreaView";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/context/AuthContext";
 import {

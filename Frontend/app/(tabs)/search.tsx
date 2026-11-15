@@ -1,13 +1,16 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
   TextInput,
   ScrollView,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/SafeAreaView';
+import { useKeyboardScroll } from '@/hooks/useKeyboardScroll';
 import { StatusBar } from 'expo-status-bar';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -51,6 +54,18 @@ export default function SearchScreen() {
   const [showFeed, setShowFeed] = useState(false);
   const [popupPost, setPopupPost] = useState<PopupPostData | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>([]);
+  const searchBarRef = useRef<any>(null);
+  const {
+    scrollRef,
+    isKeyboardVisible,
+    contentBottomPadding,
+    handleScroll,
+    handleLayout,
+    handleContentSizeChange,
+    scrollToFocusedInput,
+  } = useKeyboardScroll({
+    defaultBottomPadding: 110,
+  });
 
   const { from, query, tag } = useLocalSearchParams<{ from?: string; query?: string; tag?: string }>();
 
@@ -223,30 +238,42 @@ export default function SearchScreen() {
         rightIcon="none"
       />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <MaterialCommunityIcons
-            name="magnify"
-            size={22}
-            color="#6B4F48"
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="ค้นหาเมนูหรือเพื่อน..."
-            placeholderTextColor="#A0938F"
-            value={inputValue}
-            onChangeText={setInputValue}
-            onSubmitEditing={() => handleSearch(inputValue)}
-            returnKeyType="search"
-          />
-        </View>
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: contentBottomPadding }]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="none"
+          onScroll={handleScroll}
+          onLayout={handleLayout}
+          onContentSizeChange={handleContentSizeChange}
+          scrollEventThrottle={16}
+          bounces={isKeyboardVisible}
+          overScrollMode={isKeyboardVisible ? 'always' : 'never'}
+        >
+          {/* Search Bar */}
+          <View ref={searchBarRef} style={styles.searchContainer}>
+            <MaterialCommunityIcons
+              name="magnify"
+              size={22}
+              color="#6B4F48"
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="ค้นหาเมนูหรือเพื่อน..."
+              placeholderTextColor="#A0938F"
+              value={inputValue}
+              onChangeText={setInputValue}
+              onFocus={() => scrollToFocusedInput(searchBarRef)}
+              onSubmitEditing={() => handleSearch(inputValue)}
+              returnKeyType="search"
+            />
+          </View>
 
         {/* Tab Filter (shown when searching) */}
         {isSearching && (
@@ -324,7 +351,8 @@ export default function SearchScreen() {
             ))}
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Popup Post Modal (triggered by long press in grid) */}
       <PopupPost

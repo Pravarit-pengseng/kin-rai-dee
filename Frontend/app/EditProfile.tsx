@@ -9,7 +9,7 @@ import {
   Platform,
 } from "react-native";
 import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeAreaView";
 import {
   Stack,
   router,
@@ -37,7 +37,15 @@ export default function EditProfile() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
-  const { scrollRef, isKeyboardVisible, contentBottomPadding, scrollIntoView, scrollToEnd } = useKeyboardScroll({
+  const {
+    scrollRef,
+    isKeyboardVisible,
+    contentBottomPadding,
+    handleScroll,
+    handleLayout,
+    handleContentSizeChange,
+    scrollToFocusedInput,
+  } = useKeyboardScroll({
     defaultBottomPadding: 110,
   });
 
@@ -174,7 +182,11 @@ export default function EditProfile() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[styles.content, { paddingBottom: contentBottomPadding }]}
             keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
+            keyboardDismissMode="none"
+            onScroll={handleScroll}
+            onLayout={handleLayout}
+            onContentSizeChange={handleContentSizeChange}
+            scrollEventThrottle={16}
             bounces={isKeyboardVisible}
             overScrollMode={isKeyboardVisible ? "always" : "never"}
           >
@@ -214,10 +226,8 @@ export default function EditProfile() {
                   profileData.username
                 }
                 initialBio={profileData.bio}
-                onFocusField={(field) => {
-                  if (field === 'bio') scrollToEnd();
-                  else if (field === 'username') scrollIntoView(140);
-                  else scrollIntoView(60);
+                onFocusField={(_field, fieldRef) => {
+                  scrollToFocusedInput(fieldRef);
                 }}
                 onChange={setProfileData}
               />

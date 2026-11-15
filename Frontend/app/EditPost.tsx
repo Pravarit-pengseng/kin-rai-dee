@@ -8,7 +8,7 @@ import {
       KeyboardAvoidingView,
     Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeAreaView";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Camera } from "lucide-react-native";
@@ -32,7 +32,15 @@ export default function EditPost() {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
-    const { scrollRef, isKeyboardVisible, contentBottomPadding, scrollIntoView } = useKeyboardScroll({
+    const {
+        scrollRef,
+        isKeyboardVisible,
+        contentBottomPadding,
+        handleScroll,
+        handleLayout,
+        handleContentSizeChange,
+        scrollToFocusedInput,
+    } = useKeyboardScroll({
         defaultBottomPadding: 40,
     });
 
@@ -197,7 +205,11 @@ export default function EditPost() {
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={[styles.content, { paddingBottom: contentBottomPadding }]}
                         keyboardShouldPersistTaps="handled"
-                        keyboardDismissMode="on-drag"
+                        keyboardDismissMode="none"
+                        onScroll={handleScroll}
+                        onLayout={handleLayout}
+                        onContentSizeChange={handleContentSizeChange}
+                        scrollEventThrottle={16}
                         bounces={isKeyboardVisible}
                         overScrollMode={isKeyboardVisible ? "always" : "never"}
                     >
@@ -233,10 +245,8 @@ export default function EditPost() {
 
                     <PostForm
                         initialData={post}
-                        onFocusField={(field) => {
-                            if (field === 'restaurant') scrollIntoView(380);
-                            else if (field === 'description') scrollIntoView(220);
-                            else scrollIntoView(100);
+                        onFocusField={(_field, fieldRef) => {
+                            scrollToFocusedInput(fieldRef);
                         }}
                         onChange={(data) => {
                             setPost((currentPost) => ({

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useKeyboardScroll } from '@/hooks/useKeyboardScroll';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/SafeAreaView';
 import { useRouter, Stack } from 'expo-router';
 import LegalNavbar from '../components/LegalNavbar';
 import { API_BASE_URL } from '../services/api';
@@ -26,7 +26,17 @@ export default function DeleteAccountScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { alertProps, show: showAlert, hide: hideAlert } = useAlertPopup();
-  const { scrollRef, isKeyboardVisible, contentBottomPadding, scrollToEnd } = useKeyboardScroll({
+  const emailInputRef = useRef<any>(null);
+  const reasonInputRef = useRef<any>(null);
+  const {
+    scrollRef,
+    isKeyboardVisible,
+    contentBottomPadding,
+    handleScroll,
+    handleLayout,
+    handleContentSizeChange,
+    scrollToFocusedInput,
+  } = useKeyboardScroll({
     defaultBottomPadding: 40,
   });
 
@@ -82,7 +92,11 @@ export default function DeleteAccountScreen() {
           contentContainerStyle={[styles.scrollContent, { paddingBottom: contentBottomPadding }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
+          keyboardDismissMode="none"
+          onScroll={handleScroll}
+          onLayout={handleLayout}
+          onContentSizeChange={handleContentSizeChange}
+          scrollEventThrottle={16}
           bounces={isKeyboardVisible}
           overScrollMode={isKeyboardVisible ? "always" : "never"}
         >
@@ -198,6 +212,7 @@ export default function DeleteAccountScreen() {
             <View style={styles.formContainer}>
               <Text style={styles.label}>อีเมลที่ใช้ลงทะเบียนใน KIN RAI DEE *</Text>
               <TextInput
+                ref={emailInputRef}
                 style={styles.input}
                 placeholder="กรอกอีเมลของคุณ เช่น example@gmail.com"
                 placeholderTextColor="#8E8E93"
@@ -205,11 +220,12 @@ export default function DeleteAccountScreen() {
                 autoCapitalize="none"
                 value={email}
                 onChangeText={setEmail}
-                onFocus={() => scrollToEnd()}
+                onFocus={() => scrollToFocusedInput(emailInputRef)}
               />
 
               <Text style={styles.label}>เหตุผลในการขอลบ (ไม่บังคับ)</Text>
               <TextInput
+                ref={reasonInputRef}
                 style={[styles.input, styles.textArea]}
                 placeholder="บอกเหตุผลหรือข้อเสนอแนะเพื่อให้เรานำไปปรับปรุงบริการ (ไม่บังคับ)"
                 placeholderTextColor="#8E8E93"
@@ -217,7 +233,8 @@ export default function DeleteAccountScreen() {
                 numberOfLines={3}
                 value={reason}
                 onChangeText={setReason}
-                onFocus={() => scrollToEnd()}
+                onFocus={() => scrollToFocusedInput(reasonInputRef)}
+                onContentSizeChange={() => scrollToFocusedInput(reasonInputRef)}
               />
 
               <Pressable

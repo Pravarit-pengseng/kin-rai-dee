@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/SafeAreaView';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { AuthInput } from '@/components/auth/AuthInput';
@@ -53,6 +53,8 @@ export default function LoginScreen() {
     isKeyboardVisible,
     contentBottomPadding,
     handleScroll,
+    handleLayout,
+    handleContentSizeChange,
     scrollToFocusedInput,
   } = useKeyboardScroll({
     defaultBottomPadding,
@@ -151,8 +153,10 @@ export default function LoginScreen() {
           bounces={isKeyboardVisible}
           overScrollMode={isKeyboardVisible ? "always" : "never"}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
+          keyboardDismissMode="none"
           onScroll={handleScroll}
+          onLayout={handleLayout}
+          onContentSizeChange={handleContentSizeChange}
           scrollEventThrottle={16}
         >
           <View style={[styles.screenContainer, isKeyboardVisible && { paddingBottom: contentBottomPadding }]}>

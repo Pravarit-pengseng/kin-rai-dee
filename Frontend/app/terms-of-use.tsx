@@ -6,7 +6,7 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/SafeAreaView';
 import { useRouter, Stack } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import LegalNavbar from '../components/LegalNavbar';

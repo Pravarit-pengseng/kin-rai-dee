@@ -6,7 +6,7 @@ import {
   Pressable,
 } from "react-native";
 import { Image } from "expo-image";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeAreaView";
 import { StatusBar } from "expo-status-bar";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { Header } from "@/components/Header";

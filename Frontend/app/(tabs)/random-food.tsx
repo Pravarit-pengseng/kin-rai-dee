@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/SafeAreaView';
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
 import { router } from 'expo-router';

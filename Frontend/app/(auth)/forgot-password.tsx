@@ -9,7 +9,7 @@ import {
   Pressable,
   BackHandler,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/SafeAreaView';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { ForgotPasswordHeader } from '@/components/auth/forgot-password/ForgotPasswordHeader';
@@ -68,6 +68,8 @@ export default function ForgotPasswordScreen() {
     isKeyboardVisible,
     contentBottomPadding,
     handleScroll,
+    handleLayout,
+    handleContentSizeChange,
     scrollToFocusedInput,
   } = useKeyboardScroll({
     defaultBottomPadding: 24,
@@ -281,8 +283,10 @@ export default function ForgotPasswordScreen() {
           bounces={isKeyboardVisible}
           overScrollMode={isKeyboardVisible ? "always" : "never"}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
+          keyboardDismissMode="none"
           onScroll={handleScroll}
+          onLayout={handleLayout}
+          onContentSizeChange={handleContentSizeChange}
           scrollEventThrottle={16}
         >
           <View style={styles.container}>
@@ -341,6 +345,7 @@ export default function ForgotPasswordScreen() {
 
                 <OtpInputBoxes
                   code={otpCode}
+                  onFocus={(containerRef) => scrollToFocusedInput(containerRef)}
                   onChangeCode={(code) => {
                     setOtpCode(code);
                     if (generalError) setGeneralError(null);

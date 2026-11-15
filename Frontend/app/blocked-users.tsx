@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/SafeAreaView';
 import { useRouter, Stack } from 'expo-router';
 import { ArrowLeft, ShieldCheck } from 'lucide-react-native';
 import { getBlockedUsers, unblockUser, BlockedUserItem } from '@/services/safetyService';

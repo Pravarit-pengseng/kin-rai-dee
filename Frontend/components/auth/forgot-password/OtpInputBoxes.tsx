@@ -13,15 +13,18 @@ interface OtpInputBoxesProps {
   code: string;
   onChangeCode: (code: string) => void;
   disabled?: boolean;
+  onFocus?: (containerRef: React.RefObject<any>) => void;
 }
 
 export function OtpInputBoxes({
   code,
   onChangeCode,
   disabled = false,
+  onFocus,
 }: OtpInputBoxesProps) {
   const { width } = useWindowDimensions();
   const inputRef = useRef<any>(null);
+  const containerRef = useRef<any>(null);
   const digits = Array.from({ length: 6 }, (_, index) => code[index] || '');
 
   // Calculate box width dynamically so 6 boxes + 5 gaps always fit within screen width
@@ -46,6 +49,7 @@ export function OtpInputBoxes({
 
   return (
     <Pressable
+      ref={containerRef}
       onPress={handlePress}
       style={[styles.container, { gap: boxGap }]}
       accessibilityRole="button"
@@ -55,6 +59,7 @@ export function OtpInputBoxes({
       <TextInput
         ref={inputRef}
         value={code}
+        onFocus={() => onFocus?.(containerRef)}
         onChangeText={(text) => {
           const sanitized = text.replace(/[^0-9]/g, '').slice(0, 6);
           onChangeCode(sanitized);

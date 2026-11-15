@@ -20,7 +20,7 @@ import LogoutPopup from "@/components/LogoutPopup";
 import ProfileHeader from "@/components/profile-header";
 import { Header } from "@/components/Header";
 import { ThemedText } from "@/components/themed-text";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeAreaView";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/context/AuthContext";
 import { getMyProfile, getUserPosts, getCachedUserPosts } from "@/services/profileService";

@@ -13,8 +13,10 @@ import {
   Animated,
   TouchableOpacity,
   LayoutAnimation,
+  Dimensions,
 } from "react-native";
 import AlertPopup, { useAlertPopup } from "@/components/AlertPopup";
+import { useStableSafeAreaInsets } from "@/components/SafeAreaView";
 import { Image } from "expo-image";
 
 import {
@@ -302,6 +304,9 @@ export default function PopupPost({
   const [commentText, setCommentText] = useState("");
   const commentsScrollRef = useRef<any>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [overlayHeight, setOverlayHeight] = useState(0);
+  const maxOverlayHeightRef = useRef(0);
+  const insets = useStableSafeAreaInsets();
   const [slideAnim] = useState(() => new Animated.Value(600));
 
   // Listen to keyboard height to lift input above keyboard
@@ -757,15 +762,47 @@ export default function PopupPost({
     </View>
   );
 
+  const windowHeight = Dimensions.get("window").height;
+  const overlayShrink =
+    keyboardHeight > 0 && maxOverlayHeightRef.current > overlayHeight && overlayHeight > 0
+      ? maxOverlayHeightRef.current - overlayHeight
+      : 0;
+  const effectiveKeyboardOffset =
+    keyboardHeight > 0 ? Math.max(0, keyboardHeight - overlayShrink) : 0;
+  const availableSheetHeight =
+    keyboardHeight > 0
+      ? Math.max(
+          260,
+          (overlayHeight > 0 ? overlayHeight : windowHeight) -
+            effectiveKeyboardOffset -
+            insets.top -
+            16
+        )
+      : Math.round(windowHeight * 0.75);
+  const closedBottomInsetPadding =
+    Platform.OS === "ios"
+      ? Math.max(insets.bottom + 8, 34)
+      : Math.max(insets.bottom + 10, 14);
+
+  const handleOverlayLayout = (e: any) => {
+    const h = e.nativeEvent?.layout?.height || 0;
+    if (h > 0) {
+      setOverlayHeight(h);
+      if (keyboardHeight === 0 || h > maxOverlayHeightRef.current) {
+        maxOverlayHeightRef.current = h;
+      }
+    }
+  };
+
   const commentSheetContent = (
     <Animated.View
       style={[
         styles.commentSheet,
         {
+          maxHeight: Math.min(520, availableSheetHeight),
           transform: [{ translateY: slideAnim }],
         },
       ]}
-      onStartShouldSetResponder={() => true}
     >
       {/* Drag handle */}
       <View style={styles.dragHandle} />
@@ -783,7 +820,8 @@ export default function PopupPost({
         contentContainerStyle={styles.commentsListContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        keyboardDismissMode="none"
+        nestedScrollEnabled
       >
         {comments.length === 0 ? (
           <View style={styles.emptyCommentsContainer}>
@@ -853,10 +891,10 @@ export default function PopupPost({
           {
             paddingBottom:
               keyboardHeight > 0
-                ? keyboardHeight + (Platform.OS === "ios" ? 10 : 6)
-                : Platform.OS === "ios"
-                  ? 34
-                  : 14,
+                ? Platform.OS === "ios"
+                  ? 10
+                  : 10
+                : closedBottomInsetPadding,
           },
         ]}
       >
@@ -882,6 +920,11 @@ export default function PopupPost({
             style={styles.commentTextInput}
             returnKeyType="send"
             onSubmitEditing={handleAddComment}
+            onFocus={() => {
+              setTimeout(() => {
+                commentsScrollRef.current?.scrollToEnd({ animated: true });
+              }, 180);
+            }}
           />
 
           <TouchableOpacity
@@ -918,19 +961,20 @@ export default function PopupPost({
           presentationStyle="overFullScreen"
           onRequestClose={handleCloseComments}
         >
-          <View style={StyleSheet.absoluteFill}>
-            <ScrollView
-              style={styles.commentModalOverlay}
-              contentContainerStyle={styles.commentModalOverlayContent}
-              keyboardShouldPersistTaps="always"
-              bounces={false}
+          <View style={StyleSheet.absoluteFill} onLayout={handleOverlayLayout}>
+            <View
+              style={[
+                styles.commentModalOverlay,
+                styles.commentModalOverlayContent,
+                { paddingBottom: effectiveKeyboardOffset },
+              ]}
             >
               <Pressable
                 style={StyleSheet.absoluteFill}
                 onPress={handleCloseComments}
               />
               {commentSheetContent}
-            </ScrollView>
+            </View>
 
             {/* When comment modal is open, render ReportModal directly inside it */}
             {reportModalVisible && (
@@ -1001,18 +1045,20 @@ export default function PopupPost({
         </View>
 
         {showComments && (
-          <ScrollView
-            style={styles.commentModalOverlayAbsolute}
-            contentContainerStyle={styles.commentModalOverlayContent}
-            keyboardShouldPersistTaps="always"
-            bounces={false}
+          <View
+            onLayout={handleOverlayLayout}
+            style={[
+              styles.commentModalOverlayAbsolute,
+              styles.commentModalOverlayContent,
+              { paddingBottom: effectiveKeyboardOffset },
+            ]}
           >
             <Pressable
               style={StyleSheet.absoluteFill}
               onPress={handleCloseComments}
             />
             {commentSheetContent}
-          </ScrollView>
+          </View>
         )}
 
         {/* Report Modal inside the Post Modal */}

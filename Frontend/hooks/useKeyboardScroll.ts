@@ -1,206 +1,298 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Keyboard,
-  Platform,
   Dimensions,
-  NativeSyntheticEvent,
+  Keyboard,
+  LayoutChangeEvent,
   NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
   ScrollView,
+  UIManager,
+  findNodeHandle,
 } from 'react-native';
 
-export interface UseKeyboardScrollOptions {
-  /** Extra offset in pixels above the keyboard for the focused element (default 24) */
+type UseKeyboardScrollOptions = {
+  extraScrollHeight?: number;
   extraOffset?: number;
-  /** Custom bottom padding to maintain when keyboard is hidden (default 12) */
   defaultBottomPadding?: number;
-  /** Automatically scroll back to top when keyboard dismisses (default true) */
   resetOnHide?: boolean;
-}
+};
 
-export function useKeyboardScroll(options?: UseKeyboardScrollOptions) {
-  const defaultPadding = options?.defaultBottomPadding ?? 12;
-  const extraOffset = options?.extraOffset ?? 24;
+type ScrollTarget =
+  | React.RefObject<any>
+  | number
+  | 'end'
+  | null
+  | undefined;
+
+export function useKeyboardScroll(options: UseKeyboardScrollOptions = {}) {
+  const {
+    extraScrollHeight,
+    extraOffset,
+    defaultBottomPadding = 40,
+    resetOnHide = false,
+  } = options;
+  const resolvedExtraScrollHeight = extraScrollHeight ?? extraOffset ?? 120;
+
+  const scrollViewRef = useRef<any>(null);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [layoutShrinkAmount, setLayoutShrinkAmount] = useState(0);
 
-  const scrollRef = useRef<any>(null);
   const currentScrollYRef = useRef(0);
+  const activeTargetRef = useRef<ScrollTarget>(null);
+  const activeCustomOffsetRef = useRef<number | undefined>(undefined);
   const keyboardHeightRef = useRef(0);
   const isKeyboardVisibleRef = useRef(false);
-  const activeInputRef = useRef<any>(null);
-  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollLayoutHeightRef = useRef(0);
+  const maxScrollLayoutHeightRef = useRef(0);
+  const contentHeightRef = useRef(0);
+  const AppliedExtraPaddingRef = useRef(0);
 
-  /**
-   * Tracks current scroll offset in real-time
-   */
-  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    currentScrollYRef.current = e.nativeEvent.contentOffset.y;
-  }, []);
+  const executeScrollTarget = useCallback(
+    (target: ScrollTarget, customOffset?: number) => {
+      if (target === null || target === undefined || !scrollViewRef.current) return;
 
-  /**
-   * Direct scroll to Y offset
-   */
-  const scrollTo = useCallback((y: number, animated = true) => {
-    scrollRef.current?.scrollTo?.({ y, animated });
-  }, []);
+      const offset = customOffset ?? resolvedExtraScrollHeight;
 
-  /**
-   * Scroll to bottom of ScrollView
-   */
-  const scrollToEnd = useCallback((animated = true) => {
-    setTimeout(() => {
-      scrollRef.current?.scrollToEnd?.({ animated });
-    }, 100);
-  }, []);
-
-  /**
-   * Intelligently scroll the focused input into view:
-   * - If the input is already comfortably visible, does nothing (avoids annoying jumps while typing).
-   * - If the input would be covered by the keyboard or too close to it, smoothly scrolls just enough
-   *   so the input is fully visible above the keyboard with extra breathing room.
-   */
-  const scrollToFocusedInput = useCallback(
-    (target: any, customOffset?: number) => {
-      const node = target?.current || target;
-      if (!node) return;
-
-      activeInputRef.current = node;
-
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current);
-        hideTimeoutRef.current = null;
+      if (target === 'end') {
+        scrollViewRef.current.scrollToEnd({ animated: true });
+        return;
       }
 
-      const offset = customOffset ?? extraOffset;
-
-      const performScroll = () => {
-        if (!node?.measureInWindow || !scrollRef.current) return;
-
-        node.measureInWindow((x: number, y: number, width: number, height: number) => {
-          if (y === undefined || height === undefined) return;
-
-          const windowHeight = Dimensions.get('window').height;
-          const isAndroid = Platform.OS === 'android';
-          const kbHeight = keyboardHeightRef.current;
-
-          // Compute visible height above keyboard
-          const visibleHeight = isAndroid
-            ? (windowHeight < 600 && kbHeight > 0 ? windowHeight : Math.max(windowHeight - kbHeight, 200))
-            : (isKeyboardVisibleRef.current ? windowHeight - kbHeight : windowHeight);
-
-          const inputBottom = y + height;
-          const targetBottom = visibleHeight - offset;
-
-          // If input bottom is obscured by the keyboard:
-          if (inputBottom > targetBottom) {
-            const overlap = inputBottom - targetBottom;
-            const newY = Math.max(0, currentScrollYRef.current + overlap);
-            scrollRef.current?.scrollTo?.({ y: newY, animated: true });
-          } else if (y < 60) {
-            // If input is scrolled too high under top header:
-            const overlapTop = 60 - y;
-            const newY = Math.max(0, currentScrollYRef.current - overlapTop);
-            scrollRef.current?.scrollTo?.({ y: newY, animated: true });
-          }
-          // If already comfortably visible between top and keyboard, DO NOT scroll!
-        });
-      };
-
-      // Delay to let keyboard animate
-      const delay = isKeyboardVisibleRef.current ? 50 : (Platform.OS === 'ios' ? 220 : 120);
-      setTimeout(performScroll, delay);
-    },
-    [extraOffset]
-  );
-
-  /**
-   * Legacy compatibility helper
-   */
-  const scrollIntoView = useCallback(
-    (target: any, delayMs = 120) => {
       if (typeof target === 'number') {
-        setTimeout(() => {
-          scrollRef.current?.scrollTo?.({ y: target, animated: true });
-        }, delayMs);
-      } else {
-        scrollToFocusedInput(target);
+        scrollViewRef.current.scrollTo({ y: Math.max(0, target), animated: true });
+        return;
+      }
+
+      const inputElement = target?.current ? target.current : target;
+      if (!inputElement) return;
+
+      const inputNode = findNodeHandle(inputElement);
+      const scrollNode = findNodeHandle(scrollViewRef.current);
+
+      if (inputNode && scrollNode) {
+        UIManager.measureLayout(
+          inputNode,
+          scrollNode,
+          () => {},
+          (_left, top, _width, height) => {
+            const windowHeight = Dimensions.get('window').height;
+            const kbHeight = keyboardHeightRef.current;
+
+            UIManager.measureInWindow(
+              scrollNode,
+              (_scrollX, scrollWindowY, _scrollW, scrollWindowH) => {
+                const effectiveScrollTopY =
+                  typeof scrollWindowY === 'number' && scrollWindowY >= 0 ? scrollWindowY : 0;
+                const effectiveScrollHeight =
+                  typeof scrollWindowH === 'number' && scrollWindowH > 0
+                    ? scrollWindowH
+                    : scrollLayoutHeightRef.current > 0
+                      ? scrollLayoutHeightRef.current
+                      : windowHeight - effectiveScrollTopY;
+
+                const scrollBottomInWindow = effectiveScrollTopY + effectiveScrollHeight;
+                const keyboardTopInWindow =
+                  kbHeight > 0 ? windowHeight - kbHeight : windowHeight * 0.58;
+
+                // Visible bottom inside ScrollView coordinate space
+                const visibleViewportHeight = Math.max(
+                  140,
+                  Math.min(scrollBottomInWindow, keyboardTopInWindow) - effectiveScrollTopY
+                );
+
+                const inputTopInViewport = top - currentScrollYRef.current;
+                const inputBottomInViewport = inputTopInViewport + height;
+                const safeTopMargin = 20;
+                const safeBottomLimit = visibleViewportHeight - Math.max(offset, 72);
+
+                if (inputBottomInViewport > safeBottomLimit) {
+                  const delta = inputBottomInViewport - safeBottomLimit;
+                  const targetY = Math.max(0, currentScrollYRef.current + delta);
+                  scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
+                } else if (inputTopInViewport < safeTopMargin) {
+                  const targetY = Math.max(0, top - safeTopMargin);
+                  scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
+                }
+              }
+            );
+          }
+        );
       }
     },
-    [scrollToFocusedInput]
+    [resolvedExtraScrollHeight]
   );
 
   useEffect(() => {
-    const handleShow = (e: any) => {
-      const height = e?.endCoordinates?.height ?? 280;
-      setKeyboardHeight(height);
-      keyboardHeightRef.current = height;
-      setIsKeyboardVisible(true);
-      isKeyboardVisibleRef.current = true;
+    const timers: ReturnType<typeof setTimeout>[] = [];
 
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current);
-        hideTimeoutRef.current = null;
+    const clearTimers = () => {
+      while (timers.length > 0) {
+        const t = timers.pop();
+        if (t) clearTimeout(t);
       }
+    };
 
-      // If an input was focused while keyboard was opening, verify its position
-      if (activeInputRef.current) {
-        setTimeout(() => {
-          if (activeInputRef.current) {
-            scrollToFocusedInput(activeInputRef.current);
-          }
-        }, Platform.OS === 'ios' ? 80 : 60);
+    const handleShow = (e: any) => {
+      const height = e?.endCoordinates?.height || 300;
+      isKeyboardVisibleRef.current = true;
+      keyboardHeightRef.current = height;
+      setKeyboardVisible(true);
+      setKeyboardHeight(height);
+
+      clearTimers();
+      if (activeTargetRef.current !== null && activeTargetRef.current !== undefined) {
+        timers.push(
+          setTimeout(() => {
+            executeScrollTarget(activeTargetRef.current, activeCustomOffsetRef.current);
+          }, 80)
+        );
+        timers.push(
+          setTimeout(() => {
+            executeScrollTarget(activeTargetRef.current, activeCustomOffsetRef.current);
+          }, 240)
+        );
       }
     };
 
     const handleHide = () => {
-      setKeyboardHeight(0);
-      keyboardHeightRef.current = 0;
-      setIsKeyboardVisible(false);
+      clearTimers();
       isKeyboardVisibleRef.current = false;
-      activeInputRef.current = null;
+      keyboardHeightRef.current = 0;
+      activeTargetRef.current = null;
+      activeCustomOffsetRef.current = undefined;
+      setKeyboardVisible(false);
+      setKeyboardHeight(0);
+      setLayoutShrinkAmount(0);
 
-      if (options?.resetOnHide) {
-        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-        hideTimeoutRef.current = setTimeout(() => {
-          if (!isKeyboardVisibleRef.current) {
-            scrollRef.current?.scrollTo?.({ y: 0, animated: true });
-          }
-        }, 120);
+      if (resetOnHide) {
+        timers.push(
+          setTimeout(() => {
+            scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+          }, 50)
+        );
+      } else {
+        timers.push(
+          setTimeout(() => {
+            const layoutH =
+              maxScrollLayoutHeightRef.current ||
+              scrollLayoutHeightRef.current ||
+              Dimensions.get('window').height;
+            const naturalContentH = Math.max(
+              0,
+              contentHeightRef.current - AppliedExtraPaddingRef.current
+            );
+            const maxNaturalScrollY = Math.max(0, naturalContentH - layoutH);
+            if (currentScrollYRef.current > maxNaturalScrollY) {
+              scrollViewRef.current?.scrollTo({ y: maxNaturalScrollY, animated: true });
+            }
+          }, 60)
+        );
       }
     };
 
-    const willShowSub = Keyboard.addListener('keyboardWillShow', handleShow);
-    const didShowSub = Keyboard.addListener('keyboardDidShow', handleShow);
-    const willHideSub = Keyboard.addListener('keyboardWillHide', handleHide);
-    const didHideSub = Keyboard.addListener('keyboardDidHide', handleHide);
+    const showSub =
+      Platform.OS === 'ios'
+        ? Keyboard.addListener('keyboardWillShow', handleShow)
+        : Keyboard.addListener('keyboardDidShow', handleShow);
+
+    const hideSub =
+      Platform.OS === 'ios'
+        ? Keyboard.addListener('keyboardWillHide', handleHide)
+        : Keyboard.addListener('keyboardDidHide', handleHide);
 
     return () => {
-      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-      willShowSub.remove();
-      didShowSub.remove();
-      willHideSub.remove();
-      didHideSub.remove();
+      clearTimers();
+      showSub.remove();
+      hideSub.remove();
     };
-  }, [options?.resetOnHide, scrollToFocusedInput]);
+  }, [executeScrollTarget, resetOnHide]);
 
-  /**
-   * Dynamic bottom padding:
-   * Provides appropriate clearance when keyboard is open so the user can freely scroll
-   * the bottom-most input or button above the keyboard, without double-padding on Android.
-   */
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    currentScrollYRef.current = event.nativeEvent.contentOffset.y;
+  }, []);
+
+  const handleLayout = useCallback((event: LayoutChangeEvent) => {
+    const height = event.nativeEvent.layout.height;
+    if (height <= 0) return;
+
+    scrollLayoutHeightRef.current = height;
+    if (!isKeyboardVisibleRef.current || height > maxScrollLayoutHeightRef.current) {
+      maxScrollLayoutHeightRef.current = height;
+      setLayoutShrinkAmount(0);
+    } else if (maxScrollLayoutHeightRef.current > height) {
+      setLayoutShrinkAmount(maxScrollLayoutHeightRef.current - height);
+    }
+  }, []);
+
+  const handleContentSizeChange = useCallback(
+    (_width: number, height: number) => {
+      contentHeightRef.current = height;
+      if (isKeyboardVisibleRef.current && activeTargetRef.current) {
+        setTimeout(() => {
+          executeScrollTarget(activeTargetRef.current, activeCustomOffsetRef.current);
+        }, 50);
+      }
+    },
+    [executeScrollTarget]
+  );
+
+  const scrollToFocusedInput = useCallback(
+    (inputRefOrNode: ScrollTarget, customOffset?: number) => {
+      activeTargetRef.current = inputRefOrNode;
+      activeCustomOffsetRef.current = customOffset;
+
+      setTimeout(
+        () => {
+          executeScrollTarget(inputRefOrNode, customOffset);
+        },
+        Platform.OS === 'ios' ? 100 : 180
+      );
+    },
+    [executeScrollTarget]
+  );
+
+  const scrollIntoView = useCallback(
+    (targetOrOffset?: ScrollTarget, customOffset?: number) => {
+      if (targetOrOffset === undefined || targetOrOffset === null) {
+        scrollToFocusedInput('end', customOffset);
+        return;
+      }
+      scrollToFocusedInput(targetOrOffset, customOffset);
+    },
+    [scrollToFocusedInput]
+  );
+
+  // When keyboard is closed, contentBottomPadding is strictly defaultBottomPadding (zero visual change).
+  // When keyboard is open:
+  // - On Android (edgeToEdgeEnabled=true), KeyboardAvoidingView has behavior=undefined and the window
+  //   often does not shrink, or shrinks only partially. We add the uncompensated keyboard height plus
+  //   comfortable breathing room so the user can freely scroll the entire form above the keyboard.
+  // - On iOS, KeyboardAvoidingView already pads by the keyboard height, so we keep defaultBottomPadding
+  //   (or at least 56px) for comfortable scrolling.
+  const uncompensatedAndroidKbHeight =
+    Platform.OS === 'android' ? Math.max(0, keyboardHeight - layoutShrinkAmount) : 0;
+
   const contentBottomPadding = isKeyboardVisible
-    ? (Platform.OS === 'android' ? 24 : 32)
-    : defaultPadding;
+    ? Platform.OS === 'android'
+      ? defaultBottomPadding + uncompensatedAndroidKbHeight + 48
+      : Math.max(defaultBottomPadding, 56)
+    : defaultBottomPadding;
+
+  AppliedExtraPaddingRef.current = Math.max(0, contentBottomPadding - defaultBottomPadding);
 
   return {
-    scrollRef,
-    keyboardHeight,
+    scrollViewRef,
+    scrollRef: scrollViewRef,
     isKeyboardVisible,
-    contentBottomPadding,
+    keyboardHeight,
     handleScroll,
-    scrollTo,
-    scrollIntoView,
-    scrollToEnd,
+    handleLayout,
+    handleContentSizeChange,
     scrollToFocusedInput,
+    scrollIntoView,
+    scrollToEnd: () => scrollToFocusedInput('end'),
+    contentBottomPadding,
   };
 }

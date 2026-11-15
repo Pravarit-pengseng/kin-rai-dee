@@ -7,9 +7,10 @@ import {
   Platform,
   Animated,
   LayoutChangeEvent,
+  Keyboard,
 } from "react-native";
 import { BlurView } from "expo-blur";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useStableSafeAreaInsets } from "@/components/SafeAreaView";
 import * as Haptics from "expo-haptics";
 import {
   House,
@@ -57,8 +58,20 @@ export default function LiquidMenu({
   active = "home",
   onChange,
 }: LiquidMenuProps) {
-  const insets = useSafeAreaInsets();
+  const insets = useStableSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom, 12);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardOpen(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardOpen(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const activeIndex = Math.max(
     0,
@@ -128,6 +141,10 @@ export default function LiquidMenu({
       setMenuWidth(width);
     }
   };
+
+  if (isKeyboardOpen) {
+    return null;
+  }
 
   return (
     <View

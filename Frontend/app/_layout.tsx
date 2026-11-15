@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform, Text, TextInput } from 'react-native';
 import 'react-native-reanimated';
+import { initialWindowMetrics, SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/context/AuthContext';
@@ -54,20 +55,22 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="MyPost" options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name="settings" options={{ headerShown: false }} />
-          <Stack.Screen name="terms-of-use" options={{ headerShown: false }} />
-          <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
-          <Stack.Screen name="blocked-users" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: true }} />
-        </Stack>
-        <StatusBar style="dark" />
-      </ThemeProvider>
-    </AuthProvider>
+    <SafeAreaProvider initialMetrics={initialWindowMetrics}>
+      <AuthProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="MyPost" options={{ headerShown: false, animation: 'none' }} />
+            <Stack.Screen name="settings" options={{ headerShown: false }} />
+            <Stack.Screen name="terms-of-use" options={{ headerShown: false }} />
+            <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
+            <Stack.Screen name="blocked-users" options={{ headerShown: false }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: true }} />
+          </Stack>
+          <StatusBar style="dark" />
+        </ThemeProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

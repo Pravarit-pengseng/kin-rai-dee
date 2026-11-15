@@ -20,7 +20,7 @@ import PopupPost, { PopupPostData } from "@/components/popup-post";
 import PostSkeleton from "@/components/PostSkeleton";
 import LiquidMenu from "@/components/liquid-menu";
 import DeletePopup from "@/components/DeletePopup";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeAreaView";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/context/AuthContext";
 import { getUserPosts } from "@/services/profileService";

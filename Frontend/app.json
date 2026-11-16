@@ -75,13 +75,13 @@
         }
       },
       "eas": {
-        "projectId": "b143687f-edc5-4730-ab99-dbaa17a412b3"
+        "projectId": "d0243b99-d9db-472e-9a5a-be3ca0143e63"
       }
     },
     "runtimeVersion": "1.1.0",
-    "owner": "we9ds-team",
+    "owner": "mercury.48",
     "updates": {
-      "url": "https://u.expo.dev/b143687f-edc5-4730-ab99-dbaa17a412b3"
+      "url": "https://u.expo.dev/d0243b99-d9db-472e-9a5a-be3ca0143e63"
     }
   }
 }
